@@ -1,0 +1,6 @@
+.env
+.cache/
+__pycache__/
+*.pyc
+.vercel
+.claude/settings.local.json

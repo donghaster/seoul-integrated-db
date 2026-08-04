@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>금집부쌤의 서울시 통합 부동산 대시보드 — 상가·오피스텔 대시보드</title>
+  <link rel="stylesheet" href="../shared/app.css?v=1" />
+  <link rel="stylesheet" href="../vendor/leaflet/leaflet.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🏢</text></svg>" />
+</head>
+<body>
+
+<!-- 인쇄 전용 워터마크(반포114 상호·연락처) -->
+<div class="print-watermark" aria-hidden="true">
+  <img src="../assets/banpo114-logo.png" alt="" onerror="this.classList.add('img-missing')" />
+  <span class="wm-text">반포114공인중개사 · 010-9442-2027</span>
+</div>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-left">
+      <img class="geumjib-badge" src="../assets/geumjib-logo.png" alt="금집부쌤"
+           onerror="this.classList.add('img-missing')" />
+      <div class="brand-titles">
+        <h1><a href="../">금집부쌤의 서울시 통합 부동산 대시보드</a><br />상가·오피스텔 대시보드 <span class="brand-tag">서울 25개 자치구</span></h1>
+        <p class="brand-sub">국토교통부 상업·업무용 매매 및 오피스텔 매매·전월세 실거래가 · 서울시 25개 자치구 전역</p>
+      </div>
+    </div>
+    <span class="brand-sep" aria-hidden="true"></span>
+    <div class="brand-plate">
+      <img class="logo" src="../assets/banpo114-logo.png" alt="반포114공인중개사 · 010-9442-2027"
+           onerror="this.classList.add('img-missing')" />
+      <span class="brand-plate-fallback">반포<b>114</b>공인중개사 · 010-9442-2027</span>
+      <img class="mascot" src="../assets/geumddogi.png" alt="반포114공인중개사 캐릭터 금똑이"
+           onerror="this.classList.add('img-missing')" />
+    </div>
+  </div>
+  <div class="topbar-right">
+    <a class="home-link" href="../">← 대시보드 모음</a>
+    <button type="button" id="printAllBtn" class="print-btn">🖨️ 전체 인쇄</button>
+    <div class="fetched" id="fetchedAt"></div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="printBanner" class="print-only print-page-banner"></div>
+
+  <section class="filter-bar" aria-label="지역 선택">
+    <div class="ctl">
+      <label for="guSelect">자치구</label>
+      <select id="guSelect"></select>
+    </div>
+    <div class="ctl">
+      <label for="dongSelect">법정동</label>
+      <select id="dongSelect"></select>
+    </div>
+    <div class="filter-note" id="periodNote"></div>
+  </section>
+
+  <nav class="section-nav" aria-label="섹션 바로가기">
+    <button data-target="sec-kpi">핵심 요약</button>
+    <button data-target="sec-map">실거래 지도</button>
+    <button data-target="sec-nrg">상가·업무용 TOP10</button>
+    <button data-target="sec-offi">오피스텔 TOP10</button>
+    <button data-target="sec-volume">거래량 비교</button>
+    <button data-target="sec-location">수익형 입지분석</button>
+    <button data-target="sec-policy">상가·오피스텔 정책</button>
+  </nav>
+
+  <!-- ─────────────── 핵심 요약 ─────────────── -->
+  <section class="card-section" id="sec-kpi">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> <span id="kpiTitle">핵심 요약</span></h2>
+      <button class="sec-print-btn" onclick="printSection('sec-kpi')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc" id="kpiDesc"></p>
+    <div class="stat-row" id="kpiRow"></div>
+  </section>
+
+  <!-- ─────────────── 지도 ─────────────── -->
+  <section class="card-section" id="sec-map">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 오피스텔 실거래 TOP10 위치 지도</h2>
+      <button class="sec-print-btn" onclick="printSection('sec-map')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc">선택 지역의 <b>오피스텔 매매 TOP10</b> 위치입니다. 상업·업무용(상가) 실거래는 지번이 <b>비공개(1**)</b>로 제공되어 지도에 표시하지 않습니다.</p>
+    <div class="map-flex">
+      <div class="leaflet-map-wrap">
+        <div id="sgMap" class="leaflet-map"></div>
+        <div class="map-legend">
+          <span><i style="background:#4f7fe6"></i> 오피스텔 매매 TOP10</span>
+          <span id="mapMissNote"></span>
+        </div>
+      </div>
+      <div class="zone-detail-wrap">
+        <div class="zone-detail" id="sgDetail">
+          <p class="placeholder">지도의 원 또는 아래 오피스텔 TOP10 표의<br />건물명을 클릭하세요.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────── 상가·업무용 TOP10 ─────────────── -->
+  <section class="card-section" id="sec-nrg">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 상가·업무용 실거래가 TOP 10</h2>
+      <button class="sec-print-btn" onclick="printSection('sec-nrg')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc">국토교통부 <b>상업·업무용 부동산 매매</b> 실거래입니다. 상업용은 건물명이 공개되지 않아 <b>건축물 용도·지번</b>으로 표시되며, 면적은 <b>건물 연면적</b> 기준입니다.</p>
+    <div class="tab-row" id="nrgTabs">
+      <button class="active" data-g="shop">일반상가 (근린생활·판매)</button>
+      <button data-g="office">업무용 (사무실 등)</button>
+      <button data-g="etc">기타 상업·업무용</button>
+    </div>
+    <div class="table-wrap">
+      <table class="rank-table">
+        <thead><tr><th>순위</th><th>용도</th><th>소재지</th><th>연면적</th><th>층</th><th>거래가</th><th>평당가</th><th>거래일</th></tr></thead>
+        <tbody id="nrgBody"></tbody>
+      </table>
+    </div>
+    <div id="nrgPrintAll" class="print-only"></div>
+  </section>
+
+  <!-- ─────────────── 오피스텔 TOP10 ─────────────── -->
+  <section class="card-section" id="sec-offi">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 오피스텔 실거래가 TOP 10</h2>
+      <button class="sec-print-btn" onclick="printSection('sec-offi')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc">오피스텔 <b>매매·전세·월세</b> 상위 10건입니다. 월세는 <b>환산보증금(보증금 + 월세×100)</b> 기준으로 줄을 세웁니다. 건물명을 클릭하면 위 지도에 위치가 표시됩니다.</p>
+    <div class="tab-row" id="offiTabs">
+      <button class="active" data-t="sale">매매</button>
+      <button data-t="jeonse">전세</button>
+      <button data-t="wolse">월세</button>
+    </div>
+    <div class="table-wrap">
+      <table class="rank-table">
+        <thead><tr><th>순위</th><th>건물명</th><th>전용면적</th><th>층</th><th id="offiPriceHead">거래가</th><th>평당가</th><th>거래일</th></tr></thead>
+        <tbody id="offiBody"></tbody>
+      </table>
+    </div>
+    <div id="offiPrintAll" class="print-only"></div>
+    <div class="chart-box" style="height:300px; margin-top:22px;"><canvas id="offiCmpChart"></canvas></div>
+  </section>
+
+  <!-- ─────────────── 거래량 비교 ─────────────── -->
+  <section class="card-section" id="sec-volume">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 거래량 비교 (상가 vs 오피스텔)</h2>
+      <button class="sec-print-btn" onclick="printSection('sec-volume')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc">선택 지역의 <b>월별 거래건수</b>와, 서울 <b>자치구별 수익형 부동산 거래량 순위</b>입니다.</p>
+    <div class="chart-grid">
+      <div class="chart-box"><canvas id="volMonthChart"></canvas></div>
+      <div class="chart-box"><canvas id="volDonutChart"></canvas></div>
+    </div>
+    <div class="chart-box" style="height:340px; margin-top:22px;"><canvas id="volGuChart"></canvas></div>
+    <div class="table-wrap" style="margin-top:18px;">
+      <table class="rank-table">
+        <thead><tr><th>순위</th><th>자치구</th><th>상가·업무용</th><th>오피스텔 매매</th><th>오피스텔 전월세</th><th>상가 중위가</th><th>오피스텔 중위 매매가</th></tr></thead>
+        <tbody id="volGuBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ─────────────── 수익형 입지분석 ─────────────── -->
+  <section class="card-section" id="sec-location">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> <span id="locTitle">수익형 부동산 입지분석</span></h2>
+      <button class="sec-print-btn" onclick="printSection('sec-location')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc">항목을 클릭하면 상세 설명이 펼쳐집니다.</p>
+    <div class="loc-grid" id="locGrid"></div>
+    <div class="loc-detail" id="locDetail"></div>
+  </section>
+
+  <!-- ─────────────── 정책 ─────────────── -->
+  <section class="card-section" id="sec-policy">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 상가·오피스텔 체크포인트</h2>
+      <button class="sec-print-btn" onclick="printSection('sec-policy')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc">수익형 부동산 상담에서 반드시 짚어야 할 항목입니다. <b>세법·제도는 수시로 바뀌므로 계약 전 원문 확인이 필요</b>합니다.</p>
+    <div class="policy-grid" id="policyGrid"></div>
+  </section>
+</div>
+
+<footer class="disclaimer">
+  반포114공인중개사 · 010-9442-2027 &nbsp;|&nbsp; 금집부쌤의 서울시 통합 부동산 대시보드 — 상가·오피스텔<br />
+  데이터 출처: 국토교통부 상업·업무용 부동산 매매 및 오피스텔 매매/전월세 실거래가(공공데이터포털) · 금액 단위는 만원<br />
+  상업용 실거래는 지번 일부가 비공개(예: 1**)로 제공되며, 실거래 신고는 계약일로부터 30일 이내이므로 최근 데이터는 계속 추가됩니다.
+</footer>
+
+<script src="../vendor/leaflet/leaflet.js"></script>
+<script src="../vendor/chart.umd.min.js"></script>
+<script src="../data/sangga.js?v=1"></script>
+<script src="../data/geo.js?v=1"></script>
+<script src="../shared/brand.js?v=1"></script>
+<script src="app.js?v=1"></script>
+</body>
+</html>

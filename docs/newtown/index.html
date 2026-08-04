@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>금집부쌤의 서울시 통합 부동산 대시보드 — 뉴타운 대시보드</title>
+  <link rel="stylesheet" href="../shared/app.css?v=1" />
+  <link rel="stylesheet" href="../vendor/leaflet/leaflet.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🏙️</text></svg>" />
+</head>
+<body>
+
+<!-- 인쇄 전용 워터마크(반포114 상호·연락처) -->
+<div class="print-watermark" aria-hidden="true">
+  <img src="../assets/banpo114-logo.png" alt="" onerror="this.classList.add('img-missing')" />
+  <span class="wm-text">반포114공인중개사 · 010-9442-2027</span>
+</div>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-left">
+      <img class="geumjib-badge" src="../assets/geumjib-logo.png" alt="금집부쌤"
+           onerror="this.classList.add('img-missing')" />
+      <div class="brand-titles">
+        <h1><a href="../">금집부쌤의 서울시 통합 부동산 대시보드</a><br />뉴타운 대시보드 <span class="brand-tag">서울 재정비촉진지구 전역</span></h1>
+        <p class="brand-sub">서울시 1~3차 뉴타운(재정비촉진지구) 및 한강변 전략정비구역 · 구역별 진행상황 · 실거래 연동</p>
+      </div>
+    </div>
+    <span class="brand-sep" aria-hidden="true"></span>
+    <div class="brand-plate">
+      <img class="logo" src="../assets/banpo114-logo.png" alt="반포114공인중개사 · 010-9442-2027"
+           onerror="this.classList.add('img-missing')" />
+      <span class="brand-plate-fallback">반포<b>114</b>공인중개사 · 010-9442-2027</span>
+      <img class="mascot" src="../assets/geumddogi.png" alt="반포114공인중개사 캐릭터 금똑이"
+           onerror="this.classList.add('img-missing')" />
+    </div>
+  </div>
+  <div class="topbar-right">
+    <a class="home-link" href="../">← 대시보드 모음</a>
+    <button type="button" id="printAllBtn" class="print-btn">🖨️ 전체 인쇄</button>
+    <div class="fetched" id="fetchedAt"></div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="printBanner" class="print-only print-page-banner"></div>
+
+  <section class="filter-bar" aria-label="지역 선택">
+    <div class="ctl">
+      <label for="guSelect">자치구</label>
+      <select id="guSelect"></select>
+    </div>
+    <div class="ctl">
+      <label for="waveSelect">지정 차수</label>
+      <select id="waveSelect">
+        <option value="all">전체</option>
+        <option value="1차">1차 뉴타운 (2002)</option>
+        <option value="2차">2차 뉴타운 (2003)</option>
+        <option value="3차">3차 뉴타운 (2005)</option>
+        <option value="한강변">한강변 전략정비구역</option>
+      </select>
+    </div>
+    <div class="ctl">
+      <label for="statusSelect">진행 상태</label>
+      <select id="statusSelect">
+        <option value="all">전체</option>
+        <option value="ing">진행 중</option>
+        <option value="done">대부분 완료</option>
+      </select>
+    </div>
+    <div class="filter-note" id="countNote"></div>
+  </section>
+
+  <nav class="section-nav" aria-label="섹션 바로가기">
+    <button data-target="sec-kpi">핵심 요약</button>
+    <button data-target="sec-map">뉴타운 지도</button>
+    <button data-target="sec-list">지구별 진행상황</button>
+    <button data-target="sec-zones">구역별 상세</button>
+    <button data-target="sec-deal">뉴타운 실거래</button>
+    <button data-target="sec-policy">재개발 체크포인트</button>
+  </nav>
+
+  <!-- ─────────────── 핵심 요약 ─────────────── -->
+  <section class="card-section" id="sec-kpi">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 서울 뉴타운 한눈에 보기</h2>
+      <button class="sec-print-btn" onclick="printSection('sec-kpi')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc">서울시가 2002~2005년 1~3차로 지정한 <b>재정비촉진지구(뉴타운)</b>와 한강변 전략정비구역을 자치구별로 정리했습니다.</p>
+    <div class="stat-row" id="kpiRow"></div>
+  </section>
+
+  <!-- ─────────────── 지도 ─────────────── -->
+  <section class="card-section" id="sec-map">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 서울 뉴타운 위치 지도</h2>
+      <button class="sec-print-btn" onclick="printSection('sec-map')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc">원을 클릭하면 해당 뉴타운의 요약이 오른쪽에 표시됩니다. 원의 색은 <b>진행 단계</b>를 나타냅니다.</p>
+    <div class="map-flex">
+      <div class="leaflet-map-wrap">
+        <div id="ntMap" class="leaflet-map"></div>
+        <div class="map-legend">
+          <span><i style="background:#bc3d3d"></i> 초기(구역지정·조합설립)</span>
+          <span><i style="background:#cf9a45"></i> 인가·이주·철거</span>
+          <span><i style="background:#4f7fe6"></i> 착공</span>
+          <span><i style="background:#4fada8"></i> 준공·입주</span>
+        </div>
+      </div>
+      <div class="zone-detail-wrap">
+        <div class="zone-detail" id="ntDetail">
+          <p class="placeholder">지도의 원 또는 아래 목록에서<br />뉴타운을 클릭하세요.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────── 지구별 진행상황 ─────────────── -->
+  <section class="card-section" id="sec-list">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 지구별 진행상황</h2>
+      <button class="sec-print-btn" onclick="printSection('sec-list')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc">각 카드의 막대는 <b>구역지정 → 조합설립 → 사업시행인가 → 관리처분인가 → 이주·철거 → 착공 → 준공</b> 단계를 나타냅니다. 카드를 클릭하면 위 지도가 해당 지구로 이동합니다.</p>
+
+    <!-- 27개 지구를 한 번에 늘어놓지 않고, 묶음 단위로 접었다 폈다 한다 -->
+    <div class="view-bar">
+      <div class="view-ctl">
+        <span class="view-label">묶어보기</span>
+        <div class="tab-row" id="ntGroupTabs">
+          <button class="active" data-g="stage">진행단계별</button>
+          <button data-g="area">권역별</button>
+          <button data-g="gu">자치구별</button>
+          <button data-g="none">전체 나열</button>
+        </div>
+      </div>
+      <div class="view-ctl">
+        <span class="view-label">보기</span>
+        <div class="tab-row" id="ntViewTabs">
+          <button class="active" data-v="card">카드</button>
+          <button data-v="list">목록(표)</button>
+        </div>
+      </div>
+      <div class="view-ctl view-ctl-end">
+        <button type="button" class="mini-btn" id="ntExpandAll">모두 펼치기</button>
+        <button type="button" class="mini-btn" id="ntCollapseAll">모두 접기</button>
+      </div>
+    </div>
+
+    <div id="ntGroups"></div>
+  </section>
+
+  <!-- ─────────────── 구역별 상세 ─────────────── -->
+  <section class="card-section" id="sec-zones">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 구역별 상세 (노량진 · 흑석 · 신길)</h2>
+      <button class="sec-print-btn" onclick="printSection('sec-zones')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc">구역 단위 시공사·세대수까지 확인된 3개 뉴타운입니다. 다른 지구는 구역 수가 많고 해제·변경이 잦아 <b>지구 단위 요약</b>으로만 제공합니다.</p>
+    <div class="tab-row" id="zoneTabs">
+      <button class="active" data-z="noryangjin">노량진뉴타운</button>
+      <button data-z="heukseok">흑석뉴타운</button>
+      <button data-z="singil">신길뉴타운</button>
+    </div>
+    <div class="map-flex">
+      <div class="leaflet-map-wrap">
+        <div id="zoneMap" class="leaflet-map" style="height:420px;"></div>
+      </div>
+      <div class="zone-detail-wrap">
+        <div class="zone-detail" id="zoneDetail">
+          <p class="placeholder">지도의 구역 또는 아래 카드를 클릭하세요.</p>
+        </div>
+      </div>
+    </div>
+    <div class="zone-grid" id="zoneGrid" style="margin-top:22px;"></div>
+  </section>
+
+  <!-- ─────────────── 뉴타운 실거래 ─────────────── -->
+  <section class="card-section" id="sec-deal">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 뉴타운 지역 아파트 실거래</h2>
+      <button class="sec-print-btn" onclick="printSection('sec-deal')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc" id="dealDesc">각 뉴타운이 속한 <b>법정동</b>의 국토교통부 아파트 실거래를 붙였습니다. 뉴타운 구역 내 거래만 골라낸 것이 아니라 <b>해당 동 전체</b> 기준입니다.</p>
+    <div class="table-wrap">
+      <table class="rank-table">
+        <thead><tr><th>순위</th><th>뉴타운</th><th>자치구</th><th>중위 매매가</th><th>중위 평당가</th><th>매매</th><th>전세</th><th>월세</th></tr></thead>
+        <tbody id="dealBody"></tbody>
+      </table>
+    </div>
+    <div class="chart-box" style="height:340px; margin-top:22px;"><canvas id="ntPyeongChart"></canvas></div>
+  </section>
+
+  <!-- ─────────────── 체크포인트 ─────────────── -->
+  <section class="card-section" id="sec-policy">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 재개발·재건축 투자 체크포인트</h2>
+      <button class="sec-print-btn" onclick="printSection('sec-policy')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc">뉴타운 물건을 상담할 때 반드시 짚어야 할 항목입니다. <b>제도와 요건은 수시로 바뀌므로 계약 전 원문 확인이 필요</b>합니다.</p>
+    <div class="policy-grid" id="policyGrid"></div>
+  </section>
+</div>
+
+<footer class="disclaimer">
+  반포114공인중개사 · 010-9442-2027 &nbsp;|&nbsp; 금집부쌤의 서울시 통합 부동산 대시보드 — 뉴타운<br />
+  정비사업 진행상황은 공개 자료를 정리한 <b>참고용</b>이며, 구역별 인가일·시공사·세대수는 조합·구청 고시 원문으로 확인해야 합니다.<br />
+  실거래 자료 출처: 국토교통부 아파트 매매/전월세 실거래가(공공데이터포털) · 지도: OpenStreetMap
+</footer>
+
+<script src="../vendor/leaflet/leaflet.js"></script>
+<script src="../vendor/chart.umd.min.js"></script>
+<script src="../data/newtown.js?v=1"></script>
+<script src="../data/apt.js?v=1"></script>
+<script src="../shared/brand.js?v=1"></script>
+<script src="app.js?v=1"></script>
+</body>
+</html>

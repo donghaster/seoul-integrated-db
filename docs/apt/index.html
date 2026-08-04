@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>금집부쌤의 서울시 통합 부동산 대시보드 — 아파트 대시보드</title>
+  <link rel="stylesheet" href="../shared/app.css?v=1" />
+  <link rel="stylesheet" href="../vendor/leaflet/leaflet.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🏘️</text></svg>" />
+</head>
+<body>
+
+<!-- 인쇄 전용 워터마크(반포114 상호·연락처) — position:fixed라 인쇄 시 모든 페이지에 찍힌다 -->
+<div class="print-watermark" aria-hidden="true">
+  <img src="../assets/banpo114-logo.png" alt="" onerror="this.classList.add('img-missing')" />
+  <span class="wm-text">반포114공인중개사 · 010-9442-2027</span>
+</div>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-left">
+      <img class="geumjib-badge" src="../assets/geumjib-logo.png" alt="금집부쌤"
+           onerror="this.classList.add('img-missing')" />
+      <div class="brand-titles">
+        <h1><a href="../">금집부쌤의 서울시 통합 부동산 대시보드</a><br />아파트 대시보드 <span class="brand-tag">서울 25개 자치구</span></h1>
+        <p class="brand-sub">국토교통부 아파트 매매·전월세 실거래가 · 서울시 25개 자치구 전역 · 구/법정동 단위 조회</p>
+      </div>
+    </div>
+    <span class="brand-sep" aria-hidden="true"></span>
+    <div class="brand-plate">
+      <img class="logo" src="../assets/banpo114-logo.png" alt="반포114공인중개사 · 010-9442-2027"
+           onerror="this.classList.add('img-missing')" />
+      <span class="brand-plate-fallback">반포<b>114</b>공인중개사 · 010-9442-2027</span>
+      <img class="mascot" src="../assets/geumddogi.png" alt="반포114공인중개사 캐릭터 금똑이"
+           onerror="this.classList.add('img-missing')" />
+    </div>
+  </div>
+  <div class="topbar-right">
+    <a class="home-link" href="../">← 대시보드 모음</a>
+    <button type="button" id="printAllBtn" class="print-btn">🖨️ 전체 인쇄</button>
+    <div class="fetched" id="fetchedAt"></div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- 인쇄 1페이지 상단에만 나오는 "어느 지역 리포트인지" 배너 -->
+  <div id="printBanner" class="print-only print-page-banner"></div>
+
+  <!-- ─────────────── 조회 조건 ─────────────── -->
+  <section class="filter-bar" aria-label="지역 선택">
+    <div class="ctl">
+      <label for="guSelect">자치구</label>
+      <select id="guSelect"></select>
+    </div>
+    <div class="ctl">
+      <label for="dongSelect">법정동</label>
+      <select id="dongSelect"></select>
+    </div>
+    <div class="filter-note" id="periodNote"></div>
+  </section>
+
+  <nav class="section-nav" aria-label="섹션 바로가기">
+    <button data-target="sec-kpi">핵심 요약</button>
+    <button data-target="sec-map">실거래 지도</button>
+    <button data-target="sec-top10">실거래가 TOP10</button>
+    <button data-target="sec-compare">매매·전세·월세 비교</button>
+    <button data-target="sec-volume">실거래량</button>
+    <button data-target="sec-location">입지분석</button>
+    <button data-target="sec-policy">부동산 정책</button>
+  </nav>
+
+  <!-- ─────────────── 핵심 요약 ─────────────── -->
+  <section class="card-section" id="sec-kpi">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> <span id="kpiTitle">핵심 요약</span></h2>
+      <button class="sec-print-btn" onclick="printSection('sec-kpi')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc" id="kpiDesc"></p>
+    <div class="stat-row" id="kpiRow"></div>
+  </section>
+
+  <!-- ─────────────── 실거래 지도 ─────────────── -->
+  <section class="card-section" id="sec-map">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 실거래 TOP10 위치 지도</h2>
+      <button class="sec-print-btn" onclick="printSection('sec-map')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc">선택한 지역의 <b>매매 실거래가 TOP10</b> 단지 위치입니다. 아래 표에서 단지명을 클릭하면 지도가 그 단지로 이동합니다.</p>
+    <div class="map-flex">
+      <div class="leaflet-map-wrap">
+        <div id="aptMap" class="leaflet-map"></div>
+        <div class="map-legend">
+          <span><i style="background:#4f7fe6"></i> 매매 TOP10 단지</span>
+          <span>원의 크기 = 거래금액 순위</span>
+          <span id="mapMissNote"></span>
+        </div>
+      </div>
+      <div class="zone-detail-wrap">
+        <div class="zone-detail" id="aptDetail">
+          <p class="placeholder">지도의 원 또는 아래 TOP10 표의 단지명을 클릭하면<br />단지 정보가 여기에 표시됩니다.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ TOP 10 전환 버튼 3개 ═══════════════
+       화면에서는 아래 세 섹션 중 하나만 보이고, "전체 인쇄"에서는 셋 다 출력된다.
+       (@media print의 `section[data-tabpanel] { display:block !important }`) -->
+  <nav class="top-tabs" id="topTabs" role="tablist" aria-label="TOP 10 보기 전환">
+    <button type="button" class="top-tab is-on" role="tab" data-tab="deal">
+      <b>💰 아파트 실거래가 TOP 10</b><em>매매·전세·월세 금액 상위 10건</em>
+    </button>
+    <button type="button" class="top-tab" role="tab" data-tab="price">
+      <b>📊 매매·전세·월세 가격비교</b><em>TOP10 기준 세 가지 가격을 한 축에서</em>
+    </button>
+    <button type="button" class="top-tab" role="tab" data-tab="vol">
+      <b>📈 아파트 실거래량 TOP 10</b><em>월별 추이 + 구·동 거래량 순위</em>
+    </button>
+  </nav>
+
+  <!-- ─────────────── ① 실거래가 TOP 10 ─────────────── -->
+  <section class="card-section" id="sec-top10" data-tabpanel="deal">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 아파트 실거래가 TOP 10</h2>
+      <button class="sec-print-btn" onclick="printSection('sec-top10')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc">선택 지역의 실거래 중 <b>금액 상위 10건</b>입니다. 월세는 <b>환산보증금(보증금 + 월세×100)</b> 기준으로 줄을 세웁니다. 단지명을 클릭하면 위 지도에 위치가 표시됩니다.</p>
+    <div class="tab-row" id="dealTypeTabs">
+      <button class="active" data-t="sale">매매</button>
+      <button data-t="jeonse">전세</button>
+      <button data-t="wolse">월세</button>
+    </div>
+    <div class="table-wrap">
+      <table class="rank-table">
+        <thead><tr><th>순위</th><th>단지명</th><th>전용면적</th><th>층</th><th id="dealPriceHead">거래가</th><th>평당가</th><th>거래일</th></tr></thead>
+        <tbody id="dealBody"></tbody>
+      </table>
+    </div>
+    <!-- 인쇄할 때는 매매·전세·월세 세 표를 모두 넣는다(화면에선 위 표 하나만) -->
+    <div id="dealPrintAll" class="print-only"></div>
+  </section>
+
+  <!-- ─────────────── ② 매매·전세·월세 가격비교 ─────────────── -->
+  <section class="card-section" id="sec-compare" data-tabpanel="price">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 매매·전세·월세 TOP 10 가격비교</h2>
+      <button class="sec-print-btn" onclick="printSection('sec-compare')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc">선택 지역의 TOP10 거래(1~10위)를 <b>실제 거래월에 재배치</b>해 매매가·전세보증금·월세 환산보증금을 <b>같은 억원 축</b>에서 비교합니다. 아래 버튼으로 항목을 껐다 켤 수 있습니다.</p>
+    <div class="tab-row" id="compareToggle">
+      <button class="active" data-type="sale">매매</button>
+      <button class="active" data-type="jeonse">전세</button>
+      <button class="active" data-type="wolse">월세(환산)</button>
+    </div>
+    <div class="chart-box" style="height:300px;"><canvas id="cmpRankChart"></canvas></div>
+    <div class="chart-box" style="height:300px; margin-top:20px;"><canvas id="cmpMonthChart"></canvas></div>
+    <div class="stat-row" id="cmpSummary" style="margin-top:22px;"></div>
+    <p class="sec-desc" style="margin:14px 0 0;">
+      ※ 월세는 <b>환산보증금 = 보증금 + 월세×100</b>으로 환산해 매매·전세와 같은 축에 올렸습니다.
+      TOP10은 각 유형의 <b>최고가 거래</b>라 지역 평균이 아니라 <b>상단 시세</b>를 나타냅니다.
+    </p>
+  </section>
+
+  <!-- ─────────────── ③ 실거래량 ─────────────── -->
+  <section class="card-section" id="sec-volume" data-tabpanel="vol">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 아파트 실거래량 TOP 10</h2>
+      <button class="sec-print-btn" onclick="printSection('sec-volume')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc">선택 지역의 <b>월별 거래건수 추이</b>와, 서울 <b>자치구별 / 법정동별 거래량 순위</b>입니다. 실거래 신고는 계약일로부터 30일 이내라 <b>마지막 달은 계속 늘어납니다</b>.</p>
+    <div class="chart-grid">
+      <div class="chart-box"><canvas id="volMonthChart"></canvas></div>
+      <div class="chart-box"><canvas id="volDonutChart"></canvas></div>
+    </div>
+    <div class="tab-row" id="volRankTabs" style="margin-top:22px;">
+      <button class="active" data-r="gu">자치구별 거래량 TOP 10</button>
+      <button data-r="dong">법정동별 거래량 TOP 10</button>
+    </div>
+    <div class="chart-box" style="height:320px;"><canvas id="volRankChart"></canvas></div>
+    <div class="table-wrap" style="margin-top:18px;">
+      <table class="rank-table">
+        <thead><tr><th>순위</th><th id="volRankHead">자치구</th><th>총 거래</th><th>매매</th><th>전세</th><th>월세</th><th>중위 평당가</th></tr></thead>
+        <tbody id="volRankBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ─────────────── 입지분석 ─────────────── -->
+  <section class="card-section" id="sec-location">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> <span id="locTitle">입지분석</span></h2>
+      <button class="sec-print-btn" onclick="printSection('sec-location')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc">항목을 클릭하면 상세 설명이 아래에 펼쳐집니다. (선택한 자치구 기준)</p>
+    <div class="loc-grid" id="locGrid"></div>
+    <div class="loc-detail" id="locDetail"></div>
+  </section>
+
+  <!-- ─────────────── 정책 동향 ─────────────── -->
+  <section class="card-section" id="sec-policy">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 서울 아파트 시장·정책 체크포인트</h2>
+      <button class="sec-print-btn" onclick="printSection('sec-policy')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc">고객 상담에서 자주 나오는 제도 항목을 정리했습니다. <b>시행 시점·요건은 수시로 바뀌므로 계약 전 반드시 원문을 확인</b>하세요.</p>
+    <div class="policy-grid" id="policyGrid"></div>
+  </section>
+
+</div>
+
+<footer class="disclaimer">
+  반포114공인중개사 · 010-9442-2027 &nbsp;|&nbsp; 금집부쌤의 서울시 통합 부동산 대시보드 — 아파트<br />
+  데이터 출처: 국토교통부 아파트 매매/전월세 실거래가(공공데이터포털) · 카카오(지오코딩) · 금액 단위는 만원<br />
+  실거래 신고는 계약일로부터 30일 이내이므로 최근 1~2개월 데이터는 계속 추가됩니다. 본 자료는 참고용이며 투자 판단의 책임은 이용자에게 있습니다.
+</footer>
+
+<script src="../vendor/leaflet/leaflet.js"></script>
+<script src="../vendor/chart.umd.min.js"></script>
+<script src="../data/apt.js?v=1"></script>
+<script src="../data/geo.js?v=1"></script>
+<script src="../shared/brand.js?v=1"></script>
+<script src="app.js?v=1"></script>
+</body>
+</html>

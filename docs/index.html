@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>금집부쌤의 서울시 통합 부동산 대시보드</title>
+  <link rel="stylesheet" href="shared/app.css?v=1" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🏙️</text></svg>" />
+  <style>
+    .hub { max-width: 1220px; margin: 0 auto; padding: 30px 22px 60px; }
+    .hub-lead { text-align: center; margin-bottom: 30px; }
+    .hub-lead h2 { font-size: 22px; margin-bottom: 8px; }
+    .hub-lead p { color: var(--txt-mute); font-size: 13.5px; margin: 0; line-height: 1.7; }
+    .hub-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+    .hub-card {
+      display: block; text-decoration: none; color: inherit;
+      background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+      padding: 26px 26px 24px; box-shadow: var(--shadow); transition: all .2s ease;
+    }
+    .hub-card:hover { box-shadow: var(--shadow-hover); border-color: var(--accent); transform: translateY(-3px); }
+    .hub-card .ico { font-size: 34px; line-height: 1; margin-bottom: 12px; }
+    .hub-card .name { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+    .hub-card .desc { font-size: 13px; color: var(--txt-mute); line-height: 1.7; margin-bottom: 14px; }
+    .hub-card .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .hub-card .chip { font-size: 11px; font-weight: 700; color: var(--accent-2); background: var(--accent-light); padding: 3px 10px; border-radius: 999px; }
+    .hub-card .go { margin-top: 14px; font-size: 13px; font-weight: 800; color: var(--accent); }
+    .hub-note {
+      margin-top: 26px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+      padding: 20px 24px; font-size: 12.5px; color: var(--txt-mute); line-height: 1.85;
+    }
+    .hub-note h3 { font-size: 14px; color: var(--txt); margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+
+<!-- 인쇄 전용 워터마크(반포114 상호·연락처) — @media print에서만 표시 -->
+<div class="print-watermark" aria-hidden="true">
+  <img src="assets/banpo114-logo.png" alt="" onerror="this.classList.add('img-missing')" />
+  <span class="wm-text">반포114공인중개사 · 010-9442-2027</span>
+</div>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-left">
+      <img class="geumjib-badge" src="assets/geumjib-logo.png" alt="금집부쌤"
+           onerror="this.classList.add('img-missing')" />
+      <div class="brand-titles">
+        <h1>금집부쌤의 서울시 통합<br />부동산 대시보드 <span class="brand-tag">서울 25개 자치구</span></h1>
+        <p class="brand-sub">국토교통부 실거래가 · 서울 열린데이터광장 · 서울시 정비사업 정보 · 한국부동산원 — 고객 브리핑용 현황판</p>
+      </div>
+    </div>
+    <span class="brand-sep" aria-hidden="true"></span>
+    <div class="brand-plate">
+      <img class="logo" src="assets/banpo114-logo.png" alt="반포114공인중개사 · 010-9442-2027"
+           onerror="this.classList.add('img-missing')" />
+      <span class="brand-plate-fallback">반포<b>114</b>공인중개사 · 010-9442-2027</span>
+      <img class="mascot" src="assets/geumddogi.png" alt="반포114공인중개사 캐릭터 금똑이"
+           onerror="this.classList.add('img-missing')" />
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="fetched" id="fetchedAt"></div>
+  </div>
+</header>
+
+<main class="hub">
+  <div class="hub-lead">
+    <h2>어떤 자료를 보시겠어요?</h2>
+    <p>세 가지 대시보드 모두 <b>서울시 25개 자치구 전역</b>을 다룹니다. 각 대시보드에서 자치구·법정동을 골라 보세요.</p>
+  </div>
+
+  <div class="hub-grid">
+    <a class="hub-card" href="newtown/">
+      <div class="ico">🏙️</div>
+      <div class="name">뉴타운 대시보드</div>
+      <div class="desc">서울시 재정비촉진지구(뉴타운)와 주요 재개발 구역의 구역별 진행상황을 지도와 함께 봅니다.</div>
+      <div class="chips"><span class="chip">구역별 진행단계</span><span class="chip">실제 지도</span><span class="chip">시공사·세대수</span></div>
+      <div class="go">바로가기 →</div>
+    </a>
+
+    <a class="hub-card" href="apt/">
+      <div class="ico">🏘️</div>
+      <div class="name">아파트 대시보드</div>
+      <div class="desc">서울 전역 아파트 실거래가·평당가·거래량을 자치구/법정동 단위로 조회합니다. TOP10 3종을 버튼으로 전환해 한 화면에서 봅니다.</div>
+      <div class="chips"><span class="chip">실거래가 TOP10</span><span class="chip">매매·전세·월세</span><span class="chip">실거래량</span></div>
+      <div class="go">바로가기 →</div>
+    </a>
+
+    <a class="hub-card" href="sangga/">
+      <div class="ico">🏢</div>
+      <div class="name">상가·오피스텔 대시보드</div>
+      <div class="desc">서울 전역 상업·업무용 부동산과 오피스텔 실거래를 자치구별로 비교합니다. 수익형 부동산 브리핑용.</div>
+      <div class="chips"><span class="chip">상가·업무용</span><span class="chip">오피스텔</span><span class="chip">거래량 비교</span></div>
+      <div class="go">바로가기 →</div>
+    </a>
+  </div>
+
+  <div class="hub-note">
+    <h3>데이터 안내</h3>
+    실거래 자료는 <b>국토교통부 실거래가 공개시스템(공공데이터포털)</b>에서 내려받은 원본을 집계한 것으로,
+    표본 기간은 각 대시보드 상단에 표기됩니다. 실거래 신고는 계약일로부터 30일 이내이므로
+    <b>최근 1~2개월 자료는 계속 추가</b>됩니다. 정비사업(뉴타운) 진행상황은 공개 자료를 정리한
+    <b>참고용</b>이며, 실제 계약·투자 판단 전에는 조합·구청 고시 등 원문 확인이 필요합니다.
+  </div>
+</main>
+
+<footer class="disclaimer">
+  반포114공인중개사 · 010-9442-2027 &nbsp;|&nbsp; 금집부쌤의 서울시 통합 부동산 대시보드<br />
+  데이터 출처: 국토교통부 실거래가(공공데이터포털) · 서울 열린데이터광장 · 서울시 정비사업 정보몽땅 · 한국부동산원
+</footer>
+
+<script src="shared/brand.js?v=1"></script>
+</body>
+</html>
