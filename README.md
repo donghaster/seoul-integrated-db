@@ -73,3 +73,10 @@ py -m http.server 8899 --directory docs
 - 상업용 평당가는 **건물 연면적** 기준이라 아파트 전용면적 평당가와 직접 비교할 수 없습니다.
 - 뉴타운 진행상황은 공개 자료를 정리한 **참고용**이며, 구역별 인가일·시공사·세대수는
   조합·구청 고시 원문으로 확인해야 합니다.
+
+---
+
+- 저장소: <https://github.com/donghaster/seoul-integrated-db>
+- 배포: <https://seoul-integrated-db.vercel.app>
+
+`main` 브랜치에 push하면 Vercel이 자동으로 재배포합니다.
