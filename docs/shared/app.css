@@ -95,6 +95,8 @@ a { color: var(--accent-2); }
 .brand-titles { flex: 1 1 auto; min-width: 0; }
 .topbar h1 { font-size: 20px; line-height: 1.2; text-wrap: balance; color: var(--txt); }
 .topbar h1 a { color: inherit; text-decoration: none; }
+/* 제목 둘째 줄 — 상위 제목에 이미 "대시보드"가 있으므로 여기서는 분야 이름만 쓴다 */
+.brand-scope { color: var(--accent-2); }
 .brand-sub { margin: 4px 0 0; color: var(--txt-mute); font-size: 12.5px; line-height: 1.45; }
 .brand-tag {
   display: inline-block; font-size: 11px; font-weight: 700; color: var(--accent-2);
