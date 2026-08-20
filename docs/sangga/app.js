@@ -24,7 +24,12 @@
   var OFFI_LABEL = { sale: "매매", jeonse: "전세", wolse: "월세(환산)" };
   var OFFI_COLOR = { sale: "#4f7fe6", jeonse: "#4fada8", wolse: "#cf9a45" };
 
-  var state = { gu: ALL, dong: ALL, nrgGroup: "shop", offiType: "sale" };
+  var state = { gu: ALL, dong: ALL, win: D.defaultWindow, nrgGroup: "shop", offiType: "sale" };
+
+  function win() { return D.windows[state.win]; }
+
+  /* 전체 12개월 월별 배열에서 선택 기간만큼 잘라낸다 */
+  function sliceMonths(arr) { return (arr || []).slice(-parseInt(state.win, 10)); }
 
   /* ════════════════ 유틸 ════════════════ */
 
@@ -81,7 +86,29 @@
     med: {}, dongCnt: [],
   };
 
-  function region() { return D.regions[regionKey()] || EMPTY; }
+  /* 선택한 지역 + 선택한 기간의 집계 */
+  function region() { return regionOf(regionKey()); }
+
+  function regionOf(key) {
+    var reg = D.regions[key];
+    if (!reg) return EMPTY;
+    var w = reg.w[state.win] || EMPTY;
+    return {
+      nrgTop: w.nrgTop, offiTop: w.offiTop,
+      nrgCnt: w.nrgCnt, offiCnt: w.offiCnt, med: w.med,
+      dongCnt: reg.dongCnt || [],
+      nrgVol: {
+        shop: sliceMonths(reg.nrgVol.shop),
+        office: sliceMonths(reg.nrgVol.office),
+        etc: sliceMonths(reg.nrgVol.etc),
+      },
+      offiVol: {
+        sale: sliceMonths(reg.offiVol.sale),
+        jeonse: sliceMonths(reg.offiVol.jeonse),
+        wolse: sliceMonths(reg.offiVol.wolse),
+      },
+    };
+  }
 
   /* ════════════════ 조회 조건 ════════════════ */
 
@@ -96,12 +123,12 @@
       .filter(function (k) { return k.indexOf(gu + "|") === 0; })
       .map(function (k) { return k.split("|")[1]; })
       .sort(function (a, b) {
-        var ca = D.regions[gu + "|" + a], cb = D.regions[gu + "|" + b];
-        var sum = function (r) {
+        var sum = function (d) {
+          var r = regionOf(gu + "|" + d);
           return Object.values(r.nrgCnt).reduce(function (s, x) { return s + x; }, 0) +
                  Object.values(r.offiCnt).reduce(function (s, x) { return s + x; }, 0);
         };
-        return sum(cb) - sum(ca);
+        return sum(b) - sum(a);
       });
   }
 
@@ -128,6 +155,24 @@
     state.dong = dongSelect.value; renderAll();
   });
 
+  /* ── 조회 기간 버튼 (최근 3 / 6 / 12개월) ── */
+  var windowTabs = document.getElementById("windowTabs");
+  windowTabs.innerHTML = Object.keys(D.windows).sort(function (a, b) { return a - b; })
+    .map(function (k) {
+      return '<button data-w="' + k + '"' + (k === state.win ? ' class="active"' : "") +
+        ">" + D.windows[k].name + "</button>";
+    }).join("");
+
+  windowTabs.addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-w]");
+    if (!b || b.dataset.w === state.win) return;
+    windowTabs.querySelectorAll("button").forEach(function (x) { x.classList.remove("active"); });
+    b.classList.add("active");
+    state.win = b.dataset.w;
+    fillDong();
+    renderAll();
+  });
+
   /* ════════════════ 핵심 요약 ════════════════ */
 
   function renderKpi() {
@@ -137,7 +182,7 @@
 
     document.getElementById("kpiTitle").textContent = regionLabel() + " 핵심 요약";
     document.getElementById("kpiDesc").innerHTML =
-      "표본 기간 <b>" + D.period.label + "</b> · 상업·업무용 매매 + 오피스텔 매매·전월세 총 <b>" +
+      "조회 기간 <b>" + win().label + "</b> · 상업·업무용 매매 + 오피스텔 매매·전월세 총 <b>" +
       (nrgTotal + (r.offiCnt.sale || 0) + offiRent).toLocaleString() + "건</b>";
 
     document.getElementById("kpiRow").innerHTML = [
@@ -151,9 +196,9 @@
         b.value + '</div><div class="sub">' + b.sub + "</div></div>";
     }).join("");
 
-    document.getElementById("periodNote").innerHTML = "표본 기간 <b>" + D.period.label + "</b>";
+    document.getElementById("periodNote").innerHTML = win().label + " 기준<br />자료 갱신 <b>" + (D.today || D.builtAt || "") + "</b>";
     document.getElementById("printBanner").innerHTML =
-      "<b>" + regionLabel() + "</b> 상가·오피스텔 실거래 리포트 · 표본 기간 " + D.period.label +
+      "<b>" + regionLabel() + "</b> 상가·오피스텔 실거래 리포트 · 조회 기간 " + win().label +
       " · 자료 기준 " + (D.builtAt || "") + " · 반포114공인중개사 010-9442-2027";
   }
 
@@ -313,7 +358,7 @@
 
   function renderVolume() {
     var r = region();
-    var labels = D.period.labels;
+    var labels = win().labels;
 
     if (volMonthChart) volMonthChart.destroy();
     volMonthChart = new Chart(document.getElementById("volMonthChart"), {
@@ -364,7 +409,7 @@
       },
     });
 
-    var top = D.rankGu.slice(0, 12);
+    var top = D.rankGu[state.win].slice(0, 12);
     if (volGuChart) volGuChart.destroy();
     volGuChart = new Chart(document.getElementById("volGuChart"), {
       type: "bar",
@@ -380,14 +425,14 @@
         responsive: true, maintainAspectRatio: false,
         plugins: {
           legend: { labels: { boxWidth: 12, font: { size: 11 } } },
-          title: { display: true, text: "서울 자치구별 수익형 부동산 실거래량 TOP 12 (" + D.period.label + ")", font: { size: 13, weight: "bold" } },
+          title: { display: true, text: "서울 자치구별 수익형 부동산 실거래량 TOP 12 (" + win().label + ")", font: { size: 13, weight: "bold" } },
         },
         scales: { x: { stacked: true, beginAtZero: true, title: { display: true, text: "건" } }, y: { stacked: true } },
       },
     });
 
-    document.getElementById("volGuBody").innerHTML = D.rankGu.slice(0, 10).map(function (x, i) {
-      var reg = D.regions[x.k] || EMPTY;
+    document.getElementById("volGuBody").innerHTML = D.rankGu[state.win].slice(0, 10).map(function (x, i) {
+      var reg = regionOf(x.k);
       var rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
       return "<tr>" +
         '<td><span class="rank-chip ' + rc + '">' + (i + 1) + "</span></td>" +
@@ -508,7 +553,7 @@
 
   function locHtml(k) {
     var r = region();
-    var seoul = D.regions[ALL] || EMPTY;
+    var seoul = regionOf(ALL);
 
     if (k === "data") {
       var ratio = seoul.med.nrgPy ? Math.round((r.med.nrgPy / seoul.med.nrgPy) * 100) : 0;
@@ -525,8 +570,8 @@
     }
 
     if (k === "dong") {
-      var list = (state.gu === ALL ? seoul : (D.regions[state.gu] || EMPTY)).dongCnt || [];
-      if (state.gu !== ALL && state.dong !== ALL) list = (D.regions[state.gu] || EMPTY).dongCnt || [];
+      var list = (state.gu === ALL ? seoul : regionOf(state.gu)).dongCnt || [];
+      if (state.gu !== ALL && state.dong !== ALL) list = regionOf(state.gu).dongCnt || [];
       return "<h3>🗺️ 동별 상가·업무용 거래 분포 — " + (state.gu === ALL ? "서울 전체" : state.gu) + "</h3>" +
         (list.length
           ? '<table class="rank-table"><thead><tr><th>순위</th><th>법정동</th><th>상가·업무용 매매</th></tr></thead><tbody>' +

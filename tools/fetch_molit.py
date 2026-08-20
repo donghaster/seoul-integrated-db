@@ -265,12 +265,9 @@ def load_month(kind: str, gu: str, ym: str) -> list[dict]:
 
 def main() -> None:
     months = int(os.environ.get("MONTHS", "12"))
+    # 기본 종료월은 "이번 달". 진행 중인 달이라 건수는 적지만, 대시보드가 오늘까지를
+    # 다루려면 반드시 있어야 한다(캐시 TTL이 짧아 다시 받을 때마다 최신화된다).
     end_ym = os.environ.get("END_YM") or f"{date.today().year:04d}{date.today().month:02d}"
-    # 이번 달은 아직 진행 중이라 표본이 반쪽이므로 지난달까지를 기본 종료월로 삼는다.
-    if os.environ.get("END_YM") is None:
-        y, m = int(end_ym[:4]), int(end_ym[4:])
-        y, m = (y - 1, 12) if m == 1 else (y, m - 1)
-        end_ym = f"{y:04d}{m:02d}"
 
     yms = month_range(months, end_ym)
     jobs = [(kind, gu, ym) for kind in KINDS for gu in SEOUL_GU for ym in yms]

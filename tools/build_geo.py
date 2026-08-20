@@ -148,19 +148,22 @@ def collect_targets() -> list[tuple[str, str, str, str]]:
             seen.add(key)
             out.append((gu, dong, name, r.get("jb") or ""))
 
+    # 집계 파일은 기간(3·6·12개월)별로 TOP10을 따로 담고 있으므로 전부 훑는다.
     apt = read_window_var("apt.js", "APT_DATA")
     if apt:
         for reg in apt["regions"].values():
-            for t in ("sale", "jeonse", "wolse"):
-                add(reg["top"].get(t))
+            for w in reg["w"].values():
+                for t in ("sale", "jeonse", "wolse"):
+                    add(w["top"].get(t))
 
     sangga = read_window_var("sangga.js", "SANGGA_DATA")
     if sangga:
         for reg in sangga["regions"].values():
-            for g in ("shop", "office", "etc"):
-                add(reg["nrgTop"].get(g))
-            for t in ("sale", "jeonse", "wolse"):
-                add(reg["offiTop"].get(t))
+            for w in reg["w"].values():
+                for g in ("shop", "office", "etc"):
+                    add(w["nrgTop"].get(g))
+                for t in ("sale", "jeonse", "wolse"):
+                    add(w["offiTop"].get(t))
 
     return out
 

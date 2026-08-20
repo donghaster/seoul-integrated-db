@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import os
 import statistics
+from datetime import date
 from collections import defaultdict
 
 from fetch_molit import SEOUL_GU, CACHE_VER, month_range  # 같은 폴더
@@ -29,6 +30,34 @@ OUT_DIR = os.path.join(BASE_DIR, "docs", "data")
 PYEONG = 3.3058          # 1평 = 3.3058㎡
 TOP_N = 10
 ALL = "all"
+
+# 화면에서 고를 수 있는 조회 기간(개월). 전부 "오늘이 속한 달"에서 거꾸로 센다.
+WINDOWS = [3, 6, 12]
+MAX_WINDOW = max(WINDOWS)
+
+TODAY = date.today().isoformat()
+
+
+def ym_of(row: dict) -> str:
+    """거래일(2026-08-05) -> '202608'"""
+    return row["date"][:4] + row["date"][5:7]
+
+
+def windows_meta(yms: list[str]) -> dict:
+    """각 기간의 시작·종료월과 화면에 쓸 이름."""
+    out = {}
+    for w in WINDOWS:
+        sub = yms[-w:]
+        s, e = sub[0], sub[-1]
+        out[str(w)] = {
+            "months": w,
+            "start": s,
+            "end": e,
+            "labels": [f"{y[2:4]}.{y[4:]}" for y in sub],
+            "name": f"최근 {w}개월",
+            "label": f"{s[:4]}.{s[4:]} ~ {e[:4]}.{e[4:]} ({w}개월)",
+        }
+    return out
 
 
 # ---------------------------------------------------------------- 로드
@@ -139,82 +168,84 @@ def build_apt(yms: list[str]) -> dict:
     sale = load_all("aptSale", yms)
     rent = load_all("aptRent", yms)
     deals = sale + rent
+    deals = [d for d in deals if d["date"] <= TODAY]     # 미래 날짜 오신고 제외
 
     by_region: dict[str, dict[str, list]] = defaultdict(lambda: {"sale": [], "jeonse": [], "wolse": []})
     for d in deals:
         for key in region_keys(d):
             by_region[key][d["t"]].append(d)
 
-    ym_labels = [f"{y[2:4]}.{y[4:]}" for y in yms]
+    ym_index = {y: i for i, y in enumerate(yms)}
     regions: dict[str, dict] = {}
 
     for key, buckets in by_region.items():
+        # 월별 거래량은 전체 기간(12개월)으로 한 번만 만들고, 화면에서 기간에 맞게 잘라 쓴다
         vol = {t: [0] * len(yms) for t in ("sale", "jeonse", "wolse")}
-        ym_index = {y: i for i, y in enumerate(yms)}
         for t, rows in buckets.items():
             for r in rows:
-                i = ym_index.get(r["date"][:4] + r["date"][5:7])
+                i = ym_index.get(ym_of(r))
                 if i is not None:
                     vol[t][i] += 1
 
-        sale_rows = buckets["sale"]
-        pyeong_vals = [p for p in (pyeong_price(r) for r in sale_rows) if p]
+        # 최근 3 / 6 / 12개월 각각의 TOP10·건수·중위값
+        per_window = {}
+        for w in WINDOWS:
+            wset = set(yms[-w:])
+            sub = {t: [r for r in buckets[t] if ym_of(r) in wset] for t in ("sale", "jeonse", "wolse")}
+            per_window[str(w)] = {
+                "top": {t: top_rows(sub[t]) for t in ("sale", "jeonse", "wolse")},
+                "cnt": {t: len(sub[t]) for t in ("sale", "jeonse", "wolse")},
+                "med": {
+                    "sale": med([r["amount"] for r in sub["sale"]]),
+                    "jeonse": med([r["deposit"] for r in sub["jeonse"]]),
+                    "wolse": med([r["rent"] for r in sub["wolse"]]),
+                    "pyeong": med([p for p in (pyeong_price(r) for r in sub["sale"]) if p]),
+                },
+            }
 
-        regions[key] = {
-            "top": {t: top_rows(buckets[t]) for t in ("sale", "jeonse", "wolse")},
-            "vol": vol,
-            "cnt": {t: len(buckets[t]) for t in ("sale", "jeonse", "wolse")},
-            "med": {
-                "sale": med([r["amount"] for r in sale_rows]),
-                "jeonse": med([r["deposit"] for r in buckets["jeonse"]]),
-                "wolse": med([r["rent"] for r in buckets["wolse"]]),
-                "pyeong": med(pyeong_vals),
-            },
-        }
+        regions[key] = {"w": per_window, "vol": vol}
 
-    # 자치구별 법정동 목록 — 거래가 있는 동만, 거래량 많은 순
+    def total_cnt(key: str, w: int) -> int:
+        return sum(regions[key]["w"][str(w)]["cnt"].values())
+
+    # 자치구별 법정동 목록 — 거래가 있는 동만, 12개월 거래량 많은 순
     dongs: dict[str, list[str]] = {}
     for gu in SEOUL_GU:
-        found = []
-        for key in by_region:
-            if key.startswith(gu + "|"):
-                dong = key.split("|", 1)[1]
-                total = sum(regions[key]["cnt"].values())
-                found.append((total, dong))
+        found = [(total_cnt(k, MAX_WINDOW), k.split("|", 1)[1])
+                 for k in by_region if k.startswith(gu + "|")]
         dongs[gu] = [d for _, d in sorted(found, reverse=True)]
 
-    # 거래량 순위 (전체 거래 기준)
-    rank_gu = sorted(
-        ({"k": gu, "label": gu, "c": sum(regions.get(gu, {}).get("cnt", {}).values())} for gu in SEOUL_GU),
-        key=lambda x: x["c"], reverse=True,
-    )
-    rank_dong_all = sorted(
-        (
-            {"k": key, "label": key.split("|")[1], "gu": key.split("|")[0],
-             "c": sum(regions[key]["cnt"].values())}
-            for key in regions if "|" in key
-        ),
-        key=lambda x: x["c"], reverse=True,
-    )[:30]
-    rank_dong_by_gu = {
-        gu: sorted(
-            (
-                {"k": f"{gu}|{d}", "label": d, "c": sum(regions[f"{gu}|{d}"]["cnt"].values())}
-                for d in dongs[gu]
-            ),
+    # 거래량 순위 — 기간별로 따로 만든다(최근 3개월 순위와 12개월 순위가 다르므로)
+    rank_gu, rank_dong, rank_dong_by_gu = {}, {}, {}
+    for w in WINDOWS:
+        sw = str(w)
+        rank_gu[sw] = sorted(
+            ({"k": gu, "label": gu, "c": total_cnt(gu, w) if gu in regions else 0} for gu in SEOUL_GU),
             key=lambda x: x["c"], reverse=True,
-        )[:15]
-        for gu in SEOUL_GU
-    }
+        )
+        rank_dong[sw] = sorted(
+            ({"k": k, "label": k.split("|")[1], "gu": k.split("|")[0], "c": total_cnt(k, w)}
+             for k in regions if "|" in k),
+            key=lambda x: x["c"], reverse=True,
+        )[:30]
+        rank_dong_by_gu[sw] = {
+            gu: sorted(
+                ({"k": f"{gu}|{d}", "label": d, "c": total_cnt(f"{gu}|{d}", w)} for d in dongs[gu]),
+                key=lambda x: x["c"], reverse=True,
+            )[:15]
+            for gu in SEOUL_GU
+        }
 
     return {
-        "period": {"start": yms[0], "end": yms[-1], "months": yms, "labels": ym_labels,
-                   "label": f"{yms[0][:4]}.{yms[0][4:]} ~ {yms[-1][:4]}.{yms[-1][4:]} ({len(yms)}개월 표본)"},
+        "windows": windows_meta(yms),
+        "defaultWindow": str(MAX_WINDOW),
+        "months": yms,
+        "labels": [f"{y[2:4]}.{y[4:]}" for y in yms],
         "gus": list(SEOUL_GU),
         "dongs": dongs,
         "regions": regions,
         "rankGu": rank_gu,
-        "rankDong": rank_dong_all,
+        "rankDong": rank_dong,
         "rankDongByGu": rank_dong_by_gu,
         "total": len(deals),
     }
@@ -236,9 +267,9 @@ NRG_GROUP_LABEL = {"shop": "일반상가", "office": "업무용", "etc": "기타
 
 
 def build_sangga(yms: list[str]) -> dict:
-    nrg = load_all("nrgSale", yms)
-    offi_sale = load_all("offiSale", yms)
-    offi_rent = load_all("offiRent", yms)
+    nrg = [r for r in load_all("nrgSale", yms) if r["date"] <= TODAY]
+    offi_sale = [r for r in load_all("offiSale", yms) if r["date"] <= TODAY]
+    offi_rent = [r for r in load_all("offiRent", yms) if r["date"] <= TODAY]
 
     ym_index = {y: i for i, y in enumerate(yms)}
     n = len(yms)
@@ -297,40 +328,53 @@ def build_sangga(yms: list[str]) -> dict:
                 "y": r.get("build") or 0,
             } for r in ranked]
 
-        nrg_flat = [r for g in ("shop", "office", "etc") for r in nrg_rows[g]]
-        nrg_py = [r["amount"] / (r["area"] / PYEONG) for r in nrg_flat if r.get("area")]
+        # 최근 3 / 6 / 12개월 각각의 TOP10·건수·중위값
+        per_window = {}
+        for w in WINDOWS:
+            wset = set(yms[-w:])
+            sub_nrg = {g: [r for r in nrg_rows[g] if ym_of(r) in wset] for g in ("shop", "office", "etc")}
+            sub_offi = {t: [r for r in offi_rows[t] if ym_of(r) in wset] for t in ("sale", "jeonse", "wolse")}
+            flat = [r for g in ("shop", "office", "etc") for r in sub_nrg[g]]
+            per_window[str(w)] = {
+                "nrgTop": {g: nrg_slim(sub_nrg[g]) for g in ("shop", "office", "etc")},
+                "offiTop": {t: top_rows(sub_offi[t]) for t in ("sale", "jeonse", "wolse")},
+                "nrgCnt": {g: len(sub_nrg[g]) for g in ("shop", "office", "etc")},
+                "offiCnt": {t: len(sub_offi[t]) for t in ("sale", "jeonse", "wolse")},
+                "med": {
+                    "nrg": med([r["amount"] for r in flat]),
+                    "nrgPy": med([r["amount"] / (r["area"] / PYEONG) for r in flat if r.get("area")]),
+                    "offiSale": med([r["amount"] for r in sub_offi["sale"]]),
+                    "offiJeonse": med([r["deposit"] for r in sub_offi["jeonse"]]),
+                    "offiWolse": med([r["rent"] for r in sub_offi["wolse"]]),
+                },
+            }
 
         out_regions[key] = {
-            "nrgTop": {g: nrg_slim(nrg_rows[g]) for g in ("shop", "office", "etc")},
-            "offiTop": {t: top_rows(offi_rows[t]) for t in ("sale", "jeonse", "wolse")},
+            "w": per_window,
             "nrgVol": reg["nrgVol"],
             "offiVol": reg["offiVol"],
-            "nrgCnt": {g: len(nrg_rows[g]) for g in ("shop", "office", "etc")},
-            "offiCnt": {t: len(offi_rows[t]) for t in ("sale", "jeonse", "wolse")},
-            "med": {
-                "nrg": med([r["amount"] for r in nrg_flat]),
-                "nrgPy": med(nrg_py),
-                "offiSale": med([r["amount"] for r in offi_rows["sale"]]),
-                "offiJeonse": med([r["deposit"] for r in offi_rows["jeonse"]]),
-                "offiWolse": med([r["rent"] for r in offi_rows["wolse"]]),
-            },
             "dongCnt": sorted(
                 ({"label": d, "c": c} for d, c in reg["dongCnt"].items()),
                 key=lambda x: x["c"], reverse=True,
             )[:12] if "|" not in key else [],
         }
 
-    rank_gu = sorted(
-        ({"k": gu, "label": gu,
-          "nrg": sum(out_regions.get(gu, {}).get("nrgCnt", {}).values()),
-          "offi": sum(out_regions.get(gu, {}).get("offiCnt", {}).values())} for gu in SEOUL_GU),
-        key=lambda x: x["nrg"] + x["offi"], reverse=True,
-    )
+    rank_gu = {}
+    for w in WINDOWS:
+        sw = str(w)
+        rank_gu[sw] = sorted(
+            ({"k": gu, "label": gu,
+              "nrg": sum(out_regions[gu]["w"][sw]["nrgCnt"].values()) if gu in out_regions else 0,
+              "offi": sum(out_regions[gu]["w"][sw]["offiCnt"].values()) if gu in out_regions else 0}
+             for gu in SEOUL_GU),
+            key=lambda x: x["nrg"] + x["offi"], reverse=True,
+        )
 
     return {
-        "period": {"start": yms[0], "end": yms[-1], "months": yms,
-                   "labels": [f"{y[2:4]}.{y[4:]}" for y in yms],
-                   "label": f"{yms[0][:4]}.{yms[0][4:]} ~ {yms[-1][:4]}.{yms[-1][4:]} ({len(yms)}개월 표본)"},
+        "windows": windows_meta(yms),
+        "defaultWindow": str(MAX_WINDOW),
+        "months": yms,
+        "labels": [f"{y[2:4]}.{y[4:]}" for y in yms],
         "gus": list(SEOUL_GU),
         "regions": out_regions,
         "rankGu": rank_gu,
@@ -340,6 +384,27 @@ def build_sangga(yms: list[str]) -> dict:
 
 
 # ---------------------------------------------------------------- 출력
+
+def bump_cache_version(stamp: str) -> None:
+    """HTML의 data/*.js?v=... 를 빌드 스탬프로 바꾼다.
+
+    이걸 안 하면 데이터를 갱신해도 방문자 브라우저가 예전 사본을 계속 쓴다
+    (file://로 열 때는 Cache-Control 헤더가 없어 특히 문제가 된다).
+    """
+    import re
+    docs = os.path.join(BASE_DIR, "docs")
+    pattern = re.compile(r'(src="\.\./data/[a-z]+\.js\?v=)[^"]*(")')
+    for page in ("apt", "newtown", "sangga"):
+        path = os.path.join(docs, page, "index.html")
+        if not os.path.exists(path):
+            continue
+        html = open(path, encoding="utf-8").read()
+        new = pattern.sub(rf"\g<1>{stamp}\g<2>", html)
+        if new != html:
+            with open(path, "w", encoding="utf-8", newline="") as fh:
+                fh.write(new)
+            print(f"  {page}/index.html  캐시 버전 -> {stamp}")
+
 
 def write_js(name: str, varname: str, payload: dict) -> None:
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -352,27 +417,27 @@ def write_js(name: str, varname: str, payload: dict) -> None:
 
 def main() -> None:
     import time
-    from datetime import date
 
-    end_ym = os.environ.get("END_YM")
-    if not end_ym:
-        t = date.today()
-        y, m = (t.year - 1, 12) if t.month == 1 else (t.year, t.month - 1)
-        end_ym = f"{y:04d}{m:02d}"
-    yms = month_range(int(os.environ.get("MONTHS", "12")), end_ym)
+    # 기본 종료월은 "이번 달" — 대시보드가 오늘까지를 다루도록.
+    t = date.today()
+    end_ym = os.environ.get("END_YM") or f"{t.year:04d}{t.month:02d}"
+    yms = month_range(int(os.environ.get("MONTHS", str(MAX_WINDOW))), end_ym)
     built = time.strftime("%Y-%m-%d %H:%M")
 
-    print(f"집계 기간 {yms[0]} ~ {yms[-1]}")
+    print(f"집계 기간 {yms[0]} ~ {yms[-1]} (오늘 {TODAY} 기준)")
     apt = build_apt(yms)
     apt["builtAt"] = built
+    apt["today"] = TODAY
     print(f"  아파트 실거래 {apt['total']:,}건 · 지역 {len(apt['regions']):,}개")
 
     sangga = build_sangga(yms)
     sangga["builtAt"] = built
+    sangga["today"] = TODAY
     print(f"  상가·오피스텔 실거래 {sangga['total']:,}건 · 지역 {len(sangga['regions']):,}개")
 
     write_js("apt.js", "APT_DATA", apt)
     write_js("sangga.js", "SANGGA_DATA", sangga)
+    bump_cache_version(time.strftime("%Y%m%d%H%M"))
 
 
 if __name__ == "__main__":

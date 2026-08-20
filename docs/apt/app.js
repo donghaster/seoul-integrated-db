@@ -25,10 +25,20 @@
   var state = {
     gu: ALL,
     dong: ALL,
+    win: D.defaultWindow,          // "3" | "6" | "12" — 조회 기간(개월)
     dealType: "sale",
     cmpOn: { sale: true, jeonse: true, wolse: true },
     volRank: "gu",
   };
+
+  /* 선택한 기간의 메타(시작·종료월, 이름) */
+  function win() { return D.windows[state.win]; }
+
+  /* 전체 12개월 월별 배열에서 선택 기간만큼 잘라낸다 */
+  function sliceMonths(arr) {
+    var w = parseInt(state.win, 10);
+    return (arr || []).slice(-w);
+  }
 
   /* ════════════════ 포맷 유틸 ════════════════ */
 
@@ -82,10 +92,32 @@
     return state.gu + " " + state.dong;
   }
 
+  var EMPTY_REGION = {
+    top: { sale: [], jeonse: [], wolse: [] },
+    cnt: { sale: 0, jeonse: 0, wolse: 0 },
+    med: { sale: 0, jeonse: 0, wolse: 0, pyeong: 0 },
+    vol: { sale: [], jeonse: [], wolse: [] },
+  };
+
+  /* 선택한 지역 + 선택한 기간의 집계 */
   function region() {
-    return D.regions[regionKey()] || { top: { sale: [], jeonse: [], wolse: [] },
-      vol: { sale: [], jeonse: [], wolse: [] }, cnt: { sale: 0, jeonse: 0, wolse: 0 },
-      med: { sale: 0, jeonse: 0, wolse: 0, pyeong: 0 } };
+    var reg = D.regions[regionKey()];
+    if (!reg) return EMPTY_REGION;
+    var w = reg.w[state.win] || EMPTY_REGION;
+    return {
+      top: w.top, cnt: w.cnt, med: w.med,
+      vol: {
+        sale: sliceMonths(reg.vol.sale),
+        jeonse: sliceMonths(reg.vol.jeonse),
+        wolse: sliceMonths(reg.vol.wolse),
+      },
+    };
+  }
+
+  /* 순위표에서 다른 지역의 건수를 꺼낼 때 쓴다 */
+  function regionOf(key) {
+    var reg = D.regions[key];
+    return (reg && reg.w[state.win]) || EMPTY_REGION;
   }
 
   /* ════════════════ 조회 조건 ════════════════ */
@@ -110,13 +142,31 @@
     var list = D.dongs[state.gu] || [];
     dongSelect.innerHTML = '<option value="all">' + state.gu + " 전체</option>" +
       list.map(function (d) {
-        var c = (D.regions[state.gu + "|" + d] || {}).cnt || {};
+        var c = regionOf(state.gu + "|" + d).cnt;
         var total = (c.sale || 0) + (c.jeonse || 0) + (c.wolse || 0);
         return '<option value="' + d + '">' + d + " (" + total.toLocaleString() + "건)</option>";
       }).join("");
     if (list.indexOf(state.dong) === -1) state.dong = ALL;
     dongSelect.value = state.dong;
   }
+
+  /* ── 조회 기간 버튼 (최근 3 / 6 / 12개월) ── */
+  var windowTabs = document.getElementById("windowTabs");
+  windowTabs.innerHTML = Object.keys(D.windows).sort(function (a, b) { return a - b; })
+    .map(function (k) {
+      return '<button data-w="' + k + '"' + (k === state.win ? ' class="active"' : "") +
+        ">" + D.windows[k].name + "</button>";
+    }).join("");
+
+  windowTabs.addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-w]");
+    if (!b || b.dataset.w === state.win) return;
+    windowTabs.querySelectorAll("button").forEach(function (x) { x.classList.remove("active"); });
+    b.classList.add("active");
+    state.win = b.dataset.w;
+    fillDong();               // 동 목록의 건수 표기도 기간에 맞춰 갱신
+    renderAll();
+  });
 
   guSelect.addEventListener("change", function () {
     state.gu = guSelect.value;
@@ -136,7 +186,7 @@
     var total = r.cnt.sale + r.cnt.jeonse + r.cnt.wolse;
     document.getElementById("kpiTitle").textContent = regionLabel() + " 핵심 요약";
     document.getElementById("kpiDesc").innerHTML =
-      "표본 기간 <b>" + D.period.label + "</b> · 국토교통부 실거래 신고 기준 총 <b>" +
+      "조회 기간 <b>" + win().label + "</b> · 국토교통부 실거래 신고 기준 총 <b>" +
       total.toLocaleString() + "건</b>";
 
     var box = [
@@ -153,9 +203,9 @@
     }).join("");
 
     document.getElementById("periodNote").innerHTML =
-      "표본 기간 <b>" + D.period.label + "</b>";
+      win().label + " 기준<br />자료 갱신 <b>" + (D.today || D.builtAt || "") + "</b>";
     document.getElementById("printBanner").innerHTML =
-      "<b>" + regionLabel() + "</b> 아파트 실거래 리포트 · 표본 기간 " + D.period.label +
+      "<b>" + regionLabel() + "</b> 아파트 실거래 리포트 · 조회 기간 " + win().label +
       " · 자료 기준 " + (D.builtAt || "") + " · 반포114공인중개사 010-9442-2027";
   }
 
@@ -279,8 +329,8 @@
     });
 
     // 거래월 재배치 — TOP10 거래가 실제로 어느 달에 있었는지
-    var months = D.period.months;
-    var monthLabels = D.period.labels;
+    var months = sliceMonths(D.months);
+    var monthLabels = win().labels;
     var monthSets = TYPES.map(function (t) {
       var rows = r.top[t] || [];
       var bucket = {};
@@ -346,7 +396,7 @@
 
   function renderVolume() {
     var r = region();
-    var labels = D.period.labels;
+    var labels = win().labels;
 
     if (volMonthChart) volMonthChart.destroy();
     volMonthChart = new Chart(document.getElementById("volMonthChart"), {
@@ -395,9 +445,9 @@
   }
 
   function volRankList() {
-    if (state.volRank === "gu") return D.rankGu.slice(0, 10);
-    if (state.gu === ALL) return D.rankDong.slice(0, 10);
-    return (D.rankDongByGu[state.gu] || []).slice(0, 10);
+    if (state.volRank === "gu") return D.rankGu[state.win].slice(0, 10);
+    if (state.gu === ALL) return D.rankDong[state.win].slice(0, 10);
+    return ((D.rankDongByGu[state.win] || {})[state.gu] || []).slice(0, 10);
   }
 
   function renderVolRank() {
@@ -413,7 +463,7 @@
         datasets: TYPES.map(function (t) {
           return {
             label: TYPE_LABEL[t] === "월세(환산)" ? "월세" : TYPE_LABEL[t],
-            data: list.map(function (x) { return ((D.regions[x.k] || {}).cnt || {})[t] || 0; }),
+            data: list.map(function (x) { return regionOf(x.k).cnt[t] || 0; }),
             backgroundColor: TYPE_COLOR[t],
             borderWidth: 0,
           };
@@ -428,7 +478,7 @@
           title: {
             display: true,
             text: (isGu ? "서울 자치구별" : (state.gu === ALL ? "서울 법정동별" : state.gu + " 법정동별")) +
-                  " 아파트 실거래량 TOP 10 (" + D.period.label + ")",
+                  " 아파트 실거래량 TOP 10 (" + win().label + ")",
             font: { size: 13, weight: "bold" },
           },
         },
@@ -437,7 +487,7 @@
     });
 
     document.getElementById("volRankBody").innerHTML = list.length ? list.map(function (x, i) {
-      var reg = D.regions[x.k] || { cnt: {}, med: {} };
+      var reg = regionOf(x.k);
       var rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
       var name = isGu ? x.label : (x.gu ? x.gu + " " + x.label : x.label);
       return "<tr>" +
@@ -597,19 +647,19 @@
 
   function locDataHtml() {
     var r = region();
-    var seoul = D.regions[ALL] || { med: {} };
+    var seoul = regionOf(ALL);
     var ratio = seoul.med.pyeong ? Math.round((r.med.pyeong / seoul.med.pyeong) * 100) : 0;
 
     // 선택 구 안에서 평당가 상위 동
     var rows = [];
     if (state.gu !== ALL) {
       rows = (D.dongs[state.gu] || []).map(function (d) {
-        var reg = D.regions[state.gu + "|" + d] || { med: {}, cnt: {} };
+        var reg = regionOf(state.gu + "|" + d);
         return { d: d, py: reg.med.pyeong || 0, c: (reg.cnt.sale || 0) };
       }).filter(function (x) { return x.c >= 3; }).sort(function (a, b) { return b.py - a.py; }).slice(0, 8);
     } else {
       rows = D.gus.map(function (g) {
-        var reg = D.regions[g] || { med: {}, cnt: {} };
+        var reg = regionOf(g);
         return { d: g, py: reg.med.pyeong || 0, c: (reg.cnt.sale || 0) };
       }).sort(function (a, b) { return b.py - a.py; }).slice(0, 10);
     }

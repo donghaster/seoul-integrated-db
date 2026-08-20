@@ -69,12 +69,23 @@
     return rest.toLocaleString() + "만원";
   }
 
+  /* ── 아파트 실거래(apt.js)는 기간별로 나뉘어 있다. 뉴타운 화면은 기본 기간(12개월)을 쓴다 ── */
+  function aptWin() {
+    return (A && A.windows[A.defaultWindow]) || { label: "-" };
+  }
+
+  function aptRegion(key) {
+    if (!A) return null;
+    var reg = A.regions[key];
+    return reg ? reg.w[A.defaultWindow] : null;
+  }
+
   /* ── 뉴타운이 걸친 법정동들의 실거래를 합산 ── */
   function dealStat(d) {
     if (!A) return null;
     var acc = { sale: 0, jeonse: 0, wolse: 0, medSale: [], medPy: [] };
     d.dongs.forEach(function (dong) {
-      var reg = A.regions[d.gu + "|" + dong];
+      var reg = aptRegion(d.gu + "|" + dong);
       if (!reg) return;
       acc.sale += reg.cnt.sale; acc.jeonse += reg.cnt.jeonse; acc.wolse += reg.cnt.wolse;
       if (reg.med.sale) acc.medSale.push({ v: reg.med.sale, w: reg.cnt.sale });
@@ -138,18 +149,18 @@
       { label: "사업 진행 중", value: ing + "개 지구", sub: "구역지정~착공 단계" },
       { label: "대부분 완료", value: done + "개 지구", sub: "준공·입주 완료" },
       { label: "해당 자치구", value: Object.keys(gus).length + "개 구", sub: Object.keys(gus).slice(0, 6).join(" · ") },
-      { label: "해당 법정동 실거래", value: totalDeal.toLocaleString() + "건", sub: A ? A.period.label : "-" },
+      { label: "해당 법정동 실거래", value: totalDeal.toLocaleString() + "건", sub: A ? aptWin().label : "-" },
     ].map(function (b) {
       return '<div class="stat-box"><div class="label">' + b.label + '</div><div class="value">' +
         b.value + '</div><div class="sub">' + esc(b.sub) + "</div></div>";
     }).join("");
 
     document.getElementById("countNote").innerHTML =
-      "표시 중 <b>" + list.length + "개 지구</b>" + (A ? " · 실거래 표본 " + A.period.label : "");
+      "표시 중 <b>" + list.length + "개 지구</b>" + (A ? " · 실거래 표본 " + aptWin().label : "");
     document.getElementById("printBanner").innerHTML =
       "<b>서울 뉴타운(재정비촉진지구) 리포트</b> · " +
       (state.gu === ALL ? "서울시 전체" : state.gu) + " · " + list.length + "개 지구" +
-      (A ? " · 실거래 표본 " + A.period.label : "") +
+      (A ? " · 실거래 표본 " + aptWin().label : "") +
       " · 반포114공인중개사 010-9442-2027";
   }
 
@@ -490,7 +501,7 @@
     }).join("") : '<tr class="empty-row"><td colspan="8">조건에 맞는 뉴타운이 없습니다.</td></tr>';
 
     document.getElementById("dealDesc").innerHTML =
-      "각 뉴타운이 속한 <b>법정동</b>의 국토교통부 아파트 실거래를 붙였습니다(표본 " + A.period.label +
+      "각 뉴타운이 속한 <b>법정동</b>의 국토교통부 아파트 실거래를 붙였습니다(표본 " + aptWin().label +
       "). 뉴타운 구역 내 거래만 골라낸 것이 아니라 <b>해당 동 전체</b> 기준입니다.";
 
     var top = rows.slice(0, 15);

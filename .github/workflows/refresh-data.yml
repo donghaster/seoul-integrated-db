@@ -1,0 +1,72 @@
+name: 실거래 데이터 갱신
+
+# 국토부 실거래를 다시 받아 집계하고, 바뀐 게 있으면 커밋한다.
+# main에 push되면 Vercel이 자동으로 재배포하므로 사이트가 늘 최신 상태가 된다.
+on:
+  schedule:
+    # 매일 새벽 5시(KST) = 20:00 UTC 전날. 실거래 신고가 30일 이내라 매일 조금씩 늘어난다.
+    - cron: "0 20 * * *"
+  workflow_dispatch:        # Actions 탭에서 수동 실행용
+
+# 커밋을 밀어넣어야 하므로 쓰기 권한이 필요하다
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-data
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}
+      KAKAO_REST_KEY: ${{ secrets.KAKAO_REST_KEY }}
+      # 러너에는 .cache가 없어 매번 12개월치를 새로 받는다. 429를 피하려고 천천히.
+      WORKERS: "3"
+      MIN_INTERVAL: "0.5"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 키 확인
+        run: |
+          if [ -z "$DATA_GO_KR_KEY" ]; then
+            echo "::error::DATA_GO_KR_KEY 시크릿이 없습니다. Settings > Secrets and variables > Actions에서 등록하세요."
+            exit 1
+          fi
+
+      # 원본 캐시를 재사용해 API 호출을 줄인다(월 단위 파일이라 지난달까지는 그대로 쓴다)
+      - name: 원본 캐시 복원
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: molit-cache-${{ github.run_id }}
+          restore-keys: |
+            molit-cache-
+
+      - name: 국토부 실거래 수집
+        run: python tools/fetch_molit.py
+
+      - name: 집계
+        run: python tools/build_data.py
+
+      - name: 좌표 갱신
+        run: python tools/build_geo.py
+
+      - name: 바뀐 게 있으면 커밋
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/data docs/*/index.html
+          if git diff --cached --quiet; then
+            echo "변경 없음 — 커밋 건너뜀"
+            exit 0
+          fi
+          git commit -m "실거래 데이터 자동 갱신 ($(TZ=Asia/Seoul date '+%Y-%m-%d'))"
+          git push
