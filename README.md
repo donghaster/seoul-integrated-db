@@ -59,14 +59,22 @@ TOP10·건수·중위값·월별 그래프·거래량 순위가 모두 다시 �
 `.github/workflows/refresh-data.yml`이 **매일 새벽 5시(KST)** 돌면서
 새 데이터를 받아 `docs/data`가 바뀌었을 때만 커밋합니다. → Vercel 자동 재배포.
 
-한 번만 저장소에 키를 등록해 두면 됩니다.
+한 번만 저장소에 키를 등록해 두면 됩니다. **`키등록하기.bat`을 더블클릭**하세요.
+로컬 `.env`의 키를 읽어 `gh secret set`에 표준입력으로 넘기므로
+**키 값이 화면·로그·명령행 어디에도 남지 않습니다.**
 
 ```bash
-gh secret set DATA_GO_KR_KEY --repo donghaster/seoul-integrated-db
-gh secret set KAKAO_REST_KEY --repo donghaster/seoul-integrated-db
+py tools/setup_secrets.py --check   # 준비 상태만 점검(키 건드리지 않음)
+py tools/setup_secrets.py           # 실제 등록
 ```
 
-Actions 탭 → `실거래 데이터 갱신` → **Run workflow**로 즉시 실행할 수도 있습니다.
+등록 뒤 즉시 한 번 돌려보려면:
+
+```bash
+gh workflow run refresh-data.yml --repo donghaster/seoul-integrated-db
+```
+
+Actions 탭 → `실거래 데이터 갱신` → **Run workflow**로도 실행할 수 있습니다.
 
 ### 수동
 
