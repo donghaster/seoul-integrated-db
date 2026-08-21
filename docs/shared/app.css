@@ -621,3 +621,7 @@ section[data-tabpanel].is-on { display: block; }
   padding: 1px 5px; border-radius: 4px; margin-left: 3px; vertical-align: 1px;
   color: #7a4a12; background: #fdefe0; border: 1px solid #eccfa8;
 }
+
+/* 브리핑 표 머리글 — "중위 / 평당가"처럼 두 줄로 (단어 중간에서 끊기지 않게) */
+.brief-table th .th2 { display: block; white-space: nowrap; word-break: keep-all; }
+.brief-table th .th2 + .th2 { font-weight: 800; color: var(--txt-dim); }

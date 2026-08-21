@@ -1709,11 +1709,22 @@
     return '<span class="' + cls + '">' + sign + r.toFixed(1) + "%</span>";
   }
 
+  // 머리글을 두 줄로 — "중위 평당 / 가"처럼 단어 중간에서 끊기는 걸 막는다
+  function th2(a, b) { return '<span class="th2">' + a + "</span><span class=\"th2\">" + b + "</span>"; }
+
   function briefTable(title, cols, rows) {
     return '<div class="brief-card"><h4>' + title + "</h4>" +
       '<div class="table-wrap"><table class="brief-table"><thead><tr>' +
       cols.map(function (c) { return "<th>" + c + "</th>"; }).join("") +
       "</tr></thead><tbody>" + rows.join("") + "</tbody></table></div></div>";
+  }
+
+  // 섹션과 목차 버튼을 함께 감춘다 — 목차만 남으면 눌러도 안 움직인다
+  function showBrief(on) {
+    var sec = document.getElementById("sec-brief");
+    if (sec) sec.hidden = !on;
+    var nav = document.querySelector('nav.section-nav button[data-target="sec-brief"]');
+    if (nav) nav.hidden = !on;
   }
 
   function renderBrief() {
@@ -1724,11 +1735,14 @@
       "주간 그래프는 표본이 얇아 출렁이니, <b>고객께 말씀하실 숫자는 이 표에서</b> 가져가세요.";
 
     var grid = document.getElementById("briefGrid");
+    // 거래가 없으면 "없습니다" 한 줄로 자리를 차지하지 말고 섹션째 감춘다
     if (!mo.length) {
-      grid.innerHTML = '<p class="empty">조회 기간에 거래가 없습니다.</p>';
+      showBrief(false);
+      grid.innerHTML = "";
       document.getElementById("briefScript").innerHTML = "";
       return;
     }
+    showBrief(true);
 
     var flag = function (m, n, hot) {
       var t = "";
@@ -1769,18 +1783,20 @@
     });
 
     grid.innerHTML =
-      briefTable("매매", ["월", "건수", "중위 평당가", "중위 거래가", "전월비"], saleRows) +
-      briefTable("전세", ["월", "건수", "중위 보증금", "중위 평당가", "전월비"], jeonseRows) +
-      briefTable("월세", ["월", "건수", "중위 보증금", "중위 월세", "준전세 비중"], wolseRows);
+      briefTable("매매", ["월", "건수", th2("중위", "평당가"), th2("중위", "거래가"), "전월비"], saleRows) +
+      briefTable("전세", ["월", "건수", th2("중위", "보증금"), th2("중위", "평당가"), "전월비"], jeonseRows) +
+      briefTable("월세", ["월", "건수", th2("중위", "보증금"), th2("중위", "월세"), th2("준전세", "비중")], wolseRows);
 
     renderBriefScript(mo);
   }
 
-  /* 표에서 바로 읽어 드릴 수 있게 문장으로 풀어 준다.
-     예측은 하지 않는다 — 확인된 수치와 그 한계만 적는다.
+  /* 고객 앞에서 그대로 읽어 드릴 수 있게 금집부쌤 1인칭으로 풀어 준다.
+     예측은 하지 않는다 — 확인된 수치와 그 한계만 말한다.
      "집계중"인 달도 흐름에는 넣되, 미확정이라는 사실을 반드시 함께 말한다. */
   function renderBriefScript(mo) {
     var out = [];
+    document.getElementById("briefScriptTitle").textContent =
+      "금집부쌤이 보는 " + regionLabel();
 
     function trend(get, label) {
       // 한 단지가 30% 넘게 차지한 달은 중위값이 그 단지 값이라 흐름에서 뺀다
@@ -1788,27 +1804,26 @@
       var any = mo.filter(function (x) { return get(x).n > 0; });
       var total = any.reduce(function (a, x) { return a + get(x).n; }, 0);
 
-      if (!total) return "<b>" + label + "</b>는 조회 기간에 거래가 없습니다.";
+      if (!total) return "<b>" + label + "</b>는 이 기간에 거래가 없었습니다.";
 
       if (pts.length < 2) {
-        // 왜 못 내는지를 정확히 적는다 — 표본이 얇아서인지, 한 단지 쏠림 때문인지
         var enough = mo.filter(function (x) { return get(x).n >= MIN_N && get(x).py; });
         var hotOnly = enough.filter(function (x) { return get(x).hot; });
         var last1 = any[any.length - 1];
-        var head = "<b>" + label + "</b>는 조회 기간 <b>" + total.toLocaleString() + "건</b>이지만, ";
+        var head = "<b>" + label + "</b>는 이 기간 <b>" + total.toLocaleString() + "건</b>인데, ";
         var why, how;
         if (hotOnly.length) {
-          why = "값이 쓸 만한 달 대부분이 <b>" +
-                hotOnly.map(function (x) { return moLabel(x.m) + " " + esc(get(x).hot[0]); }).join(", ") +
-                "</b>처럼 <b>한 단지에 쏠려</b> 있어 <b>월별 흐름을 말씀드리기 어렵습니다</b>. ";
-          how = "<b>자치구 단위로 넓혀</b> 보시거나, 아래 TOP10에서 <b>개별 단지</b>로 설명하세요.";
+          why = "값을 쓸 만한 달이 " +
+                hotOnly.map(function (x) { return moLabel(x.m) + " <b>" + esc(get(x).hot[0]) + "</b>"; }).join(", ") +
+                "처럼 <b>한 단지에 몰려</b> 있어서 <b>달별 흐름을 말씀드리기 어렵습니다</b>. ";
+          how = "제가 <b>구 전체로 넓혀</b> 보여드리거나, 아래 TOP10에서 <b>관심 단지를 직접</b> 짚어 드리겠습니다.";
         } else if (enough.length) {
           why = "값을 쓸 만한 달이 <b>" + moLabel(enough[0].m) + " 한 달뿐</b>이라 " +
-                "<b>비교할 대상이 없습니다</b>. ";
-          how = "<b>조회 기간을 6개월 이상으로 넓혀</b> 보시길 권합니다.";
+                "<b>비교해 드릴 대상이 없습니다</b>. ";
+          how = "<b>기간을 6개월 이상으로</b> 넓혀서 보시는 편이 낫습니다.";
         } else {
-          why = "달마다 " + MIN_N + "건이 안 돼 <b>월별 흐름을 말씀드리기 어렵습니다</b>. ";
-          how = "<b>조회 기간을 6개월 이상으로 넓혀</b> 보시길 권합니다.";
+          why = "달마다 " + MIN_N + "건이 안 돼 <b>달별 흐름을 말씀드리기 어렵습니다</b>. ";
+          how = "<b>기간을 6개월 이상으로</b> 넓혀서 보시는 편이 낫습니다.";
         }
         return head + why +
           "가장 최근은 " + moLabel(last1.m) + " " + get(last1).n + "건" +
@@ -1818,40 +1833,43 @@
 
       var a2 = pts[0], b2 = pts[pts.length - 1];
       var r = (get(b2).py - get(a2).py) / get(a2).py * 100;
-      var word = Math.abs(r) < 1.5 ? "사실상 보합" : (r > 0 ? "상승" : "약세");
+      var word = Math.abs(r) < 1.5 ? "거의 그대로입니다"
+               : (r > 0 ? "<b>" + r.toFixed(1) + "% 올랐습니다</b>"
+                        : "<b>" + Math.abs(r).toFixed(1) + "% 내렸습니다</b>");
       var t = "<b>" + label + "</b>는 " + moLabel(a2.m) + " 평당 " +
         Math.round(get(a2).py).toLocaleString() + "만원(" + get(a2).n + "건)에서 " +
-        moLabel(b2.m) + " " + Math.round(get(b2).py).toLocaleString() + "만원(" + get(b2).n + "건)으로 <b>" +
-        (r > 0 ? "+" : "") + r.toFixed(1) + "% — " + word + "</b>입니다.";
-      if (isPending(b2.m)) t += " 다만 " + moLabel(b2.m) + "은 <b>아직 집계 중</b>이라 확정치가 아닙니다.";
+        moLabel(b2.m) + " " + Math.round(get(b2).py).toLocaleString() + "만원(" + get(b2).n + "건)으로 " +
+        word + ".";
+      if (isPending(b2.m)) {
+        t += " 다만 " + moLabel(b2.m) + "은 <b>신고가 아직 다 안 들어와</b> 확정된 숫자가 아닙니다.";
+      }
 
-      // 첫 달과 마지막 달만 비교하면 중간의 큰 출렁임이 가려진다.
-      // 고점·저점이 15% 넘게 벌어지면 "단일 추세"로 말하지 않도록 붙여 준다.
+      // 첫 달과 마지막 달만 비교하면 중간의 큰 출렁임이 가려진다
       if (pts.length >= 3) {
         var vals = pts.map(function (x) { return get(x).py; });
         var hi = Math.max.apply(null, vals), lo = Math.min.apply(null, vals);
         if (lo && (hi - lo) / lo * 100 >= 15) {
           var hiM = pts[vals.indexOf(hi)], loM = pts[vals.indexOf(lo)];
-          t += " <b>그런데 한 방향으로 움직인 게 아닙니다</b> — " +
-               "고점은 " + moLabel(hiM.m) + " " + Math.round(hi).toLocaleString() + "만원, " +
-               "저점은 " + moLabel(loM.m) + " " + Math.round(lo).toLocaleString() + "만원으로 " +
-               "<b>" + Math.round((hi - lo) / lo * 100) + "%</b> 벌어집니다. " +
-               "<b>달마다 어느 단지가 팔렸는지에 따라 중위값이 흔들린 것</b>이니, " +
-               "고객께는 “상승”보다 <b>“단지별로 확인이 필요하다”</b>고 말씀하시는 편이 안전합니다.";
+          t += " 그런데 <b>쭉 한 방향으로 움직인 건 아닙니다</b> \u2014 가장 높았던 달은 " +
+               moLabel(hiM.m) + " " + Math.round(hi).toLocaleString() + "만원, 낮았던 달은 " +
+               moLabel(loM.m) + " " + Math.round(lo).toLocaleString() + "만원으로 <b>" +
+               Math.round((hi - lo) / lo * 100) + "%</b>나 차이가 납니다. " +
+               "달마다 <b>어느 단지가 팔렸느냐</b>에 따라 중위값이 흔들린 것이라, " +
+               "저는 오르내림보다 <b>관심 있는 단지를 직접 보시길</b> 권해 드립니다.";
         }
       }
 
       var skipped = mo.filter(function (x) { return get(x).n > 0 && get(x).n < MIN_N; });
       if (skipped.length) {
         t += " (" + skipped.map(function (x) { return moLabel(x.m); }).join("·") +
-             "은 표본 " + MIN_N + "건 미만이라 흐름에서 뺐습니다.)";
+             "은 표본이 " + MIN_N + "건이 안 돼 이 계산에서 뺐습니다.)";
       }
       var hots = mo.filter(function (x) { return get(x).hot && get(x).n >= MIN_N; });
       if (hots.length) {
         t += " (" + hots.map(function (x) {
           return moLabel(x.m) + "은 <b>" + esc(get(x).hot[0]) + "</b> 한 단지가 " + get(x).hot[1] + "건";
-        }).join(", ") + "이라 흐름에서 뺐습니다. <b>한 단지 물량이 통째로 신고되면 " +
-        "그 달 중위값은 그 단지 값</b>이 됩니다.)";
+        }).join(", ") + "이라 뺐습니다. 한 단지 물량이 통째로 신고되면 " +
+        "<b>그 달 중위값은 사실상 그 단지 값</b>이 됩니다.)";
       }
       return t;
     }
@@ -1865,15 +1883,17 @@
       var wa = w[0], wb = w[w.length - 1];
       var jrA = Math.round(wa.wolse.junRate * 100), jrB = Math.round(wb.wolse.junRate * 100);
       var rentGap = (wb.wolse.rent - wa.wolse.rent) / wa.wolse.rent * 100;
-      var t3 = "<b>월세</b>는 중위 월세가 " + Math.round(wa.wolse.rent).toLocaleString() + "만원 → " +
-        Math.round(wb.wolse.rent).toLocaleString() + "만원(" + (rentGap > 0 ? "+" : "") +
-        rentGap.toFixed(0) + "%), 중위 보증금이 " + eokman(wa.wolse.dep) + " → " + eokman(wb.wolse.dep) +
-        ", 준전세 비중이 " + jrA + "% → " + jrB + "%입니다.";
+      var t3 = "<b>월세</b>는 중위 월세가 " + Math.round(wa.wolse.rent).toLocaleString() + "만원에서 " +
+        Math.round(wb.wolse.rent).toLocaleString() + "만원으로 " +
+        (Math.abs(rentGap) < 1 ? "거의 그대로고" : (rentGap > 0 ? "<b>" + rentGap.toFixed(0) + "% 올랐고</b>"
+                                                              : "<b>" + Math.abs(rentGap).toFixed(0) + "% 내렸고</b>")) +
+        ", 보증금은 " + eokman(wa.wolse.dep) + "에서 " + eokman(wb.wolse.dep) + ", " +
+        "준전세 비중은 " + jrA + "%에서 " + jrB + "%입니다.";
       if (jrB - jrA >= 8 && rentGap < 0) {
-        t3 += " <b>보증금을 올리고 월세를 낮추는 준전세로 옮겨가는 중</b>입니다. " +
-              "위 지수 그래프의 월세선은 환산보증금 기준이라 <b>반대로 오르게 보이니</b> 주의하세요.";
+        t3 += " <b>보증금을 올리고 월세를 낮추는 쪽</b>으로 옮겨가고 있습니다. " +
+              "위 가격지수 그래프의 월세선은 환산보증금 기준이라 <b>거꾸로 올라 보이는데, 월세가 오른 게 아닙니다.</b>";
       } else if (jrA - jrB >= 8 && rentGap > 0) {
-        t3 += " <b>보증금을 낮추고 월세를 늘리는 쪽</b>으로 움직였습니다.";
+        t3 += " <b>보증금을 낮추고 월세를 늘리는 쪽</b>으로 옮겨가고 있습니다.";
       }
       out.push(t3);
     } else if (mo.some(function (x) { return x.wolse.n; })) {
@@ -1886,20 +1906,21 @@
       var va = solid[0], vb = solid[solid.length - 1];
       var na = va.sale.n + va.jeonse.n + va.wolse.n;
       var nb = vb.sale.n + vb.jeonse.n + vb.wolse.n;
-      out.push("<b>거래량</b>은 " + moLabel(va.m) + " " + na.toLocaleString() + "건 → " +
-        moLabel(vb.m) + " " + nb.toLocaleString() + "건입니다. (신고가 마감된 달끼리만 비교)");
+      out.push("<b>거래량</b>은 " + moLabel(va.m) + " " + na.toLocaleString() + "건에서 " +
+        moLabel(vb.m) + " " + nb.toLocaleString() + "건입니다. " +
+        "(신고가 마감된 달끼리만 비교했습니다.)");
     }
 
     var pend = mo.filter(function (x) { return isPending(x.m); });
     if (pend.length) {
       out.push("<b>" + pend.map(function (x) { return moLabel(x.m); }).join("·") +
-        "은 아직 집계 중입니다.</b> 실거래 신고 기한이 계약일로부터 30일이라 앞으로 건수가 더 늘어납니다. " +
-        "<b>“거래가 끊겼다”고 말씀하시면 안 됩니다.</b>");
+        " 숫자는 아직 확정이 아닙니다.</b> 실거래 신고 기한이 계약일로부터 30일이라 " +
+        "앞으로 건수가 더 늘어납니다. <b>지금 수치만 보고 거래가 끊겼다고 보시면 안 됩니다.</b>");
     }
 
-    out.push("모든 수치는 <b>국토교통부 실거래 신고 원본</b> 기준이며, " +
-      regionLabel() + " " + win().label + " 구간입니다. 표의 <b>*</b> 표시는 표본 " + MIN_N +
-      "건 미만이라 시세 변동으로 보기 어려운 등락률입니다.");
+    out.push("여기 숫자는 모두 <b>국토교통부 실거래 신고 원본</b>이고, " +
+      regionLabel() + " " + win().label + " 구간입니다. 표의 <b>*</b>는 표본이 " + MIN_N +
+      "건이 안 돼 시세 변동으로 보기 어려운 등락률입니다.");
 
     document.getElementById("briefScript").innerHTML =
       out.map(function (t) { return "<li>" + t + "</li>"; }).join("");
