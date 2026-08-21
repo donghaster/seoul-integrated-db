@@ -132,6 +132,23 @@
 
   /* ════════════════ 핵심 요약 ════════════════ */
 
+  /* 선택한 자치구를 제목에 반영한다 — "서울 뉴타운 위치 지도" -> "동작구 뉴타운 위치 지도" */
+  function scopeLabel() {
+    return state.gu === ALL ? "서울" : state.gu;
+  }
+
+  function renderTitles() {
+    var s = scopeLabel();
+    var set = function (id, text) {
+      var el = document.getElementById(id);
+      if (el) el.textContent = text;
+    };
+    set("kpiSecTitle", s + " 뉴타운");
+    set("mapSecTitle", s + " 뉴타운");
+    set("listSecTitle", s === "서울" ? "지구별" : s + " 지구별");
+    set("dealSecTitle", s === "서울" ? "뉴타운 지역" : s + " 뉴타운");
+  }
+
   function renderKpi() {
     var list = filtered();
     var ing = list.filter(function (d) { return d.stage < 6; }).length;
@@ -629,6 +646,7 @@
   /* ════════════════ 렌더 ════════════════ */
 
   function renderAll() {
+    renderTitles();
     renderKpi();
     renderMap();
     renderGrid();
