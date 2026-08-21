@@ -48,20 +48,38 @@
   <div id="printBanner" class="print-only print-page-banner"></div>
 
   <!-- ─────────────── 조회 조건 ─────────────── -->
-  <section class="filter-bar" aria-label="지역 선택">
+  <!-- 조회 조건 — 세로로 쌓지 않고 한눈에 들어오도록 가로로 편다 -->
+  <section class="filter-bar filter-wide" aria-label="조회 조건">
+    <div class="ctl">
+      <label>집계 기준</label>
+      <div class="tab-row seg-sm" id="granTabs">
+        <button data-g="week">주간</button>
+        <button class="active" data-g="month">월간</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <label for="startDate">시작일</label>
+      <input type="date" id="startDate" />
+    </div>
+    <div class="ctl">
+      <label for="endDate">종료일</label>
+      <input type="date" id="endDate" />
+    </div>
     <div class="ctl">
       <label for="guSelect">자치구</label>
       <select id="guSelect"></select>
     </div>
-    <div class="ctl">
-      <label for="dongSelect">법정동</label>
-      <select id="dongSelect"></select>
-    </div>
-    <div class="ctl">
-      <label>조회 기간</label>
-      <div class="tab-row" id="windowTabs" style="margin-bottom:0;"></div>
+    <div class="ctl ctl-grow">
+      <label>빠른 기간</label>
+      <div class="tab-row seg-sm" id="windowTabs"></div>
     </div>
     <div class="filter-note" id="periodNote"></div>
+
+    <!-- 법정동은 개수가 많아 칩으로 펼친다(선택한 구 안에서만) -->
+    <div class="ctl ctl-full">
+      <label>법정동 <span class="dim-note">선택한 구 내</span></label>
+      <div class="tab-row seg-sm chip-wrap" id="dongChips"></div>
+    </div>
   </section>
 
   <nav class="section-nav" aria-label="섹션 바로가기">
@@ -326,11 +344,11 @@
 
 <script src="../vendor/leaflet/leaflet.js"></script>
 <script src="../vendor/chart.umd.min.js"></script>
-<script src="../data/apt.js?v=202608212208"></script>
-<script src="../data/geo.js?v=202608212208"></script>
+<script src="../data/apt.js?v=202608212225"></script>
+<script src="../data/geo.js?v=202608212225"></script>
 <!-- 입지분석: 지하철·학교·공원·상권·인구(locinfo) + 개발 호재는 뉴타운 자료를 재사용 -->
-<script src="../data/locinfo.js?v=202608212208"></script>
-<script src="../data/newtown.js?v=202608212208"></script>
+<script src="../data/locinfo.js?v=202608212225"></script>
+<script src="../data/newtown.js?v=202608212225"></script>
 <script src="../shared/brand.js?v=1"></script>
 <script src="app.js?v=1"></script>
 </body>

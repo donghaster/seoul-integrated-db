@@ -23,27 +23,58 @@
 
   /* ── 상태 ── */
   var state = {
-    gu: ALL,
-    dong: ALL,
-    win: D.defaultWindow,          // "3" | "6" | "12" — 조회 기간(개월)
+    gu: ALL, dong: ALL,
+    start: "", end: "",            // 조회 시작·종료일(자유 선택)
+    gran: "month",                 // 집계 단위: week | month
     dealType: "sale",
     cmpOn: { sale: true, jeonse: true, wolse: true },
     volRank: "gu",
   };
 
-  /* 선택한 기간의 메타(시작·종료월, 이름) */
-  function win() { return D.windows[state.win]; }
+  /* ════════════════ 원본 실거래 풀기 ════════════════
+     apt.js는 이제 집계본이 아니라 원본을 담고 있다. 한 번 풀어 두고
+     지역별 색인을 만들어, 아무 기간·아무 단위로나 그때그때 계산한다. */
 
-  /* 전체 12개월 월별 배열에서 선택 기간만큼 잘라낸다 */
-  function sliceMonths(arr) {
-    var w = parseInt(state.win, 10);
-    return (arr || []).slice(-w);
-  }
+  var DEALS = [];                  // {t, gu, dg, n, d, a, f, y, v, r}
+  var BY_REGION = {};              // "all" / "구" / "구|동" -> 거래 배열
+  var DATA_START = "", DATA_END = "";
+
+  (function decodeDeals() {
+    var enc = D.deals;
+    if (!enc) return;
+    var base = new Date(enc.base + "T00:00:00").getTime();
+    var pad = function (n) { return n < 10 ? "0" + n : "" + n; };
+    var regionOfIdx = enc.regions.map(function (k) {
+      var p = k.split("|");
+      return { gu: p[0], dg: p[1] || "" };
+    });
+
+    for (var i = 0; i < enc.rows.length; i++) {
+      var r = enc.rows[i];
+      var dt = new Date(base + r[3] * 86400000);
+      var ds = dt.getFullYear() + "-" + pad(dt.getMonth() + 1) + "-" + pad(dt.getDate());
+      var reg = regionOfIdx[r[1]];
+      var row = {
+        t: enc.types[r[0]], gu: reg.gu, dg: reg.dg, n: enc.names[r[2]] || "(단지명 미상)",
+        d: ds, a: r[4], f: r[5], y: r[6] || 0, v: r[7], r: r.length > 8 ? r[8] : 0,
+      };
+      DEALS.push(row);
+      if (!DATA_START || ds < DATA_START) DATA_START = ds;
+      if (!DATA_END || ds > DATA_END) DATA_END = ds;
+
+      (BY_REGION[ALL] = BY_REGION[ALL] || []).push(row);
+      (BY_REGION[reg.gu] = BY_REGION[reg.gu] || []).push(row);
+      if (reg.dg) {
+        var k2 = reg.gu + "|" + reg.dg;
+        (BY_REGION[k2] = BY_REGION[k2] || []).push(row);
+      }
+    }
+  })();
 
   /* ════════════════ 포맷 유틸 ════════════════ */
 
   function eokman(man) {
-    // 32000(만원) -> "3억 2,000"
+    // 32000(만원) -> "3억 2,000만원"
     if (!man && man !== 0) return "-";
     var eok = Math.floor(man / 10000);
     var rest = Math.round(man % 10000);
@@ -52,9 +83,7 @@
     return rest.toLocaleString() + "만원";
   }
 
-  function eokShort(man) {
-    return (man / 10000).toFixed(1) + "억";
-  }
+  function eokShort(man) { return (man / 10000).toFixed(1) + "억"; }
 
   function priceText(row, type) {
     if (type === "wolse") return "보 " + eokman(row.v) + " / 월 " + (row.r || 0).toLocaleString() + "만원";
@@ -62,7 +91,6 @@
   }
 
   function convValue(row, type) {
-    // 비교·평당가 계산용 대표 금액(만원)
     return type === "wolse" ? row.v + (row.r || 0) * 100 : row.v;
   }
 
@@ -72,11 +100,259 @@
 
   function pyText(row, type) {
     if (!row.a) return "-";
-    var p = convValue(row, type) / (row.a / PYEONG);
-    return Math.round(p).toLocaleString() + "만원";
+    return Math.round(convValue(row, type) / (row.a / PYEONG)).toLocaleString() + "만원";
   }
 
   function dateText(d) { return d.replace(/-/g, "."); }
+
+  /* esc() / pctText()는 아래 렌더 구역에 이미 정의되어 있다(함수 선언은 끌어올려짐) */
+
+  /* ════════════════ 기간 ════════════════ */
+
+  function clampDate(v) {
+    if (!v) return DATA_END;
+    return v < DATA_START ? DATA_START : (v > DATA_END ? DATA_END : v);
+  }
+
+  function periodLabel() {
+    return state.start.replace(/-/g, ".") + " ~ " + state.end.replace(/-/g, ".");
+  }
+
+  function win() { return { label: periodLabel() }; }
+
+  /* 거래가 속할 구간 키 (주간은 월요일 시작) */
+  function bucketKey(dateStr) {
+    if (state.gran === "month") return dateStr.slice(0, 7);
+    var d = new Date(dateStr + "T00:00:00");
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    var p = function (n) { return n < 10 ? "0" + n : "" + n; };
+    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+  }
+
+  function bucketList() {
+    var out = [], p = function (n) { return n < 10 ? "0" + n : "" + n; };
+    var last = new Date(state.end + "T00:00:00");
+    if (state.gran === "month") {
+      var cur = new Date(state.start + "T00:00:00");
+      cur.setDate(1);
+      while (cur <= last) {
+        out.push(cur.getFullYear() + "-" + p(cur.getMonth() + 1));
+        cur.setMonth(cur.getMonth() + 1);
+      }
+    } else {
+      var c2 = new Date(bucketKey(state.start) + "T00:00:00");
+      while (c2 <= last) {
+        out.push(c2.getFullYear() + "-" + p(c2.getMonth() + 1) + "-" + p(c2.getDate()));
+        c2.setDate(c2.getDate() + 7);
+      }
+    }
+    return out;
+  }
+
+  function bucketLabels() {
+    return bucketList().map(function (k) {
+      return state.gran === "month" ? k.slice(2).replace("-", ".") : k.slice(5).replace("-", "/");
+    });
+  }
+
+  /* ════════════════ 집계 ════════════════ */
+
+  function median(arr) {
+    if (!arr.length) return 0;
+    var s = arr.slice().sort(function (a, b) { return a - b; });
+    var m = Math.floor(s.length / 2);
+    return Math.round(s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2);
+  }
+
+  function convOf(x) { return x.t === "wolse" ? x.v + (x.r || 0) * 100 : x.v; }
+  function pyOf(x) { return x.a ? convOf(x) / (x.a / PYEONG) : null; }
+
+  /* 지역별 배열을 날짜순으로 한 번만 정렬해 두면, 기간 자르기를 이진 탐색으로 끝낼 수 있다.
+     서울 전체(30만 건)를 매번 훑으면 조작할 때마다 1초씩 걸린다. */
+  var _sorted = {};
+
+  function sortedOf(key) {
+    if (_sorted[key]) return _sorted[key];
+    var arr = (BY_REGION[key] || []).slice().sort(function (a, b) {
+      return a.d < b.d ? -1 : (a.d > b.d ? 1 : 0);
+    });
+    _sorted[key] = arr;
+    return arr;
+  }
+
+  function lowerBound(arr, d) {
+    var lo = 0, hi = arr.length;
+    while (lo < hi) {
+      var m = (lo + hi) >> 1;
+      if (arr[m].d < d) lo = m + 1; else hi = m;
+    }
+    return lo;
+  }
+
+  function dealsIn(key) {
+    var arr = sortedOf(key);
+    var from = lowerBound(arr, state.start);
+    var to = lowerBound(arr, state.end + "~");   // end 당일까지 포함
+    return arr.slice(from, to);
+  }
+
+  /* 같은 단지·평형이 표를 다 잡아먹지 않도록 최대 3건까지만.
+     30만 건을 통째로 정렬하면 조작할 때마다 몇 초씩 걸리므로,
+     한 번만 훑으면서 상위 후보 CAND개만 들고 간다(전체 정렬 없이). */
+  var CAND = 200;
+
+  function pickTop(rows, score) {
+    var best = [];                 // 점수 내림차순으로 유지되는 짧은 배열
+    var floor = -Infinity;
+    for (var i = 0; i < rows.length; i++) {
+      var sc = score(rows[i]);
+      if (sc == null) continue;
+      if (best.length >= CAND && sc <= floor) continue;
+      var lo = 0, hi = best.length;
+      while (lo < hi) {            // 삽입 위치를 이진 탐색
+        var m = (lo + hi) >> 1;
+        if (best[m].s > sc) lo = m + 1; else hi = m;
+      }
+      best.splice(lo, 0, { s: sc, r: rows[i] });
+      if (best.length > CAND) best.pop();
+      floor = best[best.length - 1].s;
+    }
+    var picked = [], seen = {};
+    for (var j = 0; j < best.length && picked.length < 10; j++) {
+      var r = best[j].r, k = r.n + "|" + Math.round(r.a);
+      seen[k] = (seen[k] || 0) + 1;
+      if (seen[k] > 3) continue;
+      picked.push(r);
+    }
+    return picked;
+  }
+
+  var _cache = {};
+  var _countCache = {};
+
+  /* 순위표·법정동 칩처럼 "건수와 중위값만" 필요한 곳에서 쓴다.
+     여기서 전체 집계(TOP10·상승률)를 돌리면 지역 수만큼 곱해져 몇 초씩 걸린다. */
+  function countRegion(key) {
+    var ck = key + "@" + state.start + "~" + state.end;
+    if (_countCache[ck]) return _countCache[ck];
+    var rows = dealsIn(key);
+    var cnt = { sale: 0, jeonse: 0, wolse: 0 };
+    var saleP = [];
+    for (var i = 0; i < rows.length; i++) {
+      var x = rows[i];
+      cnt[x.t]++;
+      if (x.t === "sale" && x.a) saleP.push(pyOf(x));
+    }
+    var res = { cnt: cnt, med: { pyeong: median(saleP) } };
+    _countCache[ck] = res;
+    return res;
+  }
+
+  function computeRegion(key) {
+    var ck = key + "@" + state.start + "~" + state.end;
+    if (_cache[ck]) return _cache[ck];
+
+    var rows = dealsIn(key);
+    var by = { sale: [], jeonse: [], wolse: [] };
+    for (var i = 0; i < rows.length; i++) by[rows[i].t].push(rows[i]);
+
+    var saleP = [];
+    for (var j = 0; j < by.sale.length; j++) {
+      var p = pyOf(by.sale[j]);
+      if (p) saleP.push(p);
+    }
+
+    var res = {
+      top: {}, topPy: {},
+      cnt: { sale: by.sale.length, jeonse: by.jeonse.length, wolse: by.wolse.length },
+      med: {
+        sale: median(by.sale.map(function (x) { return x.v; })),
+        jeonse: median(by.jeonse.map(function (x) { return x.v; })),
+        wolse: median(by.wolse.map(function (x) { return x.r; })),
+        pyeong: median(saleP),
+      },
+    };
+    TYPES.forEach(function (t) {
+      res.top[t] = pickTop(by[t], convOf);
+      res.topPy[t] = pickTop(by[t].filter(function (x) { return x.a; }), pyOf)
+        .map(function (x) {
+          return { t: x.t, gu: x.gu, dg: x.dg, n: x.n, d: x.d, a: x.a, f: x.f,
+                   y: x.y, v: x.v, r: x.r, py: Math.round(pyOf(x)) };
+        });
+
+    });
+
+    _cache[ck] = res;
+    return res;
+  }
+
+  var _riseCache = {};
+
+  /* 상승률은 단지별로 묶어야 해서 무겁다 — 실제로 볼 때만 계산한다 */
+  function riseOf(key, type) {
+    var ck = key + "|" + type + "@" + state.start + "~" + state.end;
+    if (_riseCache[ck]) return _riseCache[ck];
+    var rows = dealsIn(key).filter(function (x) { return x.t === type; });
+    var out = computeRise(rows);
+    _riseCache[ck] = out;
+    return out;
+  }
+
+  function computeRise(rows) {
+    if (!rows.length) return [];
+    var lo = new Date(state.start + "T00:00:00").getTime();
+    var hi = new Date(state.end + "T00:00:00").getTime();
+    var mid = new Date(lo + (hi - lo) / 2);
+    var p = function (n) { return n < 10 ? "0" + n : "" + n; };
+    var midStr = mid.getFullYear() + "-" + p(mid.getMonth() + 1) + "-" + p(mid.getDate());
+
+    var early = {}, late = {};
+    for (var i = 0; i < rows.length; i++) {
+      var x = rows[i], v = pyOf(x);
+      if (!v) continue;
+      var bag = x.d < midStr ? early : late;
+      (bag[x.n] = bag[x.n] || []).push(v);
+    }
+    var out = [];
+    Object.keys(early).forEach(function (n) {
+      if (!late[n]) return;
+      var a = median(early[n]), b = median(late[n]);
+      if (!a || !b) return;
+      out.push({ n: n, before: a, after: b, rate: (b - a) / a * 100,
+                 cnt: early[n].length + late[n].length });
+    });
+    out.sort(function (x, y) { return y.rate - x.rate; });
+    return out.slice(0, 10);
+  }
+
+  /* 구간별 중위 평당가 시계열 — 가격지수용 */
+  function pySeries(key, type) {
+    var rows = dealsIn(key), bag = {};
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].t !== type) continue;
+      var v = pyOf(rows[i]);
+      if (!v) continue;
+      var k = bucketKey(rows[i].d);
+      (bag[k] = bag[k] || []).push(v);
+    }
+    return bucketList().map(function (k) { return bag[k] ? median(bag[k]) : null; });
+  }
+
+  /* 구간별 거래 건수 */
+  function volSeries(key) {
+    var rows = dealsIn(key), bag = {};
+    for (var i = 0; i < rows.length; i++) {
+      var k = bucketKey(rows[i].d);
+      bag[k] = bag[k] || { sale: 0, jeonse: 0, wolse: 0 };
+      bag[k][rows[i].t]++;
+    }
+    var ks = bucketList();
+    return {
+      sale: ks.map(function (k) { return bag[k] ? bag[k].sale : 0; }),
+      jeonse: ks.map(function (k) { return bag[k] ? bag[k].jeonse : 0; }),
+      wolse: ks.map(function (k) { return bag[k] ? bag[k].wolse : 0; }),
+    };
+  }
 
   /* ════════════════ 지역 ════════════════ */
 
@@ -92,38 +368,88 @@
     return state.gu + " " + state.dong;
   }
 
-  var EMPTY_REGION = {
-    top: { sale: [], jeonse: [], wolse: [] },
-    cnt: { sale: 0, jeonse: 0, wolse: 0 },
-    med: { sale: 0, jeonse: 0, wolse: 0, pyeong: 0 },
-    vol: { sale: [], jeonse: [], wolse: [] },
-  };
-
-  /* 선택한 지역 + 선택한 기간의 집계 */
   function region() {
-    var reg = D.regions[regionKey()];
-    if (!reg) return EMPTY_REGION;
-    var w = reg.w[state.win] || EMPTY_REGION;
-    return {
-      top: w.top, cnt: w.cnt, med: w.med,
-      vol: {
-        sale: sliceMonths(reg.vol.sale),
-        jeonse: sliceMonths(reg.vol.jeonse),
-        wolse: sliceMonths(reg.vol.wolse),
-      },
-    };
+    var r = computeRegion(regionKey());
+    r.vol = volSeries(regionKey());
+    return r;
   }
 
-  /* 순위표에서 다른 지역의 건수를 꺼낼 때 쓴다 */
-  function regionOf(key) {
-    var reg = D.regions[key];
-    return (reg && reg.w[state.win]) || EMPTY_REGION;
-  }
+  /* 순위표에서 다른 지역의 건수·중위값만 꺼낼 때 — 가벼운 쪽을 쓴다 */
+  function regionOf(key) { return countRegion(key); }
 
   /* ════════════════ 조회 조건 ════════════════ */
 
   var guSelect = document.getElementById("guSelect");
-  var dongSelect = document.getElementById("dongSelect");
+  var dongChips = document.getElementById("dongChips");
+  var startInput = document.getElementById("startDate");
+  var endInput = document.getElementById("endDate");
+
+  /* 빠른 기간 — "최근 N개월"은 달 단위로 센다(3개월 = 이번 달 포함 3개 달의 1일부터) */
+  var PRESETS = [
+    { k: "4w", name: "최근 4주", days: 28 },
+    { k: "3m", name: "최근 3개월", months: 3 },
+    { k: "6m", name: "최근 6개월", months: 6 },
+    { k: "12m", name: "최근 12개월", months: 12 },
+    { k: "all", name: "전체 기간" },
+  ];
+
+  function pad2(n) { return n < 10 ? "0" + n : "" + n; }
+  function iso(d) { return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
+
+  function applyPreset(k) {
+    var end = new Date(DATA_END + "T00:00:00");
+    var p = PRESETS.filter(function (x) { return x.k === k; })[0] || PRESETS[1];
+    var start;
+    if (p.k === "all") start = new Date(DATA_START + "T00:00:00");
+    else if (p.days) { start = new Date(end); start.setDate(start.getDate() - p.days); }
+    else start = new Date(end.getFullYear(), end.getMonth() - (p.months - 1), 1);
+    state.start = clampDate(iso(start));
+    state.end = clampDate(iso(end));
+    state.gran = (p.k === "4w") ? "week" : "month";
+    syncControls();
+  }
+
+  function syncControls() {
+    startInput.value = state.start;
+    endInput.value = state.end;
+    startInput.min = DATA_START; startInput.max = DATA_END;
+    endInput.min = DATA_START; endInput.max = DATA_END;
+    document.querySelectorAll("#granTabs button").forEach(function (b2) {
+      b2.classList.toggle("active", b2.dataset.g === state.gran);
+    });
+  }
+
+  var windowTabs = document.getElementById("windowTabs");
+  windowTabs.innerHTML = PRESETS.map(function (p) {
+    return '<button data-p="' + p.k + '"' + (p.k === "3m" ? ' class="active"' : "") + ">" + p.name + "</button>";
+  }).join("");
+  windowTabs.addEventListener("click", function (e) {
+    var b2 = e.target.closest("button[data-p]");
+    if (!b2) return;
+    windowTabs.querySelectorAll("button").forEach(function (x) { x.classList.remove("active"); });
+    b2.classList.add("active");
+    applyPreset(b2.dataset.p);
+    renderAll();
+  });
+
+  document.querySelectorAll("#granTabs button").forEach(function (b2) {
+    b2.addEventListener("click", function () {
+      state.gran = b2.dataset.g;
+      syncControls();
+      renderAll();
+    });
+  });
+
+  function onDateChange() {
+    var lo = clampDate(startInput.value), hi = clampDate(endInput.value);
+    if (lo > hi) { var t = lo; lo = hi; hi = t; }
+    state.start = lo; state.end = hi;
+    windowTabs.querySelectorAll("button").forEach(function (x) { x.classList.remove("active"); });
+    syncControls();
+    renderAll();
+  }
+  startInput.addEventListener("change", onDateChange);
+  endInput.addEventListener("change", onDateChange);
 
   function fillGu() {
     guSelect.innerHTML = '<option value="all">서울시 전체</option>' +
@@ -131,51 +457,39 @@
     guSelect.value = state.gu;
   }
 
+  /* 법정동은 칩으로 펼친다 — 선택한 구 안에서만 */
   function fillDong() {
     if (state.gu === ALL) {
-      dongSelect.innerHTML = '<option value="all">전체</option>';
-      dongSelect.disabled = true;
       state.dong = ALL;
+      dongChips.innerHTML = '<button class="active" data-d="all">전체</button>' +
+        '<span class="dim-note" style="align-self:center;margin-left:8px">자치구를 선택하면 법정동이 나옵니다</span>';
+      bindDongChips();
       return;
     }
-    dongSelect.disabled = false;
     var list = D.dongs[state.gu] || [];
-    dongSelect.innerHTML = '<option value="all">' + state.gu + " 전체</option>" +
-      list.map(function (d) {
-        var c = regionOf(state.gu + "|" + d).cnt;
-        var total = (c.sale || 0) + (c.jeonse || 0) + (c.wolse || 0);
-        return '<option value="' + d + '">' + d + " (" + total.toLocaleString() + "건)</option>";
-      }).join("");
     if (list.indexOf(state.dong) === -1) state.dong = ALL;
-    dongSelect.value = state.dong;
+    dongChips.innerHTML = '<button' + (state.dong === ALL ? ' class="active"' : "") + ' data-d="all">전체</button>' +
+      list.map(function (d) {
+        return '<button' + (d === state.dong ? ' class="active"' : "") + ' data-d="' + esc(d) + '">' + esc(d) + "</button>";
+      }).join("");
+    bindDongChips();
   }
 
-  /* ── 조회 기간 버튼 (최근 3 / 6 / 12개월) ── */
-  var windowTabs = document.getElementById("windowTabs");
-  windowTabs.innerHTML = Object.keys(D.windows).sort(function (a, b) { return a - b; })
-    .map(function (k) {
-      return '<button data-w="' + k + '"' + (k === state.win ? ' class="active"' : "") +
-        ">" + D.windows[k].name + "</button>";
-    }).join("");
-
-  windowTabs.addEventListener("click", function (e) {
-    var b = e.target.closest("button[data-w]");
-    if (!b || b.dataset.w === state.win) return;
-    windowTabs.querySelectorAll("button").forEach(function (x) { x.classList.remove("active"); });
-    b.classList.add("active");
-    state.win = b.dataset.w;
-    fillDong();               // 동 목록의 건수 표기도 기간에 맞춰 갱신
-    renderAll();
-  });
+  function bindDongChips() {
+    dongChips.querySelectorAll("button[data-d]").forEach(function (b2) {
+      b2.addEventListener("click", function () {
+        state.dong = b2.dataset.d;
+        dongChips.querySelectorAll("button").forEach(function (x) { x.classList.remove("active"); });
+        b2.classList.add("active");
+        renderAll();
+      });
+    });
+  }
 
   guSelect.addEventListener("change", function () {
     state.gu = guSelect.value;
     state.dong = ALL;
     fillDong();
-    renderAll();
-  });
-  dongSelect.addEventListener("change", function () {
-    state.dong = dongSelect.value;
     renderAll();
   });
 
@@ -329,7 +643,7 @@
     });
 
     // 거래월 재배치 — TOP10 거래가 실제로 어느 달에 있었는지
-    var months = sliceMonths(D.months);
+    var months = bucketLabels();
     var monthLabels = win().labels;
     var monthSets = TYPES.map(function (t) {
       var rows = r.top[t] || [];
@@ -445,9 +759,26 @@
   }
 
   function volRankList() {
-    if (state.volRank === "gu") return D.rankGu[state.win].slice(0, 10);
-    if (state.gu === ALL) return D.rankDong[state.win].slice(0, 10);
-    return ((D.rankDongByGu[state.win] || {})[state.gu] || []).slice(0, 10);
+    // 선택 기간 기준으로 매번 센다(미리 구운 순위가 없으므로)
+    var keys;
+    if (state.volRank === "gu") {
+      keys = D.gus.map(function (g) { return { k: g, label: g }; });
+    } else if (state.gu === ALL) {
+      keys = [];
+      D.gus.forEach(function (g) {
+        (D.dongs[g] || []).forEach(function (d) { keys.push({ k: g + "|" + d, label: d, gu: g }); });
+      });
+    } else {
+      keys = (D.dongs[state.gu] || []).map(function (d) {
+        return { k: state.gu + "|" + d, label: d, gu: state.gu };
+      });
+    }
+    keys.forEach(function (x) {
+      var c = countRegion(x.k).cnt;
+      x.c = c.sale + c.jeonse + c.wolse;
+    });
+    keys.sort(function (a2, b2) { return b2.c - a2.c; });
+    return keys.slice(0, 10);
   }
 
   function renderVolRank() {
@@ -949,15 +1280,8 @@
   var idxState = { view: "type", mode: "index", official: false };
 
   function idxSeries(key) {
-    // 전체 12개월치에서 선택 기간만큼 잘라 온다
-    var reg = D.regions[key];
-    if (!reg || !reg.idx) return null;
-    var n = parseInt(state.win, 10);
-    return {
-      sale: reg.idx.sale.slice(-n),
-      jeonse: reg.idx.jeonse.slice(-n),
-      wolse: reg.idx.wolse.slice(-n),
-    };
+    if (!BY_REGION[key]) return null;
+    return { sale: pySeries(key, "sale"), jeonse: pySeries(key, "jeonse"), wolse: pySeries(key, "wolse") };
   }
 
   function toIndex(arr) {
@@ -975,10 +1299,9 @@
     if (!pi || !pi.points) return null;
     var byQ = {};
     pi.points.forEach(function (p) { byQ[p.period] = p.value; });
-    var months = D.windows[state.win].labels;   // "25.09" 형태
-    var vals = months.map(function (m) {
-      var yy = "20" + m.slice(0, 2), mm = parseInt(m.slice(3), 10);
-      var q = yy + "Q" + String(Math.ceil(mm / 3)).padStart(2, "0");
+    var vals = bucketList().map(function (k) {
+      var yy = k.slice(0, 4), mm = parseInt(k.slice(5, 7), 10);
+      var q = yy + "Q" + (Math.ceil(mm / 3) < 10 ? "0" : "") + Math.ceil(mm / 3);
       return byQ[q] != null ? byQ[q] : null;
     });
     if (!vals.some(function (v) { return v != null; })) return null;
@@ -986,7 +1309,7 @@
   }
 
   function renderIndex() {
-    var labels = D.windows[state.win].labels;
+    var labels = bucketLabels();
     var isIdx = idxState.mode === "index";
     var sets = [];
 
@@ -1052,7 +1375,8 @@
           legend: { labels: { boxWidth: 12, font: { size: 11 } } },
           title: {
             display: true,
-            text: regionLabel() + " · 월별 중위 평당가 " + (isIdx ? "지수 (첫 달=100)" : "(만원/평)"),
+            text: regionLabel() + " · " + (state.gran === "week" ? "주별" : "월별") + " 중위 평당가 " +
+                  (isIdx ? "지수 (첫 구간=100)" : "(만원/평)"),
             font: { size: 13, weight: "bold" },
           },
           tooltip: {
@@ -1070,10 +1394,9 @@
       },
     });
 
-    var n = parseInt(state.win, 10);
     document.getElementById("idxDesc").innerHTML =
-      "조회 기간 <b>" + win().label + "</b> · 월별 중위 평당가를 " +
-      (isIdx ? "첫 달 100 기준으로 지수화" : "만원/평 그대로") + "했습니다." +
+      "조회 기간 <b>" + win().label + "</b> · " + (state.gran === "week" ? "주별" : "월별") + " 중위 평당가를 " +
+      (isIdx ? "첫 구간 100 기준으로 지수화" : "만원/평 그대로") + "했습니다." +
       (state.gu === ALL ? " 자치구를 고르면 <b>공식(부동산원) 지수</b>와 겹쳐 볼 수 있습니다." : "");
     var btn = document.getElementById("idxOfficialBtn");
     btn.classList.toggle("is-on", idxState.official);
@@ -1128,9 +1451,7 @@
   }
 
   function renderPy() {
-    var w = D.regions[regionKey()];
-    var win2 = w && w.w[state.win];
-    var tops = (win2 && win2.topPy) || { sale: [], jeonse: [], wolse: [] };
+    var tops = computeRegion(regionKey()).topPy;
     document.getElementById("pyBody").innerHTML = pyRowsHtml(tops[pyState.type], pyState.type);
     document.getElementById("pyPrintAll").innerHTML = TYPES
       .filter(function (t) { return t !== pyState.type; })
@@ -1176,26 +1497,23 @@
   }
 
   function renderRise() {
-    var w = D.regions[regionKey()];
-    var win2 = w && w.w[state.win];
-    var rises = (win2 && win2.rise) || { sale: [], jeonse: [], wolse: [] };
-    document.getElementById("riseBody").innerHTML = riseRowsHtml(rises[riseState.type]);
+    document.getElementById("riseBody").innerHTML = riseRowsHtml(riseOf(regionKey(), riseState.type));
 
-    var n = parseInt(state.win, 10);
-    var half = Math.floor(n / 2);
-    var labels = win().labels;
     document.getElementById("riseDesc").innerHTML =
-      "조회 기간 <b>" + win().label + "</b>을 반으로 나눠 " +
-      "<b>전반부(" + labels[0] + "~" + labels[half - 1] + ")</b> → " +
-      "<b>후반부(" + labels[half] + "~" + labels[labels.length - 1] + ")</b> " +
-      "중위 평당가 변동률이 큰 단지 순입니다.";
+      "조회 기간 <b>" + win().label + "</b>을 <b>정확히 반으로 나눠</b> " +
+      "단지별 전반부 → 후반부 중위 평당가 변동률이 큰 순서입니다.";
 
+    // 나머지 유형은 무거우므로 인쇄 직전에만 만든다(buildRisePrintAll)
+    document.getElementById("risePrintAll").innerHTML = "";
+  }
+
+  function buildRisePrintAll() {
     document.getElementById("risePrintAll").innerHTML = TYPES
       .filter(function (t) { return t !== riseState.type; })
       .map(function (t) {
         return '<h3 style="margin:18px 0 8px; font-size:15px;">' + regionLabel() + " · " + TYPE_LABEL[t] + " 평당가 상승률 TOP 10</h3>" +
           '<table class="rank-table"><thead><tr><th>순위</th><th>단지명</th><th>전반부</th><th>후반부</th><th>변동률</th><th>거래</th></tr></thead><tbody>' +
-          riseRowsHtml(rises[t]) + "</tbody></table>";
+          riseRowsHtml(riseOf(regionKey(), t)) + "</tbody></table>";
       }).join("");
   }
 
@@ -1233,10 +1551,12 @@
     renderCompare();
     renderVolume();
     renderIndex();
+    buildRisePrintAll();
   });
 
   fillGu();
   fillDong();
+  applyPreset("3m");     // 기본 조회 기간 — 최근 3개월(달 단위)
   initMap();
   renderAll();
 })();

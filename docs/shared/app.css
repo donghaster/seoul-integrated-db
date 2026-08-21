@@ -167,6 +167,20 @@ section.card-section:hover { box-shadow: var(--shadow-hover); }
 .filter-bar select:focus { outline: 2px solid var(--accent-light); border-color: var(--accent); }
 .filter-note { font-size: 12px; color: var(--txt-mute); margin-left: auto; align-self: center; }
 
+/* 조회 조건을 가로로 펴서 화면을 내리지 않고 다 보이게 한다 */
+.filter-wide { align-items: flex-start; row-gap: 14px; }
+.filter-wide .ctl-grow { flex: 1 1 auto; }
+.filter-wide .ctl-full { flex: 1 0 100%; }
+.filter-bar input[type="date"] {
+  font: inherit; font-size: 13.5px; font-weight: 700; color: var(--txt);
+  border: 1px solid var(--line); border-radius: 9px; padding: 7px 10px; background: #fff;
+}
+.filter-bar input[type="date"]:focus { outline: 2px solid var(--accent-light); border-color: var(--accent); }
+.seg-sm { margin-bottom: 0; }
+.seg-sm button { padding: 6px 13px; font-size: 12.5px; }
+.chip-wrap { max-height: 84px; overflow-y: auto; }
+.dim-note { font-weight: 600; color: var(--txt-mute); }
+
 /* ─────────────── 알약 탭 ─────────────── */
 .tab-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
 .tab-row button {

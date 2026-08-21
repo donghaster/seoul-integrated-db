@@ -221,6 +221,48 @@ def month_median_py(rows: list[dict], yms: list[str], value) -> list:
     return [med(bucket[y]) if bucket.get(y) else None for y in yms]
 
 
+
+def encode_deals(deals: list[dict], yms: list[str]) -> dict:
+    """실거래 원본을 사전+배열로 접어 화면으로 내려보낸다.
+    이걸 내려야 화면에서 아무 기간이나, 주/월 아무 단위로나 다시 계산할 수 있다.
+    (집계본만 내리면 미리 정한 3·6·12개월 말고는 볼 수가 없다)"""
+    types = ["sale", "jeonse", "wolse"]
+    t_idx = {t: i for i, t in enumerate(types)}
+    regions, names = [], []
+    r_idx, n_idx = {}, {}
+
+    def put(table, index, value):
+        v = value or ""
+        if v not in index:
+            index[v] = len(table)
+            table.append(v)
+        return index[v]
+
+    base = date.fromisoformat(f"{yms[0][:4]}-{yms[0][4:]}-01")
+    rows = []
+    for d in deals:
+        dong = (d.get("dong") or "").strip()
+        # 매매는 금액, 전세는 보증금 — 어차피 하나만 쓰므로 한 칸에 담고,
+        # 월세일 때만 월세액을 뒤에 덧붙인다(빈 0을 줄여 파일을 가볍게).
+        # 지번은 좌표를 굽는 데만 쓰고 화면에서는 안 쓰므로 빼둔다.
+        v = int(d["amount"]) if d["t"] == "sale" else int(d["deposit"])
+        row = [
+            t_idx[d["t"]],
+            put(regions, r_idx, d["gu"] + "|" + dong),
+            put(names, n_idx, d.get("name") or ""),
+            (date.fromisoformat(d["date"]) - base).days,
+            round(d["area"], 1),
+            d["floor"],
+            d.get("build") or 0,
+            v,
+        ]
+        if d["t"] == "wolse":
+            row.append(int(d["rent"]))
+        rows.append(row)
+    return {"types": types, "regions": regions, "names": names,
+            "base": base.isoformat(), "rows": rows}
+
+
 def build_apt(yms: list[str]) -> dict:
     sale = load_all("aptSale", yms)
     rent = load_all("aptRent", yms)
@@ -235,73 +277,17 @@ def build_apt(yms: list[str]) -> dict:
     ym_index = {y: i for i, y in enumerate(yms)}
     regions: dict[str, dict] = {}
 
+    # 지역별 집계는 더 이상 굽지 않는다.
+    # 원본(deals)을 화면으로 내려 아무 기간·아무 단위(주/월)로나 그때그때 계산한다.
+    # 여기서는 법정동 목록을 만들기 위한 건수만 세어 둔다.
     for key, buckets in by_region.items():
-        # 월별 거래량은 전체 기간(12개월)으로 한 번만 만들고, 화면에서 기간에 맞게 잘라 쓴다
-        vol = {t: [0] * len(yms) for t in ("sale", "jeonse", "wolse")}
-        for t, rows in buckets.items():
-            for r in rows:
-                i = ym_index.get(ym_of(r))
-                if i is not None:
-                    vol[t][i] += 1
+        regions[key] = {"n": sum(len(v) for v in buckets.values())}
 
-        # 최근 3 / 6 / 12개월 각각의 TOP10·건수·중위값
-        per_window = {}
-        for w in WINDOWS:
-            wset = set(yms[-w:])
-            sub = {t: [r for r in buckets[t] if ym_of(r) in wset] for t in ("sale", "jeonse", "wolse")}
-            per_window[str(w)] = {
-                "top": {t: top_rows(sub[t]) for t in ("sale", "jeonse", "wolse")},
-                "topPy": {t: py_top_rows(sub[t]) for t in ("sale", "jeonse", "wolse")},
-                "rise": {t: rise_rows(sub[t], yms[-w:]) for t in ("sale", "jeonse", "wolse")},
-                "cnt": {t: len(sub[t]) for t in ("sale", "jeonse", "wolse")},
-                "med": {
-                    "sale": med([r["amount"] for r in sub["sale"]]),
-                    "jeonse": med([r["deposit"] for r in sub["jeonse"]]),
-                    "wolse": med([r["rent"] for r in sub["wolse"]]),
-                    "pyeong": med([p for p in (pyeong_price(r) for r in sub["sale"]) if p]),
-                },
-            }
-
-        # 가격지수용 월별 중위 평당가 — 전체 기간으로 한 번만 만들고 화면에서 잘라 쓴다.
-        # 월세는 환산보증금(보증금 + 월세×100) 기준.
-        idx = {
-            "sale":   month_median_py(buckets["sale"], yms, lambda r: r["amount"]),
-            "jeonse": month_median_py(buckets["jeonse"], yms, lambda r: r["deposit"]),
-            "wolse":  month_median_py(buckets["wolse"], yms, lambda r: r["deposit"] + r["rent"] * 100),
-        }
-
-        regions[key] = {"w": per_window, "vol": vol, "idx": idx}
-
-    def total_cnt(key: str, w: int) -> int:
-        return sum(regions[key]["w"][str(w)]["cnt"].values())
-
-    # 자치구별 법정동 목록 — 거래가 있는 동만, 12개월 거래량 많은 순
+    # 자치구별 법정동 목록 — 12개월 거래량 많은 순
     dongs: dict[str, list[str]] = {}
     for gu in SEOUL_GU:
-        found = [(total_cnt(k, MAX_WINDOW), k.split("|", 1)[1])
-                 for k in by_region if k.startswith(gu + "|")]
+        found = [(regions[k]["n"], k.split("|", 1)[1]) for k in by_region if k.startswith(gu + "|")]
         dongs[gu] = [d for _, d in sorted(found, reverse=True)]
-
-    # 거래량 순위 — 기간별로 따로 만든다(최근 3개월 순위와 12개월 순위가 다르므로)
-    rank_gu, rank_dong, rank_dong_by_gu = {}, {}, {}
-    for w in WINDOWS:
-        sw = str(w)
-        rank_gu[sw] = sorted(
-            ({"k": gu, "label": gu, "c": total_cnt(gu, w) if gu in regions else 0} for gu in SEOUL_GU),
-            key=lambda x: x["c"], reverse=True,
-        )
-        rank_dong[sw] = sorted(
-            ({"k": k, "label": k.split("|")[1], "gu": k.split("|")[0], "c": total_cnt(k, w)}
-             for k in regions if "|" in k),
-            key=lambda x: x["c"], reverse=True,
-        )[:30]
-        rank_dong_by_gu[sw] = {
-            gu: sorted(
-                ({"k": f"{gu}|{d}", "label": d, "c": total_cnt(f"{gu}|{d}", w)} for d in dongs[gu]),
-                key=lambda x: x["c"], reverse=True,
-            )[:15]
-            for gu in SEOUL_GU
-        }
 
     return {
         "windows": windows_meta(yms),
@@ -310,10 +296,7 @@ def build_apt(yms: list[str]) -> dict:
         "labels": [f"{y[2:4]}.{y[4:]}" for y in yms],
         "gus": list(SEOUL_GU),
         "dongs": dongs,
-        "regions": regions,
-        "rankGu": rank_gu,
-        "rankDong": rank_dong,
-        "rankDongByGu": rank_dong_by_gu,
+        "deals": encode_deals(deals, yms),
         "total": len(deals),
     }
 
@@ -495,7 +478,7 @@ def main() -> None:
     apt = build_apt(yms)
     apt["builtAt"] = built
     apt["today"] = TODAY
-    print(f"  아파트 실거래 {apt['total']:,}건 · 지역 {len(apt['regions']):,}개")
+    print(f"  아파트 실거래 {apt['total']:,}건 · 원본 {len(apt['deals']['rows']):,}행 · 법정동 {sum(len(v) for v in apt['dongs'].values()):,}개")
 
     sangga = build_sangga(yms)
     sangga["builtAt"] = built
