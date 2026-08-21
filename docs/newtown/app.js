@@ -472,6 +472,33 @@
       return;
     }
 
+    // 서울 전체를 보고 있을 때 특정 3곳의 구역을 펼쳐 두면, 지금 서울 전체를 보는 건지
+    // 그 뉴타운을 보는 건지 헷갈린다. 어디를 볼지 먼저 고르게 한다.
+    if (state.gu === ALL) {
+      title.textContent = "구역별 상세";
+      tabs.innerHTML = "";
+      tabs.hidden = true;
+      body.hidden = true;
+      empty.hidden = false;
+      empty.innerHTML =
+        "지금은 <b>서울시 전체</b>를 보고 계십니다. 구역 단위 상세(시공사·세대수·구역별 진행)는 " +
+        "서울 27개 지구 중 <b>아래 " + avail.length + "곳</b>만 확인돼 있습니다.<br />" +
+        '<span class="pick-row">' + avail.map(function (x) {
+          return '<button type="button" class="pick-chip" data-gu="' + esc(x.gu) + '" data-z="' + x.id + '">' +
+            esc(x.name) + ' <span style="opacity:.7">' + esc(x.gu) + "</span></button>";
+        }).join("") + "</span>";
+      empty.querySelectorAll(".pick-chip").forEach(function (b) {
+        b.addEventListener("click", function () {
+          state.zone = b.dataset.z;
+          state.gu = b.dataset.gu;
+          document.getElementById("guSelect").value = state.gu;
+          renderAll();
+          document.getElementById("sec-zones").scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      });
+      return;
+    }
+
     // 현재 선택이 목록에 없으면 첫 번째로 옮긴다
     if (!avail.some(function (x) { return x.id === state.zone; })) state.zone = avail[0].id;
 

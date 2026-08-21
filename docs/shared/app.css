@@ -187,6 +187,13 @@ table.rank-table tr:hover td { background: var(--accent-pale); }
 .rank-chip.r1 { background: linear-gradient(135deg, #ffd76a, #ff9f43); color: #5a3200; }
 .rank-chip.r2 { background: linear-gradient(135deg, #d9e2ff, #a9b8ff); color: #232a5c; }
 .rank-chip.r3 { background: linear-gradient(135deg, #ffd9e6, #ffb0c9); color: #6b1a34; }
+
+/* 무채색 순위 배지 — 옆 차트가 색으로 다른 뜻(진행 단계)을 나타낼 때 쓴다.
+   금·은·동 배지를 그대로 두면 차트의 금색 막대가 1위처럼 보여 헷갈린다. */
+.rank-neutral .rank-chip { background: #e7eaf1; color: var(--txt-dim); }
+.rank-neutral .rank-chip.r1 { background: #232a38; color: #fff; }
+.rank-neutral .rank-chip.r2 { background: #626c7e; color: #fff; }
+.rank-neutral .rank-chip.r3 { background: #9aa3b2; color: #fff; }
 .rt-name { font-weight: 700; }
 .rt-name-clickable { cursor: pointer; color: var(--accent-2); text-decoration: underline dotted; }
 .rt-name-clickable:hover { color: var(--accent); }
@@ -305,6 +312,15 @@ table.rank-table tr:hover td { background: var(--accent-pale); }
 
 /* 표 머리글의 보조 설명(단위 등) */
 .th-sub { display: block; font-size: 10.5px; font-weight: 600; color: var(--txt-mute); margin-top: 1px; }
+
+/* 서울 전체일 때 "어느 뉴타운을 볼지" 고르는 칩 */
+.pick-row { display: inline-flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.pick-chip {
+  font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
+  color: var(--accent-2); background: #fff; border: 1px solid var(--line);
+  border-radius: 999px; padding: 6px 14px;
+}
+.pick-chip:hover { border-color: var(--accent); background: var(--accent-light); }
 
 /* 진행 단계 색 점 — 표와 차트가 같은 색 언어를 쓰게 한다 */
 .stage-dot {
