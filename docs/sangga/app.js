@@ -703,10 +703,272 @@
     return { nrgTotal: nrgTotal, offiTotal: offiTotal };
   }
 
+  /* ════════════════ 상담용 월별 브리핑 ════════════════
+     고정 3/6/12개월 집계로는 "6월 대비 7월"을 말할 수 없다.
+     달 단위 건수·중위값을 표로 내고, 표본이 얇은 달은 눌러 표시한다. */
+
+  var MIN_N = 10;   // 이 건수는 넘어야 "흐름"을 말할 수 있다
+
+  function moLabel(ym) { return ym.slice(2, 4) + "년 " + parseInt(ym.slice(4), 10) + "월"; }
+
+  // 신고 기한 30일 — 그 달 말일 + 30일이 자료 기준일을 넘으면 아직 집계중
+  function isPending(ym) {
+    var today = (D.today || D.builtAt || "").slice(0, 10);
+    if (!today) return false;
+    var y = parseInt(ym.slice(0, 4), 10), m = parseInt(ym.slice(4), 10);
+    var due = new Date(y, m, 0);
+    due.setDate(due.getDate() + 30);
+    return due > new Date(today + "T00:00:00");
+  }
+
+  function moFlag(ym, n, hot) {
+    var t = "";
+    if (isPending(ym)) t += ' <span class="brief-flag">집계중</span>';
+    if (n > 0 && n < MIN_N) t += ' <span class="brief-thin">표본 적음</span>';
+    if (hot && n) {
+      t += ' <span class="brief-hot" title="' + esc(hot[0]) + ' 한 곳이 ' + hot[1] +
+           '건(' + Math.round(hot[1] / n * 100) + '%) — 중위값이 그 건물 값에 끌려갑니다">한 곳 ' +
+           Math.round(hot[1] / n * 100) + '%</span>';
+    }
+    return t;
+  }
+
+  function deltaHtml(cur, prev, nCur, nPrev, hot) {
+    if (!cur || !prev) return '<span class="dim-note">-</span>';
+    var r = (cur - prev) / prev * 100, sign = r > 0 ? "+" : "";
+    if (nCur < MIN_N || nPrev < MIN_N || hot) {
+      return '<span class="d-weak" title="표본이 적어 시세 변동으로 보기 어렵습니다">' +
+             sign + r.toFixed(1) + '%<sup>*</sup></span>';
+    }
+    var cls = Math.abs(r) < 1 ? "d-flat" : (r > 0 ? "d-up" : "d-down");
+    return '<span class="' + cls + '">' + sign + r.toFixed(1) + "%</span>";
+  }
+
+  function briefCard(title, cols, rows) {
+    return '<div class="brief-card"><h4>' + title + "</h4>" +
+      '<div class="table-wrap"><table class="brief-table"><thead><tr>' +
+      cols.map(function (c) { return "<th>" + c + "</th>"; }).join("") +
+      "</tr></thead><tbody>" + rows.join("") + "</tbody></table></div></div>";
+  }
+
+  // 선택한 기간만큼 달을 잘라 [{ym, r, hot}] 형태로.
+  // hot = 그 달 거래의 30% 이상을 한 건물이 차지한 경우 [이름, 건수]
+  function moSlice(key, field) {
+    var reg = D.regions[key];
+    var n = parseInt(state.win, 10);
+    var yms = D.months.slice(-n);
+    var mo = reg && reg.mo;
+    var rows = (mo && mo[field]) ? mo[field].slice(-n) : [];
+    var hot = (mo && mo.hot && mo.hot[field]) || {};
+    return yms.map(function (y, i) {
+      return { ym: y, r: rows[i] || [0, 0, 0, 0], hot: hot[y] || null };
+    });
+  }
+
+  function renderBrief() {
+    document.getElementById("briefTitle").textContent = regionLabel();
+    document.getElementById("briefDesc").innerHTML =
+      "조회 기간 <b>" + win().label + "</b>을 <b>달 단위</b>로 끊어 정리했습니다. " +
+      "<b>고객께 말씀하실 숫자는 이 표에서</b> 가져가세요.";
+
+    var key = regionKey();
+    var shop = moSlice(key, "shop");
+    var office = moSlice(key, "office");
+    var sale = moSlice(key, "sale");
+    var jeonse = moSlice(key, "jeonse");
+    var wolse = moSlice(key, "wolse");
+
+    var grid = document.getElementById("briefGrid");
+    var total = [shop, office, sale, jeonse, wolse].reduce(function (a, list) {
+      return a + list.reduce(function (b, x) { return b + x.r[0]; }, 0);
+    }, 0);
+
+    if (!total) {
+      grid.innerHTML = '<p class="empty">조회 기간에 거래가 없습니다.</p>';
+      document.getElementById("briefScript").innerHTML = "";
+      document.getElementById("briefThinNote").hidden = true;
+      return;
+    }
+
+    // ── 상가·업무용: 건수 / 중위 거래가 / 평당가(연면적) ──
+    var nrgRows = shop.map(function (x, i) {
+      var o = office[i].r;
+      var pv = i ? shop[i - 1].r[2] : 0, pn = i ? shop[i - 1].r[0] : 0;
+      return "<tr><td>" + moLabel(x.ym) + moFlag(x.ym, x.r[0], x.hot) + "</td>" +
+        "<td>" + x.r[0].toLocaleString() + "건</td>" +
+        "<td>" + (x.r[1] ? eokman(x.r[1]) : "-") + "</td>" +
+        "<td>" + (x.r[2] ? Math.round(x.r[2]).toLocaleString() + "만원" : "-") + "</td>" +
+        "<td>" + deltaHtml(x.r[2], pv, x.r[0], pn, x.hot) + "</td>" +
+        "<td>" + o[0].toLocaleString() + "건</td></tr>";
+    });
+
+    // ── 오피스텔 매매·전세 ──
+    var saleRows = sale.map(function (x, i) {
+      var j = jeonse[i].r;
+      var pv = i ? sale[i - 1].r[2] : 0, pn = i ? sale[i - 1].r[0] : 0;
+      return "<tr><td>" + moLabel(x.ym) + moFlag(x.ym, x.r[0], x.hot) + "</td>" +
+        "<td>" + x.r[0].toLocaleString() + "건</td>" +
+        "<td>" + (x.r[1] ? eokman(x.r[1]) : "-") + "</td>" +
+        "<td>" + deltaHtml(x.r[2], pv, x.r[0], pn, x.hot) + "</td>" +
+        "<td>" + j[0].toLocaleString() + "건</td>" +
+        "<td>" + (j[1] ? eokman(j[1]) : "-") + "</td></tr>";
+    });
+
+    // ── 오피스텔 월세: 값이 아니라 계약 구조가 핵심 ──
+    var wolseRows = wolse.map(function (x) {
+      var n = x.r[0];
+      return "<tr><td>" + moLabel(x.ym) + moFlag(x.ym, n, x.hot) + "</td>" +
+        "<td>" + n.toLocaleString() + "건</td>" +
+        "<td>" + (x.r[1] ? eokman(x.r[1]) : "-") + "</td>" +
+        "<td>" + (x.r[2] ? Math.round(x.r[2]).toLocaleString() + "만원" : "-") + "</td>" +
+        "<td>" + (n ? Math.round(x.r[3] / n * 100) + "%" : "-") + "</td></tr>";
+    });
+
+    grid.innerHTML =
+      briefCard("상가·업무용 매매",
+        ["월", "일반상가", "중위 거래가", '평당가<span class="th-sub">연면적</span>', "전월비", "업무용"], nrgRows) +
+      briefCard("오피스텔 매매·전세",
+        ["월", "매매", "중위 매매가", "전월비", "전세", "중위 보증금"], saleRows) +
+      briefCard("오피스텔 월세",
+        ["월", "건수", "중위 보증금", "중위 월세", "준전세 비중"], wolseRows);
+
+    renderBriefThin([
+      { name: "일반상가 매매", list: shop },
+      { name: "업무용 매매", list: office },
+      { name: "오피스텔 매매", list: sale },
+      { name: "오피스텔 전세", list: jeonse },
+      { name: "오피스텔 월세", list: wolse },
+    ]);
+    renderBriefScript(shop, office, sale, jeonse, wolse);
+  }
+
+  // 달마다 표본이 한 번도 MIN_N을 넘지 못한 유형은 따로 경고한다
+  function renderBriefThin(groups) {
+    var thin = groups.filter(function (g) {
+      var months = g.list.filter(function (x) { return x.r[0] > 0; });
+      return months.length && months.every(function (x) { return x.r[0] < MIN_N; });
+    });
+    var note = document.getElementById("briefThinNote");
+    if (!thin.length) { note.hidden = true; return; }
+    note.hidden = false;
+    note.innerHTML = "<span><b>" + thin.map(function (g) { return g.name; }).join(" · ") +
+      "</b>은(는) 달마다 " + MIN_N + "건이 안 됩니다. " +
+      "<b>중위값을 시세로 말씀하시면 안 됩니다</b> \u2014 그 달에 어떤 물건이 팔렸는지에 따라 값이 몇 배로 뜁니다. " +
+      (state.dong !== ALL
+        ? "<b>법정동을 \u2018전체\u2019로</b> 놓고 자치구 단위로 보시길 권합니다."
+        : "조회 기간을 <b>12개월</b>로 넓히시거나, 아래 TOP10에서 <b>개별 물건</b>을 직접 보여 주세요.") +
+      "</span>";
+  }
+
+  /* 표에서 바로 읽어 드릴 문장. 예측은 하지 않고 확인된 수치와 한계만 적는다. */
+  function renderBriefScript(shop, office, sale, jeonse, wolse) {
+    var out = [];
+
+    function trend(list, label, idx, unitTxt) {
+      // 한 건물이 30% 넘게 차지한 달은 중위값이 그 건물 값이라 흐름에서 뺀다
+      var pts = list.filter(function (x) { return x.r[0] >= MIN_N && x.r[idx] && !x.hot; });
+      var any = list.filter(function (x) { return x.r[0] > 0; });
+      var total = any.reduce(function (a, x) { return a + x.r[0]; }, 0);
+      if (!total) return "<b>" + label + "</b>는 조회 기간에 거래가 없습니다.";
+      if (pts.length < 2) {
+        var enough = list.filter(function (x) { return x.r[0] >= MIN_N && x.r[idx]; });
+        var hotOnly = enough.filter(function (x) { return x.hot; });
+        var why;
+        if (hotOnly.length) {
+          why = "값이 쓸 만한 달 대부분이 <b>" +
+            hotOnly.map(function (x) { return moLabel(x.ym) + " " + esc(x.hot[0]); }).join(", ") +
+            "</b>처럼 <b>한 곳에 쏠려</b> 있어 <b>월별 흐름을 말씀드리기 어렵습니다</b>. ";
+        } else if (enough.length) {
+          why = "값을 쓸 만한 달이 <b>" + moLabel(enough[0].ym) + " 한 달뿐</b>이라 " +
+                "<b>비교할 대상이 없습니다</b>. ";
+        } else {
+          why = "달마다 " + MIN_N + "건이 안 돼 <b>월별 흐름을 말씀드리기 어렵습니다</b>. ";
+        }
+        return "<b>" + label + "</b>는 조회 기간 <b>" + total.toLocaleString() + "건</b>이지만, " +
+          why + "건수만 말씀하시고, 값은 <b>개별 물건으로</b> 설명하세요.";
+      }
+      var a = pts[0], b = pts[pts.length - 1];
+      var r = (b.r[idx] - a.r[idx]) / a.r[idx] * 100;
+      var word = Math.abs(r) < 1.5 ? "사실상 보합" : (r > 0 ? "상승" : "약세");
+      var t = "<b>" + label + "</b>는 " + moLabel(a.ym) + " " + unitTxt + " " +
+        Math.round(a.r[idx]).toLocaleString() + "만원(" + a.r[0] + "건)에서 " +
+        moLabel(b.ym) + " " + Math.round(b.r[idx]).toLocaleString() + "만원(" + b.r[0] + "건)으로 <b>" +
+        (r > 0 ? "+" : "") + r.toFixed(1) + "% \u2014 " + word + "</b>입니다.";
+      if (isPending(b.ym)) t += " 다만 " + moLabel(b.ym) + "은 <b>아직 집계 중</b>입니다.";
+      if (pts.length >= 3) {
+        var vals = pts.map(function (x) { return x.r[idx]; });
+        var hi = Math.max.apply(null, vals), lo = Math.min.apply(null, vals);
+        if (lo && (hi - lo) / lo * 100 >= 20) {
+          t += " <b>그런데 한 방향으로 움직인 게 아닙니다</b> \u2014 고점 " +
+            moLabel(pts[vals.indexOf(hi)].ym) + " " + Math.round(hi).toLocaleString() + "만원, 저점 " +
+            moLabel(pts[vals.indexOf(lo)].ym) + " " + Math.round(lo).toLocaleString() + "만원으로 <b>" +
+            Math.round((hi - lo) / lo * 100) + "%</b> 벌어집니다. " +
+            "<b>그 달에 어떤 물건이 팔렸는지에 따라 흔들린 것</b>이니 추세로 말씀하지 마세요.";
+        }
+      }
+      var hots = list.filter(function (x) { return x.hot && x.r[0] >= MIN_N; });
+      if (hots.length) {
+        t += " (" + hots.map(function (x) {
+          return moLabel(x.ym) + "은 <b>" + esc(x.hot[0]) + "</b> 한 곳이 " + x.hot[1] + "건";
+        }).join(", ") + "이라 흐름에서 뺐습니다. <b>한 건물의 분양 물량이 통째로 신고되면 " +
+        "그 달 중위값은 그 건물 값</b>이 됩니다.)";
+      }
+      return t;
+    }
+
+    out.push(trend(shop, "일반상가 매매", 2, "평당(연면적)"));
+    out.push(trend(sale, "오피스텔 매매", 2, "평당"));
+
+    // 월세는 값이 아니라 계약 구조가 핵심이다
+    var w = wolse.filter(function (x) { return x.r[0] >= MIN_N && x.r[2]; });
+    if (w.length >= 2) {
+      var wa = w[0], wb = w[w.length - 1];
+      var jrA = Math.round(wa.r[3] / wa.r[0] * 100), jrB = Math.round(wb.r[3] / wb.r[0] * 100);
+      var gap = (wb.r[2] - wa.r[2]) / wa.r[2] * 100;
+      var t3 = "<b>오피스텔 월세</b>는 중위 월세가 " + Math.round(wa.r[2]).toLocaleString() + "만원 → " +
+        Math.round(wb.r[2]).toLocaleString() + "만원(" + (gap > 0 ? "+" : "") + gap.toFixed(0) + "%), " +
+        "중위 보증금이 " + eokman(wa.r[1]) + " → " + eokman(wb.r[1]) +
+        ", 준전세 비중이 " + jrA + "% → " + jrB + "%입니다.";
+      if (jrB - jrA >= 8 && gap < 0) {
+        t3 += " <b>보증금을 올리고 월세를 낮추는 쪽</b>으로 옮겨갔습니다. " +
+              "임대수익률로 보시는 고객께는 <b>월세가 내렸다</b>는 점을 꼭 짚어 주세요.";
+      } else if (jrA - jrB >= 8 && gap > 0) {
+        t3 += " <b>보증금을 낮추고 월세를 늘리는 쪽</b>으로 옮겨갔습니다.";
+      }
+      out.push(t3);
+    } else if (wolse.some(function (x) { return x.r[0]; })) {
+      out.push("<b>오피스텔 월세</b>는 달마다 " + MIN_N + "건이 안 돼 구조 변화를 말씀드리기 어렵습니다.");
+    }
+
+    // 거래량 — 신고가 마감된 달끼리만 비교해야 "급감"으로 잘못 읽지 않는다
+    var solid = shop.map(function (x, i) {
+      return { ym: x.ym, n: x.r[0] + office[i].r[0] + sale[i].r[0] + jeonse[i].r[0] + wolse[i].r[0] };
+    }).filter(function (x) { return !isPending(x.ym); });
+    if (solid.length >= 2) {
+      var va = solid[0], vb = solid[solid.length - 1];
+      out.push("<b>전체 거래량</b>은 " + moLabel(va.ym) + " " + va.n.toLocaleString() + "건 → " +
+        moLabel(vb.ym) + " " + vb.n.toLocaleString() + "건입니다. (신고가 마감된 달끼리만 비교)");
+    }
+
+    var pend = shop.filter(function (x) { return isPending(x.ym); });
+    if (pend.length) {
+      out.push("<b>" + pend.map(function (x) { return moLabel(x.ym); }).join("·") +
+        "은 아직 집계 중입니다.</b> 신고 기한이 계약일로부터 30일이라 앞으로 건수가 더 늘어납니다. " +
+        "<b>\u201C거래가 끊겼다\u201D고 말씀하시면 안 됩니다.</b>");
+    }
+
+    out.push("상가·업무용 평당가는 <b>연면적 기준</b>이라 아파트 전용면적 평당가와 직접 비교할 수 없습니다. " +
+      "표의 <b>*</b> 표시는 표본 " + MIN_N + "건 미만이라 시세 변동으로 보기 어려운 등락률입니다.");
+
+    document.getElementById("briefScript").innerHTML =
+      out.map(function (t) { return "<li>" + t + "</li>"; }).join("");
+  }
+
   function renderAll() {
     renderTitles();
     var has = toggleSections();
     renderKpi();
+    renderBrief();
     if (has.nrgTotal) renderNrg();
     if (has.offiTotal) renderOffi();
     renderVolume();

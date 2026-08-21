@@ -316,6 +316,86 @@ def nrg_group(use: str) -> str:
 NRG_GROUP_LABEL = {"shop": "일반상가", "office": "업무용", "etc": "기타 상업·업무용"}
 
 
+def monthly_stats(nrg_rows: dict, offi_rows: dict, yms: list[str]) -> dict:
+    """달 단위 건수·중위값. 고정 3/6/12개월 집계만으로는 "6월 대비 7월"을
+    말할 수 없어, 상담용 브리핑에 쓸 값만 따로 구워 둔다.
+
+    월세는 환산보증금만 보면 준전세로 옮겨간 것을 "월세 상승"으로 읽게 되므로
+    중위 보증금·중위 월세·준전세 건수를 나눠 담는다.
+    준전세 구분은 한국부동산원 기준(보증금 > 월세 × 240)을 따른다.
+    """
+    def bucket(rows):
+        by: dict[str, list] = {y: [] for y in yms}
+        for r in rows:
+            k = r["date"][:4] + r["date"][5:7]
+            if k in by:
+                by[k].append(r)
+        return by
+
+    def py_of(r):
+        return r["amount"] / (r["area"] / PYEONG) if r.get("area") else None
+
+    out: dict[str, list] = {}
+    hot: dict[str, dict] = {}       # 한 건물이 그 달을 좌우한 경우만 따로
+
+    def mark_hot(kind: str, by: dict, label):
+        """한 건물의 분양 물량이 통째로 신고되면 중위값이 그 건물 값이 돼 버린다.
+        (예: 서초구 2026-06 오피스텔 매매 173건 중 'LENID' 한 곳이 124건)
+        비중이 큰 달만 짚어 두고 화면에서 경고한다."""
+        for ym, rows in by.items():
+            if len(rows) < 10:
+                continue
+            cnt: dict[str, int] = {}
+            for r in rows:
+                k = label(r)
+                if k:
+                    cnt[k] = cnt.get(k, 0) + 1
+            if not cnt:
+                continue
+            name, c = max(cnt.items(), key=lambda kv: kv[1])
+            if c / len(rows) >= 0.3:
+                hot.setdefault(kind, {})[ym] = [name, c]
+
+    for g in ("shop", "office", "etc"):
+        by = bucket(nrg_rows[g])
+        # 상업용은 단지명이 없다 — 같은 건물(동·지번)에서 여러 호실이 한꺼번에 나온 경우를 본다
+        mark_hot(g, by, lambda r: ((r.get("dong") or "") + " " + (r.get("jibun") or "")).strip())
+        out[g] = [[
+            len(by[y]),
+            med([r["amount"] for r in by[y]]),
+            med([v for v in (py_of(r) for r in by[y]) if v]),
+        ] for y in yms]
+
+    by = bucket(offi_rows["sale"])
+    mark_hot("sale", by, lambda r: r.get("name"))
+    out["sale"] = [[
+        len(by[y]),
+        med([r["amount"] for r in by[y]]),
+        med([v for v in (py_of(r) for r in by[y]) if v]),
+    ] for y in yms]
+
+    by = bucket(offi_rows["jeonse"])
+    mark_hot("jeonse", by, lambda r: r.get("name"))
+    out["jeonse"] = [[
+        len(by[y]),
+        med([r["deposit"] for r in by[y]]),
+        med([r["deposit"] / (r["area"] / PYEONG) for r in by[y] if r.get("area")]),
+    ] for y in yms]
+
+    by = bucket(offi_rows["wolse"])
+    mark_hot("wolse", by, lambda r: r.get("name"))
+    out["wolse"] = [[
+        len(by[y]),
+        med([r["deposit"] for r in by[y]]),
+        med([r["rent"] for r in by[y]]),
+        sum(1 for r in by[y] if not r.get("rent") or r["deposit"] > r["rent"] * 240),
+    ] for y in yms]
+
+    if hot:
+        out["hot"] = hot
+    return out
+
+
 def build_sangga(yms: list[str]) -> dict:
     nrg = [r for r in load_all("nrgSale", yms) if r["date"] <= TODAY]
     offi_sale = [r for r in load_all("offiSale", yms) if r["date"] <= TODAY]
@@ -400,6 +480,7 @@ def build_sangga(yms: list[str]) -> dict:
             }
 
         out_regions[key] = {
+            "mo": monthly_stats(nrg_rows, offi_rows, yms),
             "w": per_window,
             "nrgVol": reg["nrgVol"],
             "offiVol": reg["offiVol"],

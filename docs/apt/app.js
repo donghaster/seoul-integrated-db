@@ -359,6 +359,8 @@
     return pyStats(key, type).map(function (x) { return x.v; });
   }
 
+  var MIN_N = 10;   // 이 건수는 넘어야 "흐름"을 말할 수 있다
+
   /* ── 전월세 구조 ──
      환산보증금만 보면 "월세가 올랐다"고 잘못 읽는다. 보증금을 올리고 월세를
      낮춘 준전세로 옮겨간 것도 환산보증금은 똑같이 올려 놓기 때문이다.
@@ -382,6 +384,16 @@
       var by = { sale: [], jeonse: [], wolse: [] };
       g.forEach(function (x) { by[x.t].push(x); });
       var jun = by.wolse.filter(function (x) { return rentKind(x) === "junjeonse"; }).length;
+      // 한 단지의 물량이 통째로 신고되면 그 달 중위값은 그 단지 값이 된다
+      var hotOf = function (arr) {
+        if (arr.length < MIN_N) return null;
+        var c = {}, best = null;
+        arr.forEach(function (x) { c[x.n] = (c[x.n] || 0) + 1; });
+        Object.keys(c).forEach(function (k) {
+          if (!best || c[k] > best[1]) best = [k, c[k]];
+        });
+        return best && best[1] / arr.length >= 0.3 ? best : null;
+      };
       var pyOfList = function (arr) {
         var v = [];
         arr.forEach(function (x) { var p = pyOf(x); if (p) v.push(p); });
@@ -389,11 +401,11 @@
       };
       return {
         m: m,
-        sale: { n: by.sale.length, py: pyOfList(by.sale),
+        sale: { n: by.sale.length, py: pyOfList(by.sale), hot: hotOf(by.sale),
                 amt: median(by.sale.map(function (x) { return x.v; })) },
-        jeonse: { n: by.jeonse.length, py: pyOfList(by.jeonse),
+        jeonse: { n: by.jeonse.length, py: pyOfList(by.jeonse), hot: hotOf(by.jeonse),
                   dep: median(by.jeonse.map(function (x) { return x.v; })) },
-        wolse: { n: by.wolse.length, py: pyOfList(by.wolse),
+        wolse: { n: by.wolse.length, py: pyOfList(by.wolse), hot: hotOf(by.wolse),
                  dep: median(by.wolse.map(function (x) { return x.v; })),
                  rent: median(by.wolse.map(function (x) { return x.r; })),
                  junRate: by.wolse.length ? jun / by.wolse.length : 0 },
@@ -1681,14 +1693,15 @@
     return due > new Date(today + "T00:00:00");
   }
 
-  var MIN_N = 10;   // 이 건수는 넘어야 "흐름"을 말할 수 있다
 
-  function deltaHtml(cur, prev, nCur, nPrev) {
+
+  function deltaHtml(cur, prev, nCur, nPrev, hot) {
     if (!cur || !prev) return '<span class="dim-note">-</span>';
     var r = (cur - prev) / prev * 100;
     var sign = r > 0 ? "+" : "";
-    // 표본이 얇으면 등락률이 시세가 아니라 "어느 단지가 팔렸나"를 보여줄 뿐이다
-    if (nCur < MIN_N || nPrev < MIN_N) {
+    // 표본이 얇거나 한 단지에 쏠린 달이면, 등락률은 시세가 아니라
+    // "어느 단지가 팔렸나"를 보여줄 뿐이다
+    if (nCur < MIN_N || nPrev < MIN_N || hot) {
       return '<span class="d-weak" title="표본이 적어 시세 변동으로 보기 어렵습니다">' +
              sign + r.toFixed(1) + "%<sup>*</sup></span>";
     }
@@ -1717,33 +1730,38 @@
       return;
     }
 
-    var flag = function (m, n) {
+    var flag = function (m, n, hot) {
       var t = "";
       if (isPending(m)) t += ' <span class="brief-flag">집계중</span>';
       if (n > 0 && n < MIN_N) t += ' <span class="brief-thin">표본 적음</span>';
+      if (hot && n) {
+        t += ' <span class="brief-hot" title="' + esc(hot[0]) + ' 한 곳이 ' + hot[1] +
+             '건(' + Math.round(hot[1] / n * 100) + '%) — 중위값이 그 단지 값에 끌려갑니다">한 곳 ' +
+             Math.round(hot[1] / n * 100) + '%</span>';
+      }
       return t;
     };
 
     var saleRows = mo.map(function (x, i) {
       var pv = i ? mo[i - 1].sale.py : 0, pn = i ? mo[i - 1].sale.n : 0;
-      return "<tr><td>" + moLabel(x.m) + flag(x.m, x.sale.n) + "</td>" +
+      return "<tr><td>" + moLabel(x.m) + flag(x.m, x.sale.n, x.sale.hot) + "</td>" +
         "<td>" + x.sale.n.toLocaleString() + "건</td>" +
         "<td>" + (x.sale.py ? Math.round(x.sale.py).toLocaleString() + "만원" : "-") + "</td>" +
         "<td>" + (x.sale.amt ? eokman(x.sale.amt) : "-") + "</td>" +
-        "<td>" + deltaHtml(x.sale.py, pv, x.sale.n, pn) + "</td></tr>";
+        "<td>" + deltaHtml(x.sale.py, pv, x.sale.n, pn, x.sale.hot) + "</td></tr>";
     });
 
     var jeonseRows = mo.map(function (x, i) {
       var pv = i ? mo[i - 1].jeonse.py : 0, pn = i ? mo[i - 1].jeonse.n : 0;
-      return "<tr><td>" + moLabel(x.m) + flag(x.m, x.jeonse.n) + "</td>" +
+      return "<tr><td>" + moLabel(x.m) + flag(x.m, x.jeonse.n, x.jeonse.hot) + "</td>" +
         "<td>" + x.jeonse.n.toLocaleString() + "건</td>" +
         "<td>" + (x.jeonse.dep ? eokman(x.jeonse.dep) : "-") + "</td>" +
         "<td>" + (x.jeonse.py ? Math.round(x.jeonse.py).toLocaleString() + "만원" : "-") + "</td>" +
-        "<td>" + deltaHtml(x.jeonse.py, pv, x.jeonse.n, pn) + "</td></tr>";
+        "<td>" + deltaHtml(x.jeonse.py, pv, x.jeonse.n, pn, x.jeonse.hot) + "</td></tr>";
     });
 
     var wolseRows = mo.map(function (x) {
-      return "<tr><td>" + moLabel(x.m) + flag(x.m, x.wolse.n) + "</td>" +
+      return "<tr><td>" + moLabel(x.m) + flag(x.m, x.wolse.n, x.wolse.hot) + "</td>" +
         "<td>" + x.wolse.n.toLocaleString() + "건</td>" +
         "<td>" + (x.wolse.dep ? eokman(x.wolse.dep) : "-") + "</td>" +
         "<td>" + (x.wolse.rent ? Math.round(x.wolse.rent).toLocaleString() + "만원" : "-") + "</td>" +
@@ -1765,19 +1783,37 @@
     var out = [];
 
     function trend(get, label) {
-      var pts = mo.filter(function (x) { return get(x).n >= MIN_N && get(x).py; });
+      // 한 단지가 30% 넘게 차지한 달은 중위값이 그 단지 값이라 흐름에서 뺀다
+      var pts = mo.filter(function (x) { return get(x).n >= MIN_N && get(x).py && !get(x).hot; });
       var any = mo.filter(function (x) { return get(x).n > 0; });
       var total = any.reduce(function (a, x) { return a + get(x).n; }, 0);
 
       if (!total) return "<b>" + label + "</b>는 조회 기간에 거래가 없습니다.";
 
       if (pts.length < 2) {
+        // 왜 못 내는지를 정확히 적는다 — 표본이 얇아서인지, 한 단지 쏠림 때문인지
+        var enough = mo.filter(function (x) { return get(x).n >= MIN_N && get(x).py; });
+        var hotOnly = enough.filter(function (x) { return get(x).hot; });
         var last1 = any[any.length - 1];
-        return "<b>" + label + "</b>는 조회 기간 <b>" + total.toLocaleString() + "건</b>으로, " +
-          "달마다 " + MIN_N + "건이 안 돼 <b>월별 흐름을 말씀드리기 어렵습니다</b>. " +
-          "가장 최근은 " + moLabel(last1.m) + " " + get(last1).n + "건, 중위 평당가 " +
-          Math.round(get(last1).py).toLocaleString() + "만원입니다. " +
-          "<b>조회 기간을 6개월 이상으로 넓혀</b> 보시길 권합니다.";
+        var head = "<b>" + label + "</b>는 조회 기간 <b>" + total.toLocaleString() + "건</b>이지만, ";
+        var why, how;
+        if (hotOnly.length) {
+          why = "값이 쓸 만한 달 대부분이 <b>" +
+                hotOnly.map(function (x) { return moLabel(x.m) + " " + esc(get(x).hot[0]); }).join(", ") +
+                "</b>처럼 <b>한 단지에 쏠려</b> 있어 <b>월별 흐름을 말씀드리기 어렵습니다</b>. ";
+          how = "<b>자치구 단위로 넓혀</b> 보시거나, 아래 TOP10에서 <b>개별 단지</b>로 설명하세요.";
+        } else if (enough.length) {
+          why = "값을 쓸 만한 달이 <b>" + moLabel(enough[0].m) + " 한 달뿐</b>이라 " +
+                "<b>비교할 대상이 없습니다</b>. ";
+          how = "<b>조회 기간을 6개월 이상으로 넓혀</b> 보시길 권합니다.";
+        } else {
+          why = "달마다 " + MIN_N + "건이 안 돼 <b>월별 흐름을 말씀드리기 어렵습니다</b>. ";
+          how = "<b>조회 기간을 6개월 이상으로 넓혀</b> 보시길 권합니다.";
+        }
+        return head + why +
+          "가장 최근은 " + moLabel(last1.m) + " " + get(last1).n + "건" +
+          (get(last1).py ? ", 중위 평당가 " + Math.round(get(last1).py).toLocaleString() + "만원" : "") +
+          "입니다. " + how;
       }
 
       var a2 = pts[0], b2 = pts[pts.length - 1];
@@ -1809,6 +1845,13 @@
       if (skipped.length) {
         t += " (" + skipped.map(function (x) { return moLabel(x.m); }).join("·") +
              "은 표본 " + MIN_N + "건 미만이라 흐름에서 뺐습니다.)";
+      }
+      var hots = mo.filter(function (x) { return get(x).hot && get(x).n >= MIN_N; });
+      if (hots.length) {
+        t += " (" + hots.map(function (x) {
+          return moLabel(x.m) + "은 <b>" + esc(get(x).hot[0]) + "</b> 한 단지가 " + get(x).hot[1] + "건";
+        }).join(", ") + "이라 흐름에서 뺐습니다. <b>한 단지 물량이 통째로 신고되면 " +
+        "그 달 중위값은 그 단지 값</b>이 됩니다.)";
       }
       return t;
     }

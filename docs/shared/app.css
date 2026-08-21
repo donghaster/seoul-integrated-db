@@ -616,3 +616,8 @@ section[data-tabpanel].is-on { display: block; }
 }
 .d-weak { color: var(--txt-mute); font-weight: 600; }
 .d-weak sup { color: var(--up); font-weight: 800; }
+.brief-hot {
+  display: inline-block; font-size: 9.5px; font-weight: 700;
+  padding: 1px 5px; border-radius: 4px; margin-left: 3px; vertical-align: 1px;
+  color: #7a4a12; background: #fdefe0; border: 1px solid #eccfa8;
+}

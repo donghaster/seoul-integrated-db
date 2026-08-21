@@ -69,16 +69,70 @@
     return rest.toLocaleString() + "만원";
   }
 
-  /* ── 아파트 실거래(apt.js)는 기간별로 나뉘어 있다. 뉴타운 화면은 기본 기간(12개월)을 쓴다 ── */
-  function aptWin() {
-    return (A && A.windows[A.defaultWindow]) || { label: "-" };
+  /* ── 아파트 실거래(apt.js)는 이제 집계본이 아니라 원본을 담고 있다.
+        뉴타운이 걸친 법정동만 골라 최근 12개월치를 한 번 집계해 둔다. ── */
+  var APT_MONTHS = 12;
+  var PYEONG = 3.3058;
+  var aptStat = {};          // "구|동" -> { cnt: {...}, med: {...} }
+  var aptWinLabel = "-";
+
+  function median(arr) {
+    if (!arr.length) return 0;
+    var v = arr.slice().sort(function (a, b) { return a - b; });
+    var m = Math.floor(v.length / 2);
+    return Math.round(v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2);
   }
 
-  function aptRegion(key) {
-    if (!A) return null;
-    var reg = A.regions[key];
-    return reg ? reg.w[A.defaultWindow] : null;
-  }
+  (function buildAptStat() {
+    if (!A || !A.deals) return;
+
+    // 뉴타운이 걸친 동만 본다 — 30만 건을 통째로 훑을 이유가 없다
+    var need = {};
+    (N.districts || []).forEach(function (d) {
+      (d.dongs || []).forEach(function (dong) { need[d.gu + "|" + dong] = 1; });
+    });
+
+    var enc = A.deals;
+    var base = new Date(enc.base + "T00:00:00");
+    var endStr = (A.today || A.builtAt || "").slice(0, 10);
+    var end = endStr ? new Date(endStr + "T00:00:00") : new Date();
+    var start = new Date(end.getFullYear(), end.getMonth() - (APT_MONTHS - 1), 1);
+    var startOff = Math.round((start - base) / 86400000);
+
+    var p2 = function (n) { return n < 10 ? "0" + n : "" + n; };
+    aptWinLabel = start.getFullYear() + "." + p2(start.getMonth() + 1) + " ~ " +
+                  end.getFullYear() + "." + p2(end.getMonth() + 1);
+
+    var bag = {};
+    for (var i = 0; i < enc.rows.length; i++) {
+      var r = enc.rows[i];
+      if (r[3] < startOff) continue;
+      var key = enc.regions[r[1]];
+      if (!need[key]) continue;
+      var b = bag[key] || (bag[key] = { sale: [], py: [], jeonse: 0, wolse: 0 });
+      var t = enc.types[r[0]];
+      if (t === "sale") {
+        b.sale.push(r[7]);
+        if (r[4]) b.py.push(r[7] / (r[4] / PYEONG));
+      } else if (t === "jeonse") {
+        b.jeonse++;
+      } else {
+        b.wolse++;
+      }
+    }
+
+    Object.keys(bag).forEach(function (k) {
+      var b = bag[k];
+      aptStat[k] = {
+        cnt: { sale: b.sale.length, jeonse: b.jeonse, wolse: b.wolse },
+        med: { sale: median(b.sale), pyeong: median(b.py) },
+      };
+    });
+  })();
+
+  function aptWin() { return { label: aptWinLabel }; }
+
+  function aptRegion(key) { return aptStat[key] || null; }
 
   /* ── 뉴타운이 걸친 법정동들의 실거래를 합산 ── */
   // 전용면적 평당가 -> 공급(분양)면적 평당가 환산 계수.

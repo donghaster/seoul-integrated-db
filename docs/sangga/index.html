@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>금집부쌤의 서울시 통합 부동산 대시보드 — 상가·오피스텔</title>
-  <link rel="stylesheet" href="../shared/app.css?v=5db0cece89" />
+  <link rel="stylesheet" href="../shared/app.css?v=bb404e71db" />
   <link rel="stylesheet" href="../vendor/leaflet/leaflet.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🏢</text></svg>" />
 </head>
@@ -64,6 +64,7 @@
   <nav class="section-nav" aria-label="섹션 바로가기">
     <button data-target="sec-kpi">핵심 요약</button>
     <button data-target="sec-map">실거래 지도</button>
+    <button data-target="sec-brief">월별 브리핑</button>
     <button data-target="sec-nrg">상가·업무용 TOP10</button>
     <button data-target="sec-offi">오피스텔 TOP10</button>
     <button data-target="sec-volume">거래량 비교</button>
@@ -104,6 +105,43 @@
           <p class="placeholder">지도의 원 또는 아래 오피스텔 TOP10 표의<br />건물명을 클릭하세요.</p>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- ─────────────── 상담용 월별 브리핑 ─────────────── -->
+  <section class="card-section" id="sec-brief">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> <span id="briefTitle">상담용</span> 월별 브리핑</h2>
+      <button class="sec-print-btn" onclick="printSection('sec-brief')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc" id="briefDesc"></p>
+
+    <p class="thin-note" id="briefThinNote" hidden></p>
+
+    <div class="brief-grid" id="briefGrid"></div>
+
+    <div class="read-guide" style="margin-top:18px;">
+      <h4>고객께 이렇게 설명하세요</h4>
+      <ol id="briefScript"></ol>
+    </div>
+
+    <div class="read-guide" style="margin-top:14px;">
+      <h4>이 표를 읽는 법</h4>
+      <ol>
+        <li><b>상가·업무용은 표본이 아주 적습니다.</b> 자치구 하나에서도 한 달 수십 건이고,
+          법정동으로 좁히면 한 자릿수입니다. <b>같은 상가라도 1층 코너와 지하 창고는 값이
+          몇 배 차이</b>가 나므로, 중위값 한 줄로 시세를 말씀하시면 안 됩니다.
+          <b>건수를 반드시 함께</b> 보시고, <span class="brief-thin">표본 적음</span> 표시가 붙은
+          달은 참고만 하세요.</li>
+        <li>상가·업무용 <b>평당가는 연면적 기준</b>입니다. 아파트의 전용면적 평당가와
+          <b>직접 비교하시면 안 됩니다</b>.</li>
+        <li>오피스텔 월세의 <b>준전세 비중</b>은 한국부동산원 공식 구분입니다 — 보증금이 월세의
+          <b>240배를 넘으면</b> 준전세입니다. 이 비중이 오르면 <b>보증금을 올리고 월세를 낮추는
+          쪽</b>으로 시장이 움직인 것이라, <b>수익률(월세) 자체는 오히려 내렸을 수 있습니다.</b>
+          중위 월세 칸을 같이 보세요.</li>
+        <li>실거래 신고 기한은 <b>계약일로부터 30일</b>입니다. <span class="brief-flag">집계중</span>
+          표시가 붙은 달은 아직 다 안 들어왔으니 <b>"거래가 끊겼다"고 말씀하시면 안 됩니다.</b></li>
+      </ol>
     </div>
   </section>
 
@@ -224,9 +262,9 @@
 
 <script src="../vendor/leaflet/leaflet.js"></script>
 <script src="../vendor/chart.umd.min.js"></script>
-<script src="../data/sangga.js?v=ea42ea4741"></script>
+<script src="../data/sangga.js?v=f5ec164d34"></script>
 <script src="../data/geo.js?v=83848d4a08"></script>
 <script src="../shared/brand.js?v=9fd1821c1b"></script>
-<script src="app.js?v=5347285c98"></script>
+<script src="app.js?v=6ecc558803"></script>
 </body>
 </html>

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>금집부쌤의 서울시 통합 부동산 대시보드 — 아파트</title>
-  <link rel="stylesheet" href="../shared/app.css?v=5db0cece89" />
+  <link rel="stylesheet" href="../shared/app.css?v=bb404e71db" />
   <link rel="stylesheet" href="../vendor/leaflet/leaflet.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🏘️</text></svg>" />
 </head>
@@ -202,6 +202,10 @@
         <li><b>준전세 비중</b>은 한국부동산원 공식 구분입니다 — 보증금이 월세의 <b>240배를 넘으면</b>
           준전세, 12~240배면 준월세, 12배 이하면 순수 월세입니다.
           이 비중이 오르면 <b>전세 대신 반전세로 도는 시장</b>이라는 뜻입니다.</li>
+        <li><b>한 단지가 그 달 거래의 30%를 넘으면</b> <span class="brief-hot">한 곳 N%</span>
+          표시가 붙습니다. 신축 입주장처럼 한 단지 물량이 통째로 신고되면
+          <b>그 달 중위값은 사실상 그 단지 값</b>이라, 시세 흐름으로 읽으시면 안 됩니다.
+          아래 문장에서도 그런 달은 빼고 계산합니다.</li>
         <li>실거래 신고 기한은 <b>계약일로부터 30일</b>입니다. <b>최근 1~2개월 건수는 아직 덜 들어온
           상태</b>라 "거래가 끊겼다"고 말씀하시면 안 됩니다. 표에 <span class="brief-flag">집계중</span>
           표시가 붙은 달이 그렇습니다.</li>
@@ -382,12 +386,12 @@
 
 <script src="../vendor/leaflet/leaflet.js"></script>
 <script src="../vendor/chart.umd.min.js"></script>
-<script src="../data/apt.js?v=cf4464abdc"></script>
+<script src="../data/apt.js?v=25ff0e9829"></script>
 <script src="../data/geo.js?v=83848d4a08"></script>
 <!-- 입지분석: 지하철·학교·공원·상권·인구(locinfo) + 개발 호재는 뉴타운 자료를 재사용 -->
 <script src="../data/locinfo.js?v=e97bc091b7"></script>
 <script src="../data/newtown.js?v=8ba14b3baf"></script>
 <script src="../shared/brand.js?v=9fd1821c1b"></script>
-<script src="app.js?v=dcf6d9aa45"></script>
+<script src="app.js?v=8390f1d720"></script>
 </body>
 </html>
