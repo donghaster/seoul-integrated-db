@@ -313,14 +313,13 @@ table.rank-table tr:hover td { background: var(--accent-pale); }
 /* 표 머리글의 보조 설명(단위 등) */
 .th-sub { display: block; font-size: 10.5px; font-weight: 600; color: var(--txt-mute); margin-top: 1px; }
 
-/* 서울 전체일 때 "어느 뉴타운을 볼지" 고르는 칩 */
-.pick-row { display: inline-flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-.pick-chip {
-  font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
-  color: var(--accent-2); background: #fff; border: 1px solid var(--line);
-  border-radius: 999px; padding: 6px 14px;
+/* 구역 단위 자료가 있는 지구 카드에만 붙는 바로가기 */
+.zone-link {
+  display: inline-block; margin-top: 10px; font: inherit; font-size: 12px; font-weight: 700;
+  cursor: pointer; color: var(--accent-2); background: var(--accent-light);
+  border: 1px solid #cfdcf6; border-radius: 8px; padding: 5px 11px;
 }
-.pick-chip:hover { border-color: var(--accent); background: var(--accent-light); }
+.zone-link:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
 
 /* 진행 단계 색 점 — 표와 차트가 같은 색 언어를 쓰게 한다 */
 .stage-dot {
@@ -413,6 +412,7 @@ section[data-tabpanel].is-on { display: block; }
   nav.section-nav, .sec-print-btn, .print-btn, .home-link, .top-tabs, .filter-bar .ctl select { }
   nav.section-nav, .sec-print-btn, .print-btn, .home-link, .top-tabs { display: none !important; }
   .view-bar, .nt-group .g-caret, .nt-group .g-peek, .mini-btn { display: none !important; }
+  .zone-link { display: none !important; }   /* 종이에서는 누를 수 없으니 뺀다 */
 
   /* 접히는 그룹은 인쇄에서 제목 + 내용으로 펴진다(JS가 open을 강제) */
   .nt-group { border: none; margin-bottom: 8px; }

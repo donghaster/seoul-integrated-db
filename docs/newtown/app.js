@@ -264,6 +264,11 @@
         ? '<div style="margin-top:8px; font-size:12px; color:var(--accent-2); font-weight:700;">' +
           esc(d.dongs[0]) + " 중위 매매 " + eokman(st.medSale) + " · 평당 " + st.medPy.toLocaleString() + "만원</div>"
         : "") +
+      // 구역 단위 자료가 있는 3곳만 바로가기를 단다.
+      // (구역별 상세 섹션은 볼 게 없으면 통째로 숨기므로, 들어가는 길을 여기에 둔다)
+      (N.zoneDetail[d.id]
+        ? '<button type="button" class="zone-link" data-zone-link="' + d.id + '" data-gu="' + esc(d.gu) + '">구역별 상세 보기 →</button>'
+        : "") +
       "</div>";
   }
 
@@ -375,6 +380,19 @@
         document.getElementById("sec-map").scrollIntoView({ behavior: "smooth", block: "center" });
       });
     });
+
+    // [구역별 상세 보기] — 그 구로 전환해 숨어 있던 구역별 상세 섹션을 연다
+    box.querySelectorAll("[data-zone-link]").forEach(function (b) {
+      b.addEventListener("click", function (e) {
+        e.stopPropagation();                       // 카드 클릭(지도 이동)과 겹치지 않게
+        state.zone = b.dataset.zoneLink;
+        state.gu = b.dataset.gu;
+        document.getElementById("guSelect").value = state.gu;
+        renderAll();
+        var sec = document.getElementById("sec-zones");
+        if (!sec.hidden) sec.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
   }
 
   /* ── 묶어보기 / 보기 전환 ── */
@@ -442,13 +460,6 @@
     });
   }
 
-  /* 상세가 있는 뉴타운 전체 목록 — 안내 문구에 쓴다 */
-  function zonePackLabels() {
-    return Object.keys(N.zoneDetail).map(function (id) {
-      var d = N.districts.filter(function (x) { return x.id === id; })[0];
-      return d ? d.name + "(" + d.gu + ")" : id;
-    }).join(" · ");
-  }
 
   function renderZones() {
     var avail = zonePacks();
@@ -456,48 +467,20 @@
     var title = document.getElementById("zoneSecTitle");
     var tabs = document.getElementById("zoneTabs");
     var body = document.getElementById("zoneBody");
-    var empty = document.getElementById("zoneEmpty");
 
-    // 지금 필터에 맞는 상세가 하나도 없으면, 엉뚱한 구의 구역을 보여주지 않고 이유를 알린다
-    if (!avail.length) {
-      title.textContent = "구역별 상세";
-      tabs.innerHTML = "";
-      tabs.hidden = true;
-      body.hidden = true;
-      empty.hidden = false;
-      empty.innerHTML =
-        "<b>" + esc(state.gu === ALL ? "선택한 조건" : state.gu) + "</b>에는 구역 단위까지 확인된 뉴타운이 없습니다.<br />" +
-        "구역별 시공사·세대수까지 제공하는 곳은 <b>" + esc(zonePackLabels()) + "</b> 입니다. " +
-        "위 <b>지구별 진행상황</b>에서는 선택하신 지역의 지구 단위 요약을 보실 수 있습니다.";
+    var navBtn = document.querySelector('nav.section-nav button[data-target="sec-zones"]');
+    var setNav = function (on) { if (navBtn) navBtn.hidden = !on; };
+
+    // 보여줄 구역 자료가 없으면(서울 전체이거나, 그 구에 상세가 없거나)
+    // 빈 안내만 남겨 자리를 차지하지 말고 섹션을 통째로 감춘다.
+    // 들어가는 길은 위 "지구별 진행상황" 카드의 [구역별 상세 보기] 버튼이 대신한다.
+    if (!avail.length || state.gu === ALL) {
+      sec.hidden = true;
+      setNav(false);
       return;
     }
-
-    // 서울 전체를 보고 있을 때 특정 3곳의 구역을 펼쳐 두면, 지금 서울 전체를 보는 건지
-    // 그 뉴타운을 보는 건지 헷갈린다. 어디를 볼지 먼저 고르게 한다.
-    if (state.gu === ALL) {
-      title.textContent = "구역별 상세";
-      tabs.innerHTML = "";
-      tabs.hidden = true;
-      body.hidden = true;
-      empty.hidden = false;
-      empty.innerHTML =
-        "지금은 <b>서울시 전체</b>를 보고 계십니다. 구역 단위 상세(시공사·세대수·구역별 진행)는 " +
-        "서울 27개 지구 중 <b>아래 " + avail.length + "곳</b>만 확인돼 있습니다.<br />" +
-        '<span class="pick-row">' + avail.map(function (x) {
-          return '<button type="button" class="pick-chip" data-gu="' + esc(x.gu) + '" data-z="' + x.id + '">' +
-            esc(x.name) + ' <span style="opacity:.7">' + esc(x.gu) + "</span></button>";
-        }).join("") + "</span>";
-      empty.querySelectorAll(".pick-chip").forEach(function (b) {
-        b.addEventListener("click", function () {
-          state.zone = b.dataset.z;
-          state.gu = b.dataset.gu;
-          document.getElementById("guSelect").value = state.gu;
-          renderAll();
-          document.getElementById("sec-zones").scrollIntoView({ behavior: "smooth", block: "start" });
-        });
-      });
-      return;
-    }
+    sec.hidden = false;
+    setNav(true);
 
     // 현재 선택이 목록에 없으면 첫 번째로 옮긴다
     if (!avail.some(function (x) { return x.id === state.zone; })) state.zone = avail[0].id;
@@ -505,7 +488,6 @@
     title.textContent = "구역별 상세 (" + avail.map(function (x) { return x.name.replace("뉴타운", ""); }).join(" · ") + ")";
     tabs.hidden = false;
     body.hidden = false;
-    empty.hidden = true;
     tabs.innerHTML = avail.map(function (x) {
       return '<button class="' + (x.id === state.zone ? "active" : "") + '" data-z="' + x.id + '">' +
         esc(x.name) + ' <span style="opacity:.7;font-weight:600">' + esc(x.gu) + "</span></button>";
