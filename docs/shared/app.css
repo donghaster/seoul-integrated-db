@@ -236,6 +236,14 @@ table.rank-table tr:hover td { background: var(--accent-pale); }
 }
 .loc-caveat b { color: var(--txt); }
 
+/* 공식 가격지수 간이 추세 막대 */
+.pi-spark {
+  display: flex; align-items: flex-end; gap: 3px; height: 50px;
+  padding: 6px 10px; background: #fff; border: 1px solid var(--line); border-radius: 10px;
+}
+.pi-spark i { flex: 1; background: var(--accent); border-radius: 2px 2px 0 0; opacity: .75; }
+.pi-spark i:last-child { opacity: 1; background: var(--accent-2); }
+
 /* 지하철역·공원·상권·학교 이름을 담는 칩 */
 .loc-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .loc-chips > span {

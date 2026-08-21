@@ -857,8 +857,52 @@
           return "<tr><td>" + (i + 1) + "</td><td>" + esc(x.d) + "</td>" +
             '<td class="rt-price">' + x.py.toLocaleString() + "만원</td><td>" + x.c.toLocaleString() + "건</td></tr>";
         }).join("") + "</tbody></table>" : "") +
+      priceIndexHtml() +
       "<p style='margin-top:10px;color:var(--txt-mute);font-size:12.5px'>" +
       "※ 평당가 = 거래금액 ÷ (전용면적 ÷ 3.3058). 매매 신고 3건 이상인 지역만 순위에 넣습니다.</p>";
+  }
+
+  /* 한국부동산원 공동주택 매매 실거래가격지수 — 구 단위 공식 통계.
+     우리가 직접 계산한 중위 평당가와 방향이 맞는지 대조하는 용도. */
+  function priceIndexHtml() {
+    var gu = state.gu === ALL ? null : state.gu;
+    var pi = gu && LOC[gu] && LOC[gu].priceIndex;
+    if (!pi || !pi.points || !pi.points.length) return "";
+
+    var pts = pi.points;
+    var last = pts[pts.length - 1];
+    var first = pts[0];
+    var yoy = null;
+    if (pts.length >= 5) {
+      var y = pts[pts.length - 5];
+      if (y && y.value) yoy = ((last.value - y.value) / y.value * 100);
+    }
+    var total = first.value ? ((last.value - first.value) / first.value * 100) : 0;
+    var fmtQ = function (p) { return p.period.replace(/(\d{4})Q0?(\d)/, "$1년 $2분기"); };
+    var sign = function (v) { return (v >= 0 ? "+" : "") + v.toFixed(1) + "%"; };
+    var cls = function (v) { return v >= 0 ? "var(--up)" : "var(--down)"; };
+
+    // 막대 하나짜리 간이 추세 — 별도 차트 없이 흐름만 읽히게
+    var vals = pts.map(function (p) { return p.value; });
+    var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+    var span = (hi - lo) || 1;
+    var spark = '<div class="pi-spark">' + pts.map(function (p) {
+      var h = 12 + Math.round((p.value - lo) / span * 34);
+      return '<i style="height:' + h + 'px" title="' + fmtQ(p) + " " + p.value + '"></i>';
+    }).join("") + "</div>";
+
+    return "<h3 style='margin-top:18px;font-size:14.5px'>🏛️ " + esc(gu) +
+      " 공식 실거래가격지수 <span class='rt-sub'>한국부동산원</span></h3>" +
+      "<ul>" +
+      "<li>최근 <b>" + fmtQ(last) + " " + last.value + "</b> " +
+      "<span class='rt-sub'>(" + esc(pi.unit) + ")</span></li>" +
+      (yoy !== null ? "<li>전년 동기 대비 <b style='color:" + cls(yoy) + "'>" + sign(yoy) + "</b></li>" : "") +
+      "<li>" + fmtQ(first) + " 이후 누적 <b style='color:" + cls(total) + "'>" + sign(total) + "</b></li>" +
+      "</ul>" + spark +
+      "<p style='margin-top:8px;color:var(--txt-mute);font-size:12px'>" +
+      "위 중위 평당가는 <b>이 대시보드가 직접 계산</b>한 값이고, 이 지수는 <b>한국부동산원 공식 통계</b>입니다. " +
+      "산출 방식이 달라 숫자는 다르지만 <b>방향(오름/내림)이 어긋나면</b> 표본이 치우쳤다는 신호로 보시면 됩니다. " +
+      "분기 단위라 최신 분기는 늦게 반영됩니다.</p>";
   }
 
   // 인쇄 직전에 입지분석 5개 항목을 전부 펼친다(화면에서 무엇을 열어 뒀든 동일하게)

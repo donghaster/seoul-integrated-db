@@ -113,6 +113,37 @@ def build_gu(gu: str, raw: dict) -> dict:
     }
 
 
+def fetch_price_index_all() -> dict:
+    """한국부동산원 공동주택 매매 실거래가격지수(구 단위·분기별, KOSIS 경유).
+    seoul dashboard의 server.py를 그대로 빌려 쓴다. 키가 없으면 조용히 건너뛴다."""
+    sibling = os.path.join(os.path.dirname(BASE_DIR), "seoul dashboard")
+    if not os.path.isdir(sibling):
+        return {}
+    import sys
+    sys.path.insert(0, sibling)
+    cwd = os.getcwd()
+    try:
+        os.chdir(sibling)              # server.py가 .env와 .cache를 자기 폴더 기준으로 찾는다
+        import server
+    except Exception as exc:
+        os.chdir(cwd)
+        print(f"  ! 공식 지수 모듈 로드 실패: {exc}")
+        return {}
+
+    out = {}
+    try:
+        for gu in SEOUL_GU:
+            try:
+                pi = server.fetch_price_index(gu)
+            except Exception:
+                pi = None
+            if pi and pi.get("points"):
+                out[gu] = {"unit": pi.get("unit", ""), "points": pi["points"]}
+    finally:
+        os.chdir(cwd)
+    return out
+
+
 def main() -> None:
     if not os.path.isdir(SIBLING_CACHE):
         raise SystemExit(f"[오류] 재료 폴더를 찾을 수 없습니다: {SIBLING_CACHE}\n"
@@ -132,6 +163,14 @@ def main() -> None:
         out[gu] = build_gu(gu, raw)
 
     print(f"입지 데이터 생성: {len(out)}/25개 구" + (f" · 빠짐: {', '.join(missing)}" if missing else ""))
+
+    # 한국부동산원 공식 지수 — 자체 계산 평당가와 견줘 볼 공식 통계
+    print("공식 가격지수(한국부동산원) 수집…")
+    pidx = fetch_price_index_all()
+    for gu, pi in pidx.items():
+        if gu in out:
+            out[gu]["priceIndex"] = pi
+    print(f"  {len(pidx)}/25개 구")
 
     os.makedirs(DATA_DIR, exist_ok=True)
     path = os.path.join(DATA_DIR, "locinfo.js")
