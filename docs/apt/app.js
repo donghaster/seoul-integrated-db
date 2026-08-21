@@ -329,17 +329,76 @@
     return out.slice(0, 10);
   }
 
-  /* 구간별 중위 평당가 시계열 — 가격지수용 */
-  function pySeries(key, type) {
+  /* 구간별 중위 평당가 시계열 — 가격지수용.
+     값만이 아니라 "그 구간에 몇 건이, 어느 단지가" 있었는지도 함께 돌려준다.
+     한두 건짜리 구간이 지수를 50%씩 흔들기 때문에, 이 정보 없이는 그래프를
+     시세 흐름으로 잘못 읽게 된다. */
+  function pyStats(key, type) {
     var rows = dealsIn(key), bag = {};
     for (var i = 0; i < rows.length; i++) {
       if (rows[i].t !== type) continue;
       var v = pyOf(rows[i]);
       if (!v) continue;
       var k = bucketKey(rows[i].d);
-      (bag[k] = bag[k] || []).push(v);
+      (bag[k] = bag[k] || []).push(rows[i]);
     }
-    return bucketList().map(function (k) { return bag[k] ? median(bag[k]) : null; });
+    return bucketList().map(function (k) {
+      var g = bag[k];
+      if (!g) return { v: null, n: 0, names: [] };
+      var seen = {}, names = [];
+      g.forEach(function (x) { if (!seen[x.n]) { seen[x.n] = 1; names.push(x.n); } });
+      return {
+        v: median(g.map(pyOf)),
+        n: g.length,
+        names: names,
+      };
+    });
+  }
+
+  function pySeries(key, type) {
+    return pyStats(key, type).map(function (x) { return x.v; });
+  }
+
+  /* ── 전월세 구조 ──
+     환산보증금만 보면 "월세가 올랐다"고 잘못 읽는다. 보증금을 올리고 월세를
+     낮춘 준전세로 옮겨간 것도 환산보증금은 똑같이 올려 놓기 때문이다.
+     구분은 한국부동산원 공식 기준을 따른다. */
+  function rentKind(x) {
+    if (!x.r) return "junjeonse";                 // 월세 0 = 사실상 전세
+    if (x.v <= x.r * 12) return "wolse";          // 순수 월세
+    if (x.v <= x.r * 240) return "junwolse";      // 준월세
+    return "junjeonse";                            // 준전세(반전세)
+  }
+
+  /* 월 단위 상담 브리핑 — 조회 기간을 달로 잘라 유형별 핵심 수치를 낸다 */
+  function monthlyBrief(key) {
+    var rows = dealsIn(key), bag = {};
+    for (var i = 0; i < rows.length; i++) {
+      var m = rows[i].d.slice(0, 7);
+      (bag[m] = bag[m] || []).push(rows[i]);
+    }
+    return Object.keys(bag).sort().map(function (m) {
+      var g = bag[m];
+      var by = { sale: [], jeonse: [], wolse: [] };
+      g.forEach(function (x) { by[x.t].push(x); });
+      var jun = by.wolse.filter(function (x) { return rentKind(x) === "junjeonse"; }).length;
+      var pyOfList = function (arr) {
+        var v = [];
+        arr.forEach(function (x) { var p = pyOf(x); if (p) v.push(p); });
+        return median(v);
+      };
+      return {
+        m: m,
+        sale: { n: by.sale.length, py: pyOfList(by.sale),
+                amt: median(by.sale.map(function (x) { return x.v; })) },
+        jeonse: { n: by.jeonse.length, py: pyOfList(by.jeonse),
+                  dep: median(by.jeonse.map(function (x) { return x.v; })) },
+        wolse: { n: by.wolse.length, py: pyOfList(by.wolse),
+                 dep: median(by.wolse.map(function (x) { return x.v; })),
+                 rent: median(by.wolse.map(function (x) { return x.r; })),
+                 junRate: by.wolse.length ? jun / by.wolse.length : 0 },
+      };
+    });
   }
 
   /* 구간별 거래 건수 */
@@ -1312,6 +1371,28 @@
     return idxState.mode === "index" ? toIndex(vals) : vals;
   }
 
+  var THIN = 5;   // 이 건수 미만이면 "표본 적음"으로 본다
+
+  // 표본이 얇을 때 "그래서 뭘 하면 되는지"는 지금 상태에 따라 다르다
+  function thinAdvice() {
+    if (state.gran === "week") return "매매는 <b>월간</b>으로 바꾸시면 훨씬 안정적으로 보입니다.";
+    var days = (new Date(state.end) - new Date(state.start)) / 86400000;
+    if (days < 175) return "조회 기간을 <b>6개월 이상</b>으로 넓히시면 표본이 늘어납니다.";
+    if (state.dong !== ALL) return "이 법정동은 원래 거래가 드뭅니다. <b>법정동을 ‘전체’로</b> 놓고 자치구 단위로 보시거나, 아래 <b>월별 브리핑 표</b>의 숫자를 쓰세요.";
+    return "이 지역은 원래 거래가 드뭅니다. 아래 <b>월별 브리핑 표</b>의 건수를 함께 보고 말씀하세요.";
+  }
+
+  // 표본이 얇은 구간은 속 빈 작은 점으로 — 꽉 찬 점만 믿고 읽으시면 된다
+  function pointStyleOf(stats, color) {
+    return {
+      pointRadius: stats.map(function (x) { return x.n ? (x.n < THIN ? 3 : 5) : 0; }),
+      pointHoverRadius: stats.map(function (x) { return x.n ? (x.n < THIN ? 5 : 7) : 0; }),
+      pointBackgroundColor: stats.map(function (x) { return x.n < THIN ? "#ffffff" : color; }),
+      pointBorderColor: color,
+      pointBorderWidth: stats.map(function (x) { return x.n < THIN ? 2 : 1.5; }),
+    };
+  }
+
   function renderIndex() {
     var labels = bucketLabels();
     var isIdx = idxState.mode === "index";
@@ -1321,18 +1402,17 @@
       (state.gu === ALL ? "서울시 전체" : regionLabel()) + " 아파트";
 
     if (idxState.view === "type") {
-      var ser = idxSeries(regionKey());
-      if (ser) {
-        TYPES.forEach(function (t) {
-          var raw = ser[t];
-          sets.push({
-            label: TYPE_LABEL[t],
-            data: isIdx ? toIndex(raw) : raw,
-            borderColor: TYPE_COLOR[t], backgroundColor: TYPE_COLOR[t] + "22",
-            borderWidth: 2.5, pointRadius: 3, tension: 0.3, spanGaps: true,
-          });
-        });
-      }
+      TYPES.forEach(function (t) {
+        var stats = pyStats(regionKey(), t);
+        var raw = stats.map(function (x) { return x.v; });
+        sets.push(Object.assign({
+          label: TYPE_LABEL[t],
+          data: isIdx ? toIndex(raw) : raw,
+          _stats: stats,
+          borderColor: TYPE_COLOR[t], backgroundColor: TYPE_COLOR[t] + "22",
+          borderWidth: 2.5, tension: 0.3, spanGaps: true,
+        }, pointStyleOf(stats, TYPE_COLOR[t])));
+      });
     } else {
       // 지역 비교 — 지금 보는 곳 / 그 자치구 / 서울 전체를 매매 기준으로 겹친다
       var targets = [];
@@ -1343,21 +1423,35 @@
       targets.push({ key: ALL, name: "서울 전체", color: "#8a93a3" });
 
       targets.forEach(function (tg) {
-        var ser = idxSeries(tg.key);
-        if (!ser) return;
-        sets.push({
+        if (!BY_REGION[tg.key]) return;
+        var stats = pyStats(tg.key, "sale");
+        var raw = stats.map(function (x) { return x.v; });
+        sets.push(Object.assign({
           label: tg.name + " (매매)",
-          data: isIdx ? toIndex(ser.sale) : ser.sale,
+          data: isIdx ? toIndex(raw) : raw,
+          _stats: stats,
           borderColor: tg.color, backgroundColor: tg.color + "22",
           borderWidth: tg.key === ALL ? 2 : 2.8,
           borderDash: tg.key === ALL ? [6, 4] : [],
-          pointRadius: 3, tension: 0.3, spanGaps: true,
-        });
+          tension: 0.3, spanGaps: true,
+        }, pointStyleOf(stats, tg.color)));
       });
     }
 
+    var offMiss = "";
     if (idxState.official) {
       var off = officialSeries(labels);
+      if (!off) {
+        // 조용히 넘어가면 버튼이 고장 난 줄 아신다 — 왜 안 겹치는지 알려 준다
+        var pi0 = (window.APT_LOCATION || {})[state.gu];
+        var last = pi0 && pi0.priceIndex && pi0.priceIndex.points.length
+          ? pi0.priceIndex.points[pi0.priceIndex.points.length - 1].period : "";
+        offMiss = last
+          ? "공식(부동산원) 지수는 <b>" + last.replace("Q0", "년 ").replace("Q", "년 ") +
+            "분기</b>까지 나와 있어 지금 조회 기간과 겹치지 않습니다. " +
+            "<b>조회 기간을 그 분기까지 넓히시면</b> 겹쳐 볼 수 있습니다."
+          : state.gu + "의 공식(부동산원) 지수 자료가 없습니다.";
+      }
       if (off) {
         sets.push({
           label: "공식(부동산원) " + (isIdx ? "지수" : "지수값"),
@@ -1384,10 +1478,28 @@
             font: { size: 13, weight: "bold" },
           },
           tooltip: {
+            // 값만 보여주면 "3건짜리 봉우리"를 시세 급등으로 읽게 된다.
+            // 표본 수와 실제 거래된 단지를 같이 띄운다.
             callbacks: {
               label: function (c) {
+                var st = (c.dataset._stats || [])[c.dataIndex];
                 if (c.parsed.y == null) return c.dataset.label + ": 거래 없음";
-                return c.dataset.label + ": " + c.parsed.y.toLocaleString() + (isIdx ? "" : "만원");
+                var t = c.dataset.label + ": " + c.parsed.y.toLocaleString() + (isIdx ? "" : "만원");
+                if (st) t += "  (표본 " + st.n + "건" + (st.n < THIN ? " — 적음" : "") + ")";
+                return t;
+              },
+              afterBody: function (items) {
+                var out = [];
+                items.forEach(function (c) {
+                  var st = (c.dataset._stats || [])[c.dataIndex];
+                  if (!st || !st.n) return;
+                  var ns = st.names.slice(0, 4).join(", ") +
+                           (st.names.length > 4 ? " 외 " + (st.names.length - 4) + "곳" : "");
+                  out.push("· " + c.dataset.label + " 거래단지: " + ns);
+                });
+                if (!out.length) return "";
+                out.unshift("");
+                return out;
               },
             },
           },
@@ -1398,9 +1510,30 @@
       },
     });
 
+    // 표본이 얇은 구간이 몇 개나 되는지 세어 그래프 위에 미리 알린다
+    var thin = 0, drawn = 0;
+    sets.forEach(function (d) {
+      (d._stats || []).forEach(function (x) {
+        if (!x.n) return;
+        drawn++;
+        if (x.n < THIN) thin++;
+      });
+    });
+    var notes = [];
+    if (thin) {
+      notes.push("<b>표본 " + THIN + "건 미만 구간이 " + thin + "곳</b> 있습니다(전체 " + drawn + "곳). " +
+        "속이 빈 작은 점이 그 구간이고, <b>한두 건에 지수가 크게 출렁이니 시세 흐름으로 읽지 마세요.</b> " +
+        thinAdvice());
+    }
+    if (offMiss) notes.push(offMiss);
+    var warn = document.getElementById("idxThinNote");
+    warn.hidden = !notes.length;
+    warn.innerHTML = notes.map(function (t) { return "<span>" + t + "</span>"; }).join("");
+
     document.getElementById("idxDesc").innerHTML =
       "조회 기간 <b>" + win().label + "</b> · " + (state.gran === "week" ? "주별" : "월별") + " 중위 평당가를 " +
-      (isIdx ? "첫 구간 100 기준으로 지수화" : "만원/평 그대로") + "했습니다." +
+      (isIdx ? "첫 구간 100 기준으로 지수화" : "만원/평 그대로") + "했습니다. " +
+      "<b>점 위에 마우스를 올리면</b> 그 구간의 표본 건수와 실제 거래된 단지가 나옵니다." +
       (state.gu === ALL ? " 자치구를 고르면 <b>공식(부동산원) 지수</b>와 겹쳐 볼 수 있습니다." : "");
     var btn = document.getElementById("idxOfficialBtn");
     btn.classList.toggle("is-on", idxState.official);
@@ -1532,9 +1665,207 @@
 
   /* ════════════════ 렌더 ════════════════ */
 
+  /* ════════════════ 상담용 월별 브리핑 ════════════════ */
+
+  function moLabel(m) { return m.slice(2, 4) + "년 " + parseInt(m.slice(5), 10) + "월"; }
+
+  // 신고 기한이 30일이라 최근 달은 아직 다 안 들어와 있다.
+  // 그 달 말일에 계약해도 30일 뒤까지 신고할 수 있으므로, 말일+30일이
+  // 자료 기준일을 넘는 달은 "집계중"이다.
+  function isPending(m) {
+    var today = (D.today || D.builtAt || "").slice(0, 10);
+    if (!today) return false;
+    var y = parseInt(m.slice(0, 4), 10), mm = parseInt(m.slice(5), 10);
+    var due = new Date(y, mm, 0);              // 그 달 말일
+    due.setDate(due.getDate() + 30);
+    return due > new Date(today + "T00:00:00");
+  }
+
+  var MIN_N = 10;   // 이 건수는 넘어야 "흐름"을 말할 수 있다
+
+  function deltaHtml(cur, prev, nCur, nPrev) {
+    if (!cur || !prev) return '<span class="dim-note">-</span>';
+    var r = (cur - prev) / prev * 100;
+    var sign = r > 0 ? "+" : "";
+    // 표본이 얇으면 등락률이 시세가 아니라 "어느 단지가 팔렸나"를 보여줄 뿐이다
+    if (nCur < MIN_N || nPrev < MIN_N) {
+      return '<span class="d-weak" title="표본이 적어 시세 변동으로 보기 어렵습니다">' +
+             sign + r.toFixed(1) + "%<sup>*</sup></span>";
+    }
+    var cls = Math.abs(r) < 1 ? "d-flat" : (r > 0 ? "d-up" : "d-down");
+    return '<span class="' + cls + '">' + sign + r.toFixed(1) + "%</span>";
+  }
+
+  function briefTable(title, cols, rows) {
+    return '<div class="brief-card"><h4>' + title + "</h4>" +
+      '<div class="table-wrap"><table class="brief-table"><thead><tr>' +
+      cols.map(function (c) { return "<th>" + c + "</th>"; }).join("") +
+      "</tr></thead><tbody>" + rows.join("") + "</tbody></table></div></div>";
+  }
+
+  function renderBrief() {
+    var mo = monthlyBrief(regionKey());
+    document.getElementById("briefTitle").textContent = regionLabel();
+    document.getElementById("briefDesc").innerHTML =
+      "조회 기간 <b>" + win().label + "</b>을 <b>달 단위</b>로 끊어 정리했습니다. " +
+      "주간 그래프는 표본이 얇아 출렁이니, <b>고객께 말씀하실 숫자는 이 표에서</b> 가져가세요.";
+
+    var grid = document.getElementById("briefGrid");
+    if (!mo.length) {
+      grid.innerHTML = '<p class="empty">조회 기간에 거래가 없습니다.</p>';
+      document.getElementById("briefScript").innerHTML = "";
+      return;
+    }
+
+    var flag = function (m, n) {
+      var t = "";
+      if (isPending(m)) t += ' <span class="brief-flag">집계중</span>';
+      if (n > 0 && n < MIN_N) t += ' <span class="brief-thin">표본 적음</span>';
+      return t;
+    };
+
+    var saleRows = mo.map(function (x, i) {
+      var pv = i ? mo[i - 1].sale.py : 0, pn = i ? mo[i - 1].sale.n : 0;
+      return "<tr><td>" + moLabel(x.m) + flag(x.m, x.sale.n) + "</td>" +
+        "<td>" + x.sale.n.toLocaleString() + "건</td>" +
+        "<td>" + (x.sale.py ? Math.round(x.sale.py).toLocaleString() + "만원" : "-") + "</td>" +
+        "<td>" + (x.sale.amt ? eokman(x.sale.amt) : "-") + "</td>" +
+        "<td>" + deltaHtml(x.sale.py, pv, x.sale.n, pn) + "</td></tr>";
+    });
+
+    var jeonseRows = mo.map(function (x, i) {
+      var pv = i ? mo[i - 1].jeonse.py : 0, pn = i ? mo[i - 1].jeonse.n : 0;
+      return "<tr><td>" + moLabel(x.m) + flag(x.m, x.jeonse.n) + "</td>" +
+        "<td>" + x.jeonse.n.toLocaleString() + "건</td>" +
+        "<td>" + (x.jeonse.dep ? eokman(x.jeonse.dep) : "-") + "</td>" +
+        "<td>" + (x.jeonse.py ? Math.round(x.jeonse.py).toLocaleString() + "만원" : "-") + "</td>" +
+        "<td>" + deltaHtml(x.jeonse.py, pv, x.jeonse.n, pn) + "</td></tr>";
+    });
+
+    var wolseRows = mo.map(function (x) {
+      return "<tr><td>" + moLabel(x.m) + flag(x.m, x.wolse.n) + "</td>" +
+        "<td>" + x.wolse.n.toLocaleString() + "건</td>" +
+        "<td>" + (x.wolse.dep ? eokman(x.wolse.dep) : "-") + "</td>" +
+        "<td>" + (x.wolse.rent ? Math.round(x.wolse.rent).toLocaleString() + "만원" : "-") + "</td>" +
+        "<td>" + Math.round(x.wolse.junRate * 100) + "%</td></tr>";
+    });
+
+    grid.innerHTML =
+      briefTable("매매", ["월", "건수", "중위 평당가", "중위 거래가", "전월비"], saleRows) +
+      briefTable("전세", ["월", "건수", "중위 보증금", "중위 평당가", "전월비"], jeonseRows) +
+      briefTable("월세", ["월", "건수", "중위 보증금", "중위 월세", "준전세 비중"], wolseRows);
+
+    renderBriefScript(mo);
+  }
+
+  /* 표에서 바로 읽어 드릴 수 있게 문장으로 풀어 준다.
+     예측은 하지 않는다 — 확인된 수치와 그 한계만 적는다.
+     "집계중"인 달도 흐름에는 넣되, 미확정이라는 사실을 반드시 함께 말한다. */
+  function renderBriefScript(mo) {
+    var out = [];
+
+    function trend(get, label) {
+      var pts = mo.filter(function (x) { return get(x).n >= MIN_N && get(x).py; });
+      var any = mo.filter(function (x) { return get(x).n > 0; });
+      var total = any.reduce(function (a, x) { return a + get(x).n; }, 0);
+
+      if (!total) return "<b>" + label + "</b>는 조회 기간에 거래가 없습니다.";
+
+      if (pts.length < 2) {
+        var last1 = any[any.length - 1];
+        return "<b>" + label + "</b>는 조회 기간 <b>" + total.toLocaleString() + "건</b>으로, " +
+          "달마다 " + MIN_N + "건이 안 돼 <b>월별 흐름을 말씀드리기 어렵습니다</b>. " +
+          "가장 최근은 " + moLabel(last1.m) + " " + get(last1).n + "건, 중위 평당가 " +
+          Math.round(get(last1).py).toLocaleString() + "만원입니다. " +
+          "<b>조회 기간을 6개월 이상으로 넓혀</b> 보시길 권합니다.";
+      }
+
+      var a2 = pts[0], b2 = pts[pts.length - 1];
+      var r = (get(b2).py - get(a2).py) / get(a2).py * 100;
+      var word = Math.abs(r) < 1.5 ? "사실상 보합" : (r > 0 ? "상승" : "약세");
+      var t = "<b>" + label + "</b>는 " + moLabel(a2.m) + " 평당 " +
+        Math.round(get(a2).py).toLocaleString() + "만원(" + get(a2).n + "건)에서 " +
+        moLabel(b2.m) + " " + Math.round(get(b2).py).toLocaleString() + "만원(" + get(b2).n + "건)으로 <b>" +
+        (r > 0 ? "+" : "") + r.toFixed(1) + "% — " + word + "</b>입니다.";
+      if (isPending(b2.m)) t += " 다만 " + moLabel(b2.m) + "은 <b>아직 집계 중</b>이라 확정치가 아닙니다.";
+
+      // 첫 달과 마지막 달만 비교하면 중간의 큰 출렁임이 가려진다.
+      // 고점·저점이 15% 넘게 벌어지면 "단일 추세"로 말하지 않도록 붙여 준다.
+      if (pts.length >= 3) {
+        var vals = pts.map(function (x) { return get(x).py; });
+        var hi = Math.max.apply(null, vals), lo = Math.min.apply(null, vals);
+        if (lo && (hi - lo) / lo * 100 >= 15) {
+          var hiM = pts[vals.indexOf(hi)], loM = pts[vals.indexOf(lo)];
+          t += " <b>그런데 한 방향으로 움직인 게 아닙니다</b> — " +
+               "고점은 " + moLabel(hiM.m) + " " + Math.round(hi).toLocaleString() + "만원, " +
+               "저점은 " + moLabel(loM.m) + " " + Math.round(lo).toLocaleString() + "만원으로 " +
+               "<b>" + Math.round((hi - lo) / lo * 100) + "%</b> 벌어집니다. " +
+               "<b>달마다 어느 단지가 팔렸는지에 따라 중위값이 흔들린 것</b>이니, " +
+               "고객께는 “상승”보다 <b>“단지별로 확인이 필요하다”</b>고 말씀하시는 편이 안전합니다.";
+        }
+      }
+
+      var skipped = mo.filter(function (x) { return get(x).n > 0 && get(x).n < MIN_N; });
+      if (skipped.length) {
+        t += " (" + skipped.map(function (x) { return moLabel(x.m); }).join("·") +
+             "은 표본 " + MIN_N + "건 미만이라 흐름에서 뺐습니다.)";
+      }
+      return t;
+    }
+
+    out.push(trend(function (x) { return x.sale; }, "매매"));
+    out.push(trend(function (x) { return x.jeonse; }, "전세"));
+
+    // 월세는 값이 아니라 계약 구조가 핵심이다
+    var w = mo.filter(function (x) { return x.wolse.n >= MIN_N && x.wolse.rent; });
+    if (w.length >= 2) {
+      var wa = w[0], wb = w[w.length - 1];
+      var jrA = Math.round(wa.wolse.junRate * 100), jrB = Math.round(wb.wolse.junRate * 100);
+      var rentGap = (wb.wolse.rent - wa.wolse.rent) / wa.wolse.rent * 100;
+      var t3 = "<b>월세</b>는 중위 월세가 " + Math.round(wa.wolse.rent).toLocaleString() + "만원 → " +
+        Math.round(wb.wolse.rent).toLocaleString() + "만원(" + (rentGap > 0 ? "+" : "") +
+        rentGap.toFixed(0) + "%), 중위 보증금이 " + eokman(wa.wolse.dep) + " → " + eokman(wb.wolse.dep) +
+        ", 준전세 비중이 " + jrA + "% → " + jrB + "%입니다.";
+      if (jrB - jrA >= 8 && rentGap < 0) {
+        t3 += " <b>보증금을 올리고 월세를 낮추는 준전세로 옮겨가는 중</b>입니다. " +
+              "위 지수 그래프의 월세선은 환산보증금 기준이라 <b>반대로 오르게 보이니</b> 주의하세요.";
+      } else if (jrA - jrB >= 8 && rentGap > 0) {
+        t3 += " <b>보증금을 낮추고 월세를 늘리는 쪽</b>으로 움직였습니다.";
+      }
+      out.push(t3);
+    } else if (mo.some(function (x) { return x.wolse.n; })) {
+      out.push("<b>월세</b>는 달마다 " + MIN_N + "건이 안 돼 구조 변화를 말씀드리기 어렵습니다.");
+    }
+
+    // 거래량 — 집계중인 달은 비교에서 빼야 "급감"으로 잘못 읽지 않는다
+    var solid = mo.filter(function (x) { return !isPending(x.m); });
+    if (solid.length >= 2) {
+      var va = solid[0], vb = solid[solid.length - 1];
+      var na = va.sale.n + va.jeonse.n + va.wolse.n;
+      var nb = vb.sale.n + vb.jeonse.n + vb.wolse.n;
+      out.push("<b>거래량</b>은 " + moLabel(va.m) + " " + na.toLocaleString() + "건 → " +
+        moLabel(vb.m) + " " + nb.toLocaleString() + "건입니다. (신고가 마감된 달끼리만 비교)");
+    }
+
+    var pend = mo.filter(function (x) { return isPending(x.m); });
+    if (pend.length) {
+      out.push("<b>" + pend.map(function (x) { return moLabel(x.m); }).join("·") +
+        "은 아직 집계 중입니다.</b> 실거래 신고 기한이 계약일로부터 30일이라 앞으로 건수가 더 늘어납니다. " +
+        "<b>“거래가 끊겼다”고 말씀하시면 안 됩니다.</b>");
+    }
+
+    out.push("모든 수치는 <b>국토교통부 실거래 신고 원본</b> 기준이며, " +
+      regionLabel() + " " + win().label + " 구간입니다. 표의 <b>*</b> 표시는 표본 " + MIN_N +
+      "건 미만이라 시세 변동으로 보기 어려운 등락률입니다.");
+
+    document.getElementById("briefScript").innerHTML =
+      out.map(function (t) { return "<li>" + t + "</li>"; }).join("");
+  }
+
   function renderAll() {
     renderKpi();
     renderIndex();
+    renderBrief();
     renderPy();
     renderRise();
     renderDeal();

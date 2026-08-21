@@ -563,3 +563,56 @@ section[data-tabpanel].is-on { display: block; }
   .school-chip { border: none; padding: 2px 6px; background: none; }
   footer.disclaimer { padding: 14px 0 0; }
 }
+
+/* ════════════════ 표본 경고 · 상담용 월별 브리핑 ════════════════ */
+
+/* 지수 그래프 위 경고 — 얇은 표본을 시세 흐름으로 읽지 않도록 */
+.thin-note {
+  background: #fdf2f2; border: 1px solid #f0cfcf; border-left: 4px solid var(--up);
+  border-radius: 10px; padding: 11px 16px; margin: 0 0 14px;
+  font-size: 12.5px; color: var(--txt-dim); line-height: 1.7;
+}
+.thin-note b { color: #9c3232; }
+.thin-note span { display: block; }
+.thin-note span + span { margin-top: 7px; padding-top: 7px; border-top: 1px dashed #f0cfcf; }
+
+.brief-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px; margin-bottom: 18px;
+}
+.brief-card {
+  background: var(--card-2); border: 1px solid var(--line-soft);
+  border-radius: 12px; padding: 14px 16px 8px;
+}
+.brief-card h4 { font-size: 13.5px; margin: 0 0 10px; color: var(--txt); }
+
+.brief-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.brief-table th {
+  text-align: right; font-size: 11px; font-weight: 700; color: var(--txt-mute);
+  padding: 5px 6px; border-bottom: 1px solid var(--line);
+}
+.brief-table th:first-child, .brief-table td:first-child { text-align: left; }
+.brief-table td {
+  text-align: right; padding: 7px 6px; border-bottom: 1px solid var(--line-soft);
+  color: var(--txt); font-variant-numeric: tabular-nums;
+}
+.brief-table tbody tr:last-child td { border-bottom: 0; }
+
+.brief-flag, .brief-thin {
+  display: inline-block; font-size: 9.5px; font-weight: 700;
+  padding: 1px 5px; border-radius: 4px; margin-left: 3px; vertical-align: 1px;
+}
+.brief-flag { color: #8a6a1f; background: #fdf3dc; border: 1px solid #ecd9a8; }
+.brief-thin { color: #9c3232; background: #fdefef; border: 1px solid #f0cfcf; }
+
+.d-up { color: var(--up); font-weight: 700; }
+.d-down { color: var(--down); font-weight: 700; }
+.d-flat { color: var(--txt-mute); font-weight: 700; }
+
+@media print {
+  .brief-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .brief-card { break-inside: avoid; background: #fff; }
+  .thin-note { break-inside: avoid; }
+}
+.d-weak { color: var(--txt-mute); font-weight: 600; }
+.d-weak sup { color: var(--up); font-weight: 800; }

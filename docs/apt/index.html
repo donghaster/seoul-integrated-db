@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>금집부쌤의 서울시 통합 부동산 대시보드 — 아파트</title>
-  <link rel="stylesheet" href="../shared/app.css?v=3f78ca9034" />
+  <link rel="stylesheet" href="../shared/app.css?v=5db0cece89" />
   <link rel="stylesheet" href="../vendor/leaflet/leaflet.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🏘️</text></svg>" />
 </head>
@@ -86,6 +86,7 @@
     <button data-target="sec-kpi">핵심 요약</button>
     <button data-target="sec-map">실거래 지도</button>
     <button data-target="sec-index">가격지수</button>
+    <button data-target="sec-brief">월별 브리핑</button>
     <button data-target="sec-top10">실거래가 TOP10</button>
     <button data-target="sec-compare">매매·전세·월세 비교</button>
     <button data-target="sec-volume">실거래량</button>
@@ -155,6 +156,8 @@
       </div>
     </div>
 
+    <p class="thin-note" id="idxThinNote" hidden></p>
+
     <div class="chart-box" style="height:360px;"><canvas id="idxChart"></canvas></div>
 
     <div class="read-guide" style="margin-top:18px;">
@@ -163,11 +166,45 @@
         <li>선택한 기간의 실거래를 <b>구간별로 나눠 중위 평당가</b>를 구하고, 자료가 있는
           <b>첫 구간을 100</b>으로 지수화했습니다. 선이 올라가면 그 지역 시세가 오른 것입니다.</li>
         <li><b>점이 찍힌 구간만 실제 거래가 있는 구간</b>입니다. 거래가 없는 구간은 점 없이 선만
-          지나가니, <b>점의 위치</b>를 보고 읽으세요. 표본이 적은 동은 한두 건에 크게 출렁이므로
-          아래 거래량과 함께 보셔야 합니다.</li>
+          지나가니, <b>점의 위치</b>를 보고 읽으세요.</li>
+        <li><b>속이 빈 작은 점 = 표본 5건 미만</b>입니다. 반포동 매매처럼 주당 1~3건인 구간은
+          <b>평당 25,000만원 단지가 팔렸는지, 10,000만원 단지가 팔렸는지</b>에 따라 지수가 50%씩
+          튑니다. 시세가 오른 것이 아닙니다. <b>점 위에 마우스를 올리면</b> 그 구간의 건수와
+          실제 거래된 단지가 나오니 반드시 확인하세요.</li>
         <li>월세는 <b>환산보증금(보증금 + 월세×100)</b> 기준이라 매매·전세와 같은 축에서 비교됩니다.</li>
         <li><b>공식(부동산원) 지수</b>는 한국부동산원이 분기별로 내는 자치구 단위 공식 통계입니다.
           산출 방식이 달라 값은 다르지만, <b>방향이 어긋나면</b> 우리 표본이 치우쳤다는 신호입니다.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ─────────────── 상담용 월별 브리핑 ─────────────── -->
+  <section class="card-section" id="sec-brief">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> <span id="briefTitle">상담용</span> 월별 브리핑</h2>
+      <button class="sec-print-btn" onclick="printSection('sec-brief')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc" id="briefDesc"></p>
+
+    <div class="brief-grid" id="briefGrid"></div>
+
+    <div class="read-guide" style="margin-top:18px;">
+      <h4>고객께 이렇게 설명하세요</h4>
+      <ol id="briefScript"></ol>
+    </div>
+
+    <div class="read-guide" style="margin-top:14px;">
+      <h4>월세 표를 읽는 법</h4>
+      <ol>
+        <li><b>환산보증금(보증금 + 월세×100)</b>이 올랐다고 해서 월세가 오른 것이 아닙니다.
+          보증금을 올리고 월세를 낮춘 <b>준전세(반전세)</b>로 옮겨가도 환산보증금은 똑같이 올라갑니다.
+          <b>중위 월세</b> 칸을 같이 보셔야 합니다.</li>
+        <li><b>준전세 비중</b>은 한국부동산원 공식 구분입니다 — 보증금이 월세의 <b>240배를 넘으면</b>
+          준전세, 12~240배면 준월세, 12배 이하면 순수 월세입니다.
+          이 비중이 오르면 <b>전세 대신 반전세로 도는 시장</b>이라는 뜻입니다.</li>
+        <li>실거래 신고 기한은 <b>계약일로부터 30일</b>입니다. <b>최근 1~2개월 건수는 아직 덜 들어온
+          상태</b>라 "거래가 끊겼다"고 말씀하시면 안 됩니다. 표에 <span class="brief-flag">집계중</span>
+          표시가 붙은 달이 그렇습니다.</li>
       </ol>
     </div>
   </section>
@@ -345,12 +382,12 @@
 
 <script src="../vendor/leaflet/leaflet.js"></script>
 <script src="../vendor/chart.umd.min.js"></script>
-<script src="../data/apt.js?v=a53e9001f8"></script>
+<script src="../data/apt.js?v=cf4464abdc"></script>
 <script src="../data/geo.js?v=83848d4a08"></script>
 <!-- 입지분석: 지하철·학교·공원·상권·인구(locinfo) + 개발 호재는 뉴타운 자료를 재사용 -->
 <script src="../data/locinfo.js?v=e97bc091b7"></script>
 <script src="../data/newtown.js?v=8ba14b3baf"></script>
 <script src="../shared/brand.js?v=9fd1821c1b"></script>
-<script src="app.js?v=85da872e55"></script>
+<script src="app.js?v=dcf6d9aa45"></script>
 </body>
 </html>
