@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>금집부쌤의 서울시 통합 부동산 대시보드 — 아파트</title>
-  <link rel="stylesheet" href="../shared/app.css?v=1" />
+  <link rel="stylesheet" href="../shared/app.css?v=3f78ca9034" />
   <link rel="stylesheet" href="../vendor/leaflet/leaflet.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🏘️</text></svg>" />
 </head>
@@ -160,9 +160,10 @@
     <div class="read-guide" style="margin-top:18px;">
       <h4>이 그래프를 읽는 법</h4>
       <ol>
-        <li>선택한 기간의 실거래를 <b>월별로 나눠 중위 평당가</b>를 구하고, 자료가 있는
-          <b>첫 달을 100</b>으로 지수화했습니다. 선이 올라가면 그 지역 시세가 오른 것입니다.</li>
-        <li><b>거래가 없는 달은 점을 찍지 않습니다.</b> 표본이 적은 동은 한두 건에 크게 출렁이니,
+        <li>선택한 기간의 실거래를 <b>구간별로 나눠 중위 평당가</b>를 구하고, 자료가 있는
+          <b>첫 구간을 100</b>으로 지수화했습니다. 선이 올라가면 그 지역 시세가 오른 것입니다.</li>
+        <li><b>점이 찍힌 구간만 실제 거래가 있는 구간</b>입니다. 거래가 없는 구간은 점 없이 선만
+          지나가니, <b>점의 위치</b>를 보고 읽으세요. 표본이 적은 동은 한두 건에 크게 출렁이므로
           아래 거래량과 함께 보셔야 합니다.</li>
         <li>월세는 <b>환산보증금(보증금 + 월세×100)</b> 기준이라 매매·전세와 같은 축에서 비교됩니다.</li>
         <li><b>공식(부동산원) 지수</b>는 한국부동산원이 분기별로 내는 자치구 단위 공식 통계입니다.
@@ -344,12 +345,12 @@
 
 <script src="../vendor/leaflet/leaflet.js"></script>
 <script src="../vendor/chart.umd.min.js"></script>
-<script src="../data/apt.js?v=202608212225"></script>
-<script src="../data/geo.js?v=202608212225"></script>
+<script src="../data/apt.js?v=a53e9001f8"></script>
+<script src="../data/geo.js?v=83848d4a08"></script>
 <!-- 입지분석: 지하철·학교·공원·상권·인구(locinfo) + 개발 호재는 뉴타운 자료를 재사용 -->
-<script src="../data/locinfo.js?v=202608212225"></script>
-<script src="../data/newtown.js?v=202608212225"></script>
-<script src="../shared/brand.js?v=1"></script>
-<script src="app.js?v=1"></script>
+<script src="../data/locinfo.js?v=e97bc091b7"></script>
+<script src="../data/newtown.js?v=8ba14b3baf"></script>
+<script src="../shared/brand.js?v=9fd1821c1b"></script>
+<script src="app.js?v=85da872e55"></script>
 </body>
 </html>

@@ -71,6 +71,10 @@
     }
   })();
 
+  // 조회 가능한 마지막 날은 "자료를 받은 날"로 둔다. 마지막 거래일로 잡으면
+  // 신고가 며칠 밀린 만큼 기간이 짧아져 다른 대시보드와 건수가 어긋난다.
+  if (D.today && D.today > DATA_END) DATA_END = D.today;
+
   /* ════════════════ 포맷 유틸 ════════════════ */
 
   function eokman(man) {
@@ -642,16 +646,16 @@
       type: "line", data: { labels: labels, datasets: rankSets }, options: opts,
     });
 
-    // 거래월 재배치 — TOP10 거래가 실제로 어느 달에 있었는지
-    var months = bucketLabels();
-    var monthLabels = win().labels;
+    // 거래 구간 재배치 — TOP10 거래가 실제로 어느 구간에 있었는지
+    var months = bucketList();
+    var monthLabels = bucketLabels();
     var monthSets = TYPES.map(function (t) {
       var rows = r.top[t] || [];
       var bucket = {};
       rows.forEach(function (row) {
-        var ym = row.d.slice(0, 4) + row.d.slice(5, 7);
+        var ym = bucketKey(row.d);
         var v = convValue(row, t) / 10000;
-        if (!bucket[ym] || v > bucket[ym]) bucket[ym] = v;   // 같은 달이면 최고가
+        if (!bucket[ym] || v > bucket[ym]) bucket[ym] = v;   // 같은 구간이면 최고가
       });
       return {
         label: TYPE_LABEL[t],
@@ -710,7 +714,7 @@
 
   function renderVolume() {
     var r = region();
-    var labels = win().labels;
+    var labels = bucketLabels();
 
     if (volMonthChart) volMonthChart.destroy();
     volMonthChart = new Chart(document.getElementById("volMonthChart"), {
@@ -1325,7 +1329,7 @@
             label: TYPE_LABEL[t],
             data: isIdx ? toIndex(raw) : raw,
             borderColor: TYPE_COLOR[t], backgroundColor: TYPE_COLOR[t] + "22",
-            borderWidth: 2.5, pointRadius: 3, tension: 0.3, spanGaps: false,
+            borderWidth: 2.5, pointRadius: 3, tension: 0.3, spanGaps: true,
           });
         });
       }
@@ -1347,7 +1351,7 @@
           borderColor: tg.color, backgroundColor: tg.color + "22",
           borderWidth: tg.key === ALL ? 2 : 2.8,
           borderDash: tg.key === ALL ? [6, 4] : [],
-          pointRadius: 3, tension: 0.3, spanGaps: false,
+          pointRadius: 3, tension: 0.3, spanGaps: true,
         });
       });
     }

@@ -251,7 +251,7 @@ def encode_deals(deals: list[dict], yms: list[str]) -> dict:
             put(regions, r_idx, d["gu"] + "|" + dong),
             put(names, n_idx, d.get("name") or ""),
             (date.fromisoformat(d["date"]) - base).days,
-            round(d["area"], 1),
+            round(d["area"], 3),   # 전용면적은 신고된 소수 자리를 그대로 — 접으면 평당가가 몇만원 어긋난다
             d["floor"],
             d.get("build") or 0,
             v,
@@ -436,24 +436,47 @@ def build_sangga(yms: list[str]) -> dict:
 # ---------------------------------------------------------------- 출력
 
 def bump_cache_version(stamp: str) -> None:
-    """HTML의 data/*.js?v=... 를 빌드 스탬프로 바꾼다.
+    """HTML이 부르는 js/css의 ?v= 를 그 파일 내용의 해시로 바꾼다.
 
-    이걸 안 하면 데이터를 갱신해도 방문자 브라우저가 예전 사본을 계속 쓴다
-    (file://로 열 때는 Cache-Control 헤더가 없어 특히 문제가 된다).
+    빌드 시각을 쓰면 데이터가 안 바뀐 날에도 방문자가 11MB를 다시 받고,
+    반대로 app.js만 고친 날에는 버전이 그대로라 예전 사본을 계속 쓴다.
+    내용 해시를 쓰면 "바뀐 파일만" 다시 받는다.
     """
-    import re
+    import re, hashlib
+
     docs = os.path.join(BASE_DIR, "docs")
-    pattern = re.compile(r'(src="\.\./data/[a-z]+\.js\?v=)[^"]*(")')
-    for page in ("apt", "newtown", "sangga"):
-        path = os.path.join(docs, page, "index.html")
+    pattern = re.compile(r'((?:src|href)="([^"?]+\.(?:js|css))\?v=)[^"]*(")')
+    digests: dict[str, str] = {}
+
+    def digest(path: str) -> str:
+        if path not in digests:
+            with open(path, "rb") as fh:
+                digests[path] = hashlib.md5(fh.read()).hexdigest()[:10]
+        return digests[path]
+
+    pages = [os.path.join(docs, "index.html")]
+    pages += [os.path.join(docs, p, "index.html") for p in ("apt", "newtown", "sangga")]
+
+    for path in pages:
         if not os.path.exists(path):
             continue
+        base = os.path.dirname(path)
+        changed = []
+
+        def sub(m: "re.Match[str]") -> str:
+            target = os.path.normpath(os.path.join(base, m.group(2)))
+            if not os.path.exists(target):
+                return m.group(0)
+            changed.append(m.group(2))
+            return m.group(1) + digest(target) + m.group(3)
+
         html = open(path, encoding="utf-8").read()
-        new = pattern.sub(rf"\g<1>{stamp}\g<2>", html)
-        if new != html:
+        new_html = pattern.sub(sub, html)
+        if new_html != html:
             with open(path, "w", encoding="utf-8", newline="") as fh:
-                fh.write(new)
-            print(f"  {page}/index.html  캐시 버전 -> {stamp}")
+                fh.write(new_html)
+            rel = os.path.relpath(path, docs).replace("\\", "/")
+            print(f"  {rel}  캐시 버전 갱신 {len(changed)}개")
 
 
 def write_js(name: str, varname: str, payload: dict) -> None:
