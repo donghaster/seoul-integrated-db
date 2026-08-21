@@ -621,28 +621,203 @@
       });
     });
 
-    // 인쇄에서는 5개 항목 전체를 펼쳐 둔다
     var box = document.getElementById("locDetail");
     box.innerHTML = locHtml(LOC_ITEMS[0].k);
     box.classList.remove("show");
-    box.dataset.printAll = LOC_ITEMS.map(function (it) { return locHtml(it.k); }).join("");
+    // 인쇄용 전체 묶음은 미리 만들어 두지 않는다(학교 목록이 커서 무겁다) — 인쇄 직전에 만든다
+  }
+
+  /* 인쇄에서는 5개 항목을 모두 펼친다 — 화면에서 무엇을 열어 뒀든 상관없이 */
+  function locPrintAllHtml() {
+    return LOC_ITEMS.map(function (it) {
+      return "<div class='loc-print-block'>" + locHtml(it.k) + "</div>";
+    }).join("");
+  }
+
+  function chips(arr) {
+    return '<div class="loc-chips">' + arr.map(function (t) {
+      return "<span>" + t + "</span>";
+    }).join("") + "</div>";
+  }
+
+  function srcNote(txt) {
+    return "<p class='loc-src'>자료: " + txt + "</p>";
   }
 
   function locHtml(k) {
     var gu = state.gu === ALL ? null : state.gu;
     if (k === "data") return locDataHtml();
 
-    var info = (gu && LOC[gu] && LOC[gu][k]) || null;
     var item = LOC_ITEMS.filter(function (x) { return x.k === k; })[0];
+    if (k === "develop") return locDevelopHtml(gu, item);
+
+    var info = (gu && LOC[gu] && LOC[gu][k]) || null;
     if (!info) {
       return "<h3>" + item.ico + " " + item.title + "</h3>" +
-        "<p>자치구를 선택하면 해당 구의 " + item.title + " 정보를 보여드립니다. " +
-        "(현재 선택: <b>" + (gu || "서울시 전체") + "</b>)</p>" +
-        "<p style='margin-top:8px;color:var(--txt-mute);font-size:12.5px'>" +
-        "※ 입지 설명은 공개된 노선·시설 정보를 정리한 참고자료입니다.</p>";
+        "<p><b>자치구를 선택</b>하시면 그 구의 " + item.title + " 자료가 나옵니다. " +
+        "(현재 선택: <b>" + (gu || "서울시 전체") + "</b>)</p>";
     }
-    return "<h3>" + item.ico + " " + gu + " " + item.title + "</h3><ul>" +
-      info.map(function (line) { return "<li>" + line + "</li>"; }).join("") + "</ul>";
+
+    /* ── 교통·역세권 ── */
+    if (k === "traffic") {
+      var t = info;
+      return "<h3>" + item.ico + " " + gu + " 교통·역세권</h3><ul>" +
+        "<li>지하철역 <b>" + t.stationCount + "개</b>" +
+        (t.lines.length ? " · 지나는 노선 <b>" + t.lines.length + "개</b>" : "") + "</li>" +
+        (t.lines.length ? "<li>노선별 역 수 " +
+          t.lines.map(function (l) { return esc(l.name) + " " + l.stations; }).join(" · ") + "</li>" : "") +
+        (t.top.length ? "<li>주요 역(환승 많은 순)</li>" : "") +
+        "</ul>" +
+        (t.top.length ? chips(t.top.map(function (s) {
+          return esc(s.name) + (s.lines.length > 1 ? " <b>환승 " + s.lines.length + "</b>" : "") +
+            " <em>" + s.lines.map(esc).join("·") + "</em>";
+        })) : "") +
+        (t.hotspots.length
+          ? "<p style='margin-top:12px'><b>실시간 혼잡도</b>(서울시 주요 장소) — " +
+            t.hotspots.map(function (h) { return esc(h.name) + " " + esc(h.lvl); }).join(" · ") + "</p>"
+          : "") +
+        srcNote("카카오맵 지하철역 · 서울시 실시간 도시데이터");
+    }
+
+    /* ── 학군·교육 ── 소재지 기준 학교 목록. 법정동을 고르면 그 동 것만 보여준다 */
+    if (k === "school") return locSchoolHtml(gu, info, item);
+
+    /* ── 생활권 ── */
+    var L = info;
+    var perHouse = L.households && L.pop ? (L.pop / L.households).toFixed(2) : null;
+    return "<h3>" + item.ico + " " + gu + " 생활권</h3><ul>" +
+      (L.pop ? "<li>인구 <b>" + L.pop.toLocaleString() + "명</b> · 세대 <b>" +
+        L.households.toLocaleString() + "세대</b>" +
+        (perHouse ? " (세대당 " + perHouse + "명)" : "") +
+        (L.seniorRatio ? " · 65세 이상 <b>" + L.seniorRatio + "%</b>" : "") +
+        " <span class='rt-sub'>" + esc(L.popYear) + "년</span></li>" : "") +
+      "<li>도시공원 <b>" + L.parkCount + "개소</b> · 상권 <b>" + L.tradeCount + "곳</b></li>" +
+      "</ul>" +
+      (L.parks.length ? "<p style='margin-top:10px'><b>주요 공원</b></p>" +
+        chips(L.parks.map(function (p) { return esc(p.name); })) : "") +
+      (L.trades.length ? "<p style='margin-top:10px'><b>주요 상권</b></p>" +
+        chips(L.trades.map(function (t2) { return esc(t2.name) + " <em>" + esc(t2.cat) + "</em>"; })) : "") +
+      srcNote("서울 열린데이터광장(공원·상권) · KOSIS 인구·세대");
+  }
+
+  /* ── 학군·교육 ──
+     seoul dashboard의 학군 화면과 같은 방식: 법정동 필터를 그대로 따르고,
+     학교 이름을 누르면 주소·전화·유형이 펼쳐진다. 배정 관련 주의도 함께 붙인다. */
+  var SCHOOL_ORDER = ["초등학교", "중학교", "고등학교"];
+
+  function schoolTag(sc) {
+    var bits = [];
+    if (sc.founded === "사립") bits.push("사립");
+    if (sc.hsType) bits.push(sc.hsType);
+    if (sc.coedu && sc.coedu !== "남여공학") bits.push(sc.coedu);
+    return bits.length ? " <em>" + esc(bits.join("·")) + "</em>" : "";
+  }
+
+  function schoolDetail(sc) {
+    var row = function (k, v) {
+      return v ? "<div class='sd-row'><span>" + k + "</span><b>" + v + "</b></div>" : "";
+    };
+    var hp = sc.homepage
+      ? "<a href='" + esc(sc.homepage.indexOf("http") === 0 ? sc.homepage : "http://" + sc.homepage) +
+        "' target='_blank' rel='noopener'>" + esc(sc.homepage) + "</a>"
+      : "";
+    return row("주소", esc(sc.addr)) + row("전화", esc(sc.tel)) +
+      row("고교 유형", esc(sc.hsType)) +
+      row("구분", esc([sc.founded, sc.coedu].filter(Boolean).join(" · "))) +
+      row("개교", sc.foundYear ? esc(sc.foundYear) + "년" : "") +
+      row("홈페이지", hp) || "<div class='sd-row'><span>상세정보 없음</span></div>";
+  }
+
+  function locSchoolHtml(gu, s, item) {
+    if (!s.total) {
+      return "<h3>" + item.ico + " " + gu + " 학군·교육</h3><p>학교 정보를 찾지 못했습니다.</p>";
+    }
+    var dong = state.dong;                      // 'all' 또는 특정 법정동
+    var kinds = SCHOOL_ORDER.concat(Object.keys(s.byKind).filter(function (k) {
+      return SCHOOL_ORDER.indexOf(k) === -1;
+    })).filter(function (k) { return s.byKind[k]; });
+
+    var shown = 0;
+    var blocks = kinds.map(function (kind) {
+      var full = s.byKind[kind] || [];
+      var list = dong === ALL ? full : full.filter(function (sc) { return sc.dong === dong; });
+      shown += list.length;
+      if (!list.length) return "";
+      return "<h4 class='loc-sub'>" + esc(kind) + " (" + list.length + "개)</h4>" +
+        "<div class='loc-chips school-chips'>" + list.map(function (sc) {
+          return "<span class='school-item'>" +
+            "<button type='button' class='school-chip'>" + esc(sc.name) + schoolTag(sc) + "</button>" +
+            "<span class='school-detail' hidden>" + schoolDetail(sc) + "</span></span>";
+        }).join("") + "</div>";
+    }).join("");
+
+    var scope = dong === ALL
+      ? esc(gu) + " 전체 소재 학교 <b>" + s.total + "개</b>"
+      : esc(gu) + " " + esc(dong) + " 소재 학교 <b>" + shown + "개</b>";
+    var emptyMsg = (dong !== ALL && !shown)
+      ? "<p>" + esc(dong) + "에 소재지 주소가 일치하는 학교가 없습니다(인접 동 학교를 이용할 수 있습니다).</p>" : "";
+
+    return "<h3>" + item.ico + " " + gu + " 학군·교육</h3>" +
+      "<p>" + scope + " · 학교 이름을 클릭하면 상세정보가 열립니다.</p>" +
+      emptyMsg + blocks +
+      "<div class='loc-caveat'>⚠️ 이 목록은 <b>학교 소재지(주소) 기준</b>이며 <b>실제 배정을 보장하지 않습니다.</b> " +
+      "초등학교는 통학구역, 중·고등학교는 서울 상당수 지역에서 근거리 배정+추첨이 혼합되어 있어 " +
+      "동 하나에 특정 학교가 1:1로 매칭되지 않습니다. 정확한 배정은 반드시 " +
+      "<a href='https://schoolzone.emac.kr' target='_blank' rel='noopener'>학구도안내서비스</a>에서 " +
+      "실제 주소로 확인하세요.</div>" +
+      srcNote("NEIS 교육정보 개방포털 학교 기본정보");
+  }
+
+  /* 학교 칩 클릭 → 상세 펼치기 (목록이 매번 다시 그려지므로 위임으로 처리) */
+  document.getElementById("locDetail").addEventListener("click", function (e) {
+    var chip = e.target.closest(".school-chip");
+    if (!chip) return;
+    var item = chip.closest(".school-item");
+    var detail = item.querySelector(".school-detail");
+    var willOpen = detail.hidden;
+    document.querySelectorAll("#locDetail .school-detail").forEach(function (d) { d.hidden = true; });
+    document.querySelectorAll("#locDetail .school-chip").forEach(function (c) { c.classList.remove("is-on"); });
+    detail.hidden = !willOpen;
+    chip.classList.toggle("is-on", willOpen);
+  });
+
+  /* ── 개발 호재: 뉴타운 대시보드와 같은 정비사업 자료를 자치구로 걸러 보여준다 ── */
+  function locDevelopHtml(gu, item) {
+    var N = window.NEWTOWN_DATA;
+    if (!N) return "<h3>" + item.ico + " 개발 호재</h3><p>정비사업 자료를 불러오지 못했습니다.</p>";
+    if (!gu) {
+      return "<h3>" + item.ico + " 개발 호재</h3>" +
+        "<p><b>자치구를 선택</b>하시면 그 구의 재정비촉진지구(뉴타운)·정비사업이 나옵니다. " +
+        "서울 전체에는 <b>" + N.districts.length + "개 지구</b>가 있습니다.</p>";
+    }
+    var list = N.districts.filter(function (d) { return d.gu === gu; });
+    if (!list.length) {
+      return "<h3>" + item.ico + " " + gu + " 개발 호재</h3>" +
+        "<p><b>" + esc(gu) + "</b>에는 서울시가 지정한 <b>재정비촉진지구(뉴타운)가 없습니다.</b> " +
+        "개별 재건축·재개발 구역은 별도 확인이 필요합니다.</p>";
+    }
+    var ing = list.filter(function (d) { return d.stage < 6; });
+    return "<h3>" + item.ico + " " + gu + " 개발 호재</h3><ul>" +
+      "<li>재정비촉진지구 <b>" + list.length + "곳</b> (사업 진행 중 <b>" + ing.length + "곳</b>)</li>" +
+      "</ul>" +
+      '<table class="rank-table" style="margin-top:10px">' +
+      "<thead><tr><th>뉴타운</th><th>진행단계</th><th>구역</th><th>요약</th></tr></thead><tbody>" +
+      list.map(function (d) {
+        return "<tr><td class='rt-name'>" + esc(d.name) + "</td>" +
+          "<td><span class='stage-dot' style='background:" + ntStageColor(d.stage) + "'></span>" +
+          N.stages[d.stage] + "</td>" +
+          "<td class='rt-sub'>" + esc(d.zones) + "</td>" +
+          "<td class='rt-sub'>" + esc(d.summary) + "</td></tr>";
+      }).join("") + "</tbody></table>" +
+      "<p class='loc-src'>자료: 서울시 재정비촉진지구 공개자료 정리 — 자세한 구역별 진행은 " +
+      "<a href='../newtown/index.html'>뉴타운 대시보드</a>에서 보실 수 있습니다. 계약 전 조합·구청 고시 확인이 필요합니다.</p>";
+  }
+
+  function ntStageColor(stage) {
+    if (stage >= 6) return "#4fada8";
+    if (stage >= 5) return "#4f7fe6";
+    if (stage >= 2) return "#cf9a45";
+    return "#bc3d3d";
   }
 
   function locDataHtml() {
@@ -686,21 +861,22 @@
       "※ 평당가 = 거래금액 ÷ (전용면적 ÷ 3.3058). 매매 신고 3건 이상인 지역만 순위에 넣습니다.</p>";
   }
 
-  // 인쇄 직전에 입지분석 상세를 전부 펼친다
+  // 인쇄 직전에 입지분석 5개 항목을 전부 펼친다(화면에서 무엇을 열어 뒀든 동일하게)
   window.addEventListener("beforeprint", function () {
     var box = document.getElementById("locDetail");
-    if (box && box.dataset.printAll && !box.classList.contains("show")) {
-      box.dataset.screenHtml = box.innerHTML;
-      box.innerHTML = box.dataset.printAll;
-      box.dataset.expanded = "1";
-    }
+    if (!box || box.dataset.expanded === "1") return;
+    box.dataset.screenHtml = box.innerHTML;
+    box.dataset.wasShown = box.classList.contains("show") ? "1" : "";
+    box.innerHTML = locPrintAllHtml();
+    box.classList.add("show");
+    box.dataset.expanded = "1";
   });
   window.addEventListener("afterprint", function () {
     var box = document.getElementById("locDetail");
-    if (box && box.dataset.expanded === "1") {
-      box.innerHTML = box.dataset.screenHtml || "";
-      box.dataset.expanded = "";
-    }
+    if (!box || box.dataset.expanded !== "1") return;
+    box.innerHTML = box.dataset.screenHtml || "";
+    box.classList.toggle("show", box.dataset.wasShown === "1");
+    box.dataset.expanded = "";
   });
 
   /* ════════════════ 정책 ════════════════ */

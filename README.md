@@ -116,3 +116,16 @@ py -m http.server 8899 --directory docs
 - 배포: <https://seoul-integrated-db.vercel.app>
 
 `main` 브랜치에 push하면 Vercel이 자동으로 재배포합니다.
+
+## 입지분석 데이터
+
+`docs/data/locinfo.js`는 옆 프로젝트 `seoul dashboard`가 API로 받아 둔
+`.cache/locinfo-*.json`(25개 구)을 재료로 만듭니다. 실거래처럼 매일 바뀌지
+않으므로 필요할 때만 다시 만들면 됩니다.
+
+```bash
+py tools/build_locinfo.py
+```
+
+출처: 카카오맵(지하철) · NEIS(학교) · 서울 열린데이터광장(공원·상권) · KOSIS(인구·세대)
+「개발 호재」는 별도 자료 없이 `docs/data/newtown.js`(정비사업)를 자치구로 걸러 씁니다.
