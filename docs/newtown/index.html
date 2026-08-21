@@ -185,18 +185,45 @@
       <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> <span id="dealSecTitle">뉴타운 지역</span> 아파트 실거래</h2>
       <button class="sec-print-btn" onclick="printSection('sec-deal')">이 섹션 인쇄</button>
     </div>
-    <p class="sec-desc" id="dealDesc">각 뉴타운이 속한 <b>법정동</b>의 국토교통부 아파트 실거래를 붙였습니다. 뉴타운 구역 내 거래만 골라낸 것이 아니라 <b>해당 동 전체</b> 기준입니다.</p>
+    <p class="sec-desc" id="dealDesc"></p>
+
+    <!-- 가격은 오해하기 쉬운 자리라 표 바로 위에 크게 붙인다 -->
+    <div class="read-guide">
+      <h4>이 표를 읽는 법 — 세 가지만 기억하세요</h4>
+      <ol>
+        <li><b>뉴타운 구역 가격이 아닙니다.</b> 해당 <b>법정동 아파트 전체</b>의 실거래 중위값입니다.
+          재개발 물건(빌라·단독·<b>입주권</b>)은 아파트 실거래가 아니라 이 표에 <b>들어 있지 않습니다</b>.</li>
+        <li><b>평당가는 전용면적 기준</b>입니다. 네이버·KB의 공급(분양)면적 기준보다 30%가량 높게 나오므로,
+          그 시세와 비교하실 때는 함께 적어 둔 <b>공급 환산값</b>을 쓰세요.</li>
+        <li><b>순위 차이 = 동네 급 차이가 아닙니다.</b> 이미 입주가 끝난 뉴타운은 신축 시세가 잡혀 높게,
+          아직 이주·철거 중인 곳은 주변 구축만 거래돼 낮게 나옵니다. <b>진행단계</b> 열과 함께 보세요.</li>
+      </ol>
+    </div>
+
     <div class="table-wrap">
       <table class="rank-table">
-        <thead><tr><th>순위</th><th>뉴타운</th><th>자치구</th><th>중위 매매가</th><th>중위 평당가</th><th>매매</th><th>전세</th><th>월세</th></tr></thead>
+        <thead><tr>
+          <th>순위</th><th>뉴타운 <span class="th-sub">동별 평당가</span></th><th>자치구</th>
+          <th>진행단계</th><th>중위 매매가</th>
+          <th>중위 평당가 <span class="th-sub">전용 / 공급환산</span></th>
+          <th>매매 <span class="th-sub">건</span></th><th>전세 <span class="th-sub">건</span></th><th>월세 <span class="th-sub">건</span></th>
+        </tr></thead>
         <tbody id="dealBody"></tbody>
       </table>
     </div>
     <!-- 높이는 막대 개수에 맞춰 app.js가 정한다 -->
     <div class="chart-box" style="height:340px; margin-top:22px;"><canvas id="ntPyeongChart"></canvas></div>
     <p class="sec-desc" style="margin:12px 0 0;">
-      막대 색은 <b>진행 단계</b>입니다 — 붉은색 초기, 노란색 인가·이주, 파란색 착공, 청록색 준공·입주.
-      막대에 마우스를 올리면 해당 뉴타운의 자치구·법정동과 중위 매매가가 나옵니다.
+      막대 앞 숫자는 <b>위 표의 순위</b>와 같습니다. 막대 <b>색은 순위가 아니라 진행 단계</b>입니다 —
+      <span class="stage-dot" style="background:#bc3d3d"></span>초기
+      <span class="stage-dot" style="background:#cf9a45"></span>인가·이주
+      <span class="stage-dot" style="background:#4f7fe6"></span>착공
+      <span class="stage-dot" style="background:#4fada8"></span>준공·입주.
+      막대에 마우스를 올리면 공급 환산가·매매 건수까지 나옵니다.
+    </p>
+    <p class="sec-desc" style="margin:8px 0 0;">
+      ※ <b>매매·전세·월세 숫자는 실거래 신고 건수</b>입니다(금액 아님). 건수가 적을수록 중위값이 흔들리니 함께 보세요.
+      실거래 신고 기한이 30일이라 <b>최근 1~2개월은 아직 덜 채워져</b> 있습니다.
     </p>
   </section>
 

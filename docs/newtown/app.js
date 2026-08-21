@@ -81,15 +81,22 @@
   }
 
   /* ── 뉴타운이 걸친 법정동들의 실거래를 합산 ── */
+  // 전용면적 평당가 -> 공급(분양)면적 평당가 환산 계수.
+  // 네이버·KB 시세는 대개 공급면적 기준이라 그대로 비교하면 30%쯤 비싸 보인다.
+  var SUPPLY_RATIO = 0.74;        // 전용률 74% 가정
+  function toSupply(py) { return Math.round(py * SUPPLY_RATIO); }
+
   function dealStat(d) {
     if (!A) return null;
     var acc = { sale: 0, jeonse: 0, wolse: 0, medSale: [], medPy: [] };
+    var parts = [];               // 동별 내역 — 가중평균이 무엇을 섞은 결과인지 보여준다
     d.dongs.forEach(function (dong) {
       var reg = aptRegion(d.gu + "|" + dong);
       if (!reg) return;
       acc.sale += reg.cnt.sale; acc.jeonse += reg.cnt.jeonse; acc.wolse += reg.cnt.wolse;
       if (reg.med.sale) acc.medSale.push({ v: reg.med.sale, w: reg.cnt.sale });
       if (reg.med.pyeong) acc.medPy.push({ v: reg.med.pyeong, w: reg.cnt.sale });
+      parts.push({ dong: dong, py: reg.med.pyeong || 0, cnt: reg.cnt.sale });
     });
     // 동이 여러 개면 매매 건수로 가중평균
     var wavg = function (arr) {
@@ -97,8 +104,13 @@
       if (!tw) return 0;
       return Math.round(arr.reduce(function (s, x) { return s + x.v * x.w; }, 0) / tw);
     };
+    // 동별 격차가 크면(한남 69%, 길음 39% 등) 하나의 대표값으로 읽으면 안 된다
+    var ps = parts.map(function (p) { return p.py; }).filter(Boolean);
+    var spread = ps.length > 1 ? Math.round((Math.max.apply(null, ps) - Math.min.apply(null, ps)) / Math.max.apply(null, ps) * 100) : 0;
+
     return { sale: acc.sale, jeonse: acc.jeonse, wolse: acc.wolse,
-             medSale: wavg(acc.medSale), medPy: wavg(acc.medPy) };
+             medSale: wavg(acc.medSale), medPy: wavg(acc.medPy),
+             parts: parts, spread: spread };
   }
 
   /* ── 필터 ── */
@@ -555,21 +567,32 @@
 
     document.getElementById("dealBody").innerHTML = rows.length ? rows.map(function (x, i) {
       var rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
+      // 동이 여러 개면 무엇을 섞은 값인지 그 자리에서 보이게 한다
+      var partTxt = x.st.parts.filter(function (p) { return p.py; }).map(function (p) {
+        return esc(p.dong) + " " + p.py.toLocaleString();
+      }).join(" · ");
+      var warn = x.st.spread >= 20
+        ? ' <span class="spread-warn" title="동별 평당가 격차가 ' + x.st.spread + '%라 하나의 대표값으로 보기 어렵습니다">동별 편차 ' + x.st.spread + '%</span>'
+        : "";
       return "<tr>" +
         '<td><span class="rank-chip ' + rc + '">' + (i + 1) + "</span></td>" +
-        '<td class="rt-name">' + esc(x.d.name) + '<div class="rt-sub">' + x.d.dongs.map(esc).join(" · ") + "</div></td>" +
+        '<td class="rt-name">' + esc(x.d.name) +
+          '<div class="rt-sub">' + partTxt + warn + "</div></td>" +
         "<td>" + esc(x.d.gu) + "</td>" +
+        '<td><span class="stage-dot" style="background:' + stageColor(x.d.stage) + '"></span>' +
+          STAGES[x.d.stage] + "</td>" +
         '<td class="rt-price">' + eokman(x.st.medSale) + "</td>" +
-        '<td class="rt-price">' + x.st.medPy.toLocaleString() + "만원</td>" +
+        '<td class="rt-price">' + x.st.medPy.toLocaleString() + "만원" +
+          '<div class="rt-sub">공급 환산 ' + toSupply(x.st.medPy).toLocaleString() + "만원</div></td>" +
         "<td>" + x.st.sale.toLocaleString() + "</td>" +
         "<td>" + x.st.jeonse.toLocaleString() + "</td>" +
         "<td>" + x.st.wolse.toLocaleString() + "</td>" +
         "</tr>";
-    }).join("") : '<tr class="empty-row"><td colspan="8">조건에 맞는 뉴타운이 없습니다.</td></tr>';
+    }).join("") : '<tr class="empty-row"><td colspan="9">조건에 맞는 뉴타운이 없습니다.</td></tr>';
 
     document.getElementById("dealDesc").innerHTML =
-      "각 뉴타운이 속한 <b>법정동</b>의 국토교통부 아파트 실거래를 붙였습니다(표본 " + aptWin().label +
-      "). 뉴타운 구역 내 거래만 골라낸 것이 아니라 <b>해당 동 전체</b> 기준입니다.";
+      "표본 " + aptWin().label + " · 국토교통부 아파트 실거래 기준. " +
+      "동이 여러 개인 뉴타운은 <b>매매 건수로 가중평균</b>한 값이며, 괄호 없이 적은 동별 값이 그 재료입니다.";
 
     var top = rows.slice(0, 20);
     var canvas = document.getElementById("ntPyeongChart");
@@ -588,8 +611,9 @@
     pyChart = new Chart(canvas, {
       type: "bar",
       data: {
-        // 이름이 길어 두 줄로 접히지 않게 "뉴타운"은 떼고 자치구를 붙여 어디인지 알 수 있게 한다
-        labels: top.map(function (x) { return [x.d.name.replace("뉴타운", ""), x.d.gu]; }),
+        // 위 표의 순위와 짝이 맞도록 번호를 붙인다.
+        // (막대 색은 순위가 아니라 진행 단계라서, 번호가 없으면 금색 1위 배지와 헷갈린다)
+        labels: top.map(function (x, i) { return [(i + 1) + ". " + x.d.name.replace("뉴타운", ""), x.d.gu]; }),
         datasets: [{
           label: "중위 매매 평당가 (만원)",
           data: top.map(function (x) { return x.st.medPy; }),
@@ -604,15 +628,17 @@
         layout: { padding: { right: 16 } },
         plugins: {
           legend: { display: false },
-          title: { display: true, text: "뉴타운 소재 법정동 중위 매매 평당가 (만원)", font: { size: 13, weight: "bold" } },
+          title: { display: true, text: "뉴타운 소재 법정동 중위 매매 평당가 (전용면적 기준, 만원)", font: { size: 13, weight: "bold" } },
           tooltip: {
             callbacks: {
-              title: function (c) { return top[c[0].dataIndex].d.name; },
+              title: function (c) { return (c[0].dataIndex + 1) + "위 " + top[c[0].dataIndex].d.name; },
               label: function (c) {
                 var x = top[c.dataIndex];
-                return [x.d.gu + " " + x.d.dongs[0],
-                        "평당 " + x.st.medPy.toLocaleString() + "만원",
-                        "중위 매매 " + eokman(x.st.medSale)];
+                return [x.d.gu + " · " + STAGES[x.d.stage],
+                        "평당 " + x.st.medPy.toLocaleString() + "만원 (전용)",
+                        "공급 환산 " + toSupply(x.st.medPy).toLocaleString() + "만원",
+                        "중위 매매 " + eokman(x.st.medSale),
+                        "매매 " + x.st.sale.toLocaleString() + "건"];
               },
             },
           },
