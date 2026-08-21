@@ -6,6 +6,13 @@
       "runtimeExecutable": "py",
       "runtimeArgs": ["-m", "http.server", "8899", "--directory", "docs"],
       "port": 8899
+    },
+    {
+      "name": "apt-static",
+      "runtimeExecutable": "py",
+      "runtimeArgs": ["-m", "http.server", "8901", "--directory",
+        "C:/Users/dongh/OneDrive/바탕 화면/교육/김유수강의/AI코팅,업무혁신/ai/seoul dashboard/docs"],
+      "port": 8901
     }
   ]
 }

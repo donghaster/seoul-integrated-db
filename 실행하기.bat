@@ -1,12 +1,26 @@
 @echo off
-chcp 65001 > nul
 cd /d "%~dp0"
+title ±ÝÁýºÎ½ÜÀÇ ¼­¿ï½Ã ÅëÇÕ ºÎµ¿»ê ´ë½Ãº¸µå
 echo.
-echo   ê¸ˆì§‘ë¶€ìŒ¤ì˜ ì„œìš¸ì‹œ í†µí•© ë¶€ë™ì‚° ëŒ€ì‹œë³´ë“œ
-echo   ------------------------------------------------
-echo   ë¸Œë¼ìš°ì €ì—ì„œ http://localhost:8899 ë¥¼ ì—¬ì„¸ìš”.
-echo   (ì°½ì„ ë‹«ìœ¼ë©´ ì„œë²„ê°€ ì¢…ë£Œë©ë‹ˆë‹¤)
+echo   ±ÝÁýºÎ½ÜÀÇ ¼­¿ï½Ã ÅëÇÕ ºÎµ¿»ê ´ë½Ãº¸µå
+echo   --------------------------------------------------
+echo   Àá½Ã ÈÄ ºê¶ó¿ìÀú¿¡¼­ http://localhost:8899 °¡ ¿­¸³´Ï´Ù.
 echo.
-start "" http://localhost:8899
+echo   * ÀÌ Ã¢À» ´ÝÀ¸¸é ¼­¹ö°¡ ²¨Áý´Ï´Ù.
+echo   * ¼­¹ö ¾øÀÌ º¸·Á¸é index.html À» ´õºíÅ¬¸¯ÇØµµ µË´Ï´Ù.
+echo.
+
+where py >nul 2>nul
+if errorlevel 1 goto NOPY
+
+start "" /min powershell -NoProfile -Command "Start-Sleep 2; Start-Process 'http://localhost:8899'"
 py -m http.server 8899 --directory docs
+goto END
+
+:NOPY
+echo   [¿À·ù] PythonÀ» Ã£À» ¼ö ¾ø½À´Ï´Ù.
+echo   ¼­¹ö ¾øÀÌ º¸½Ã·Á¸é index.html À» ´õºíÅ¬¸¯ÇÏ¼¼¿ä.
+
+:END
+echo.
 pause
