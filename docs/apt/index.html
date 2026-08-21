@@ -67,6 +67,7 @@
   <nav class="section-nav" aria-label="섹션 바로가기">
     <button data-target="sec-kpi">핵심 요약</button>
     <button data-target="sec-map">실거래 지도</button>
+    <button data-target="sec-index">가격지수</button>
     <button data-target="sec-top10">실거래가 TOP10</button>
     <button data-target="sec-compare">매매·전세·월세 비교</button>
     <button data-target="sec-volume">실거래량</button>
@@ -108,6 +109,50 @@
     </div>
   </section>
 
+  <!-- ─────────────── 아파트 실거래 가격지수 ─────────────── -->
+  <section class="card-section" id="sec-index">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> <span id="idxSecTitle">아파트</span> 실거래 가격지수</h2>
+      <button class="sec-print-btn" onclick="printSection('sec-index')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc" id="idxDesc"></p>
+
+    <div class="view-bar">
+      <div class="view-ctl">
+        <span class="view-label">보기</span>
+        <div class="tab-row" id="idxViewTabs">
+          <button class="active" data-v="type">유형별 (매매·전세·월세)</button>
+          <button data-v="cmp">지역 비교</button>
+        </div>
+      </div>
+      <div class="view-ctl">
+        <span class="view-label">축</span>
+        <div class="tab-row" id="idxModeTabs">
+          <button class="active" data-m="index">지수 (첫 달=100)</button>
+          <button data-m="price">평당가 (만원)</button>
+        </div>
+      </div>
+      <div class="view-ctl view-ctl-end">
+        <button type="button" class="mini-btn" id="idxOfficialBtn">공식(부동산원) 지수 겹쳐보기</button>
+      </div>
+    </div>
+
+    <div class="chart-box" style="height:360px;"><canvas id="idxChart"></canvas></div>
+
+    <div class="read-guide" style="margin-top:18px;">
+      <h4>이 그래프를 읽는 법</h4>
+      <ol>
+        <li>선택한 기간의 실거래를 <b>월별로 나눠 중위 평당가</b>를 구하고, 자료가 있는
+          <b>첫 달을 100</b>으로 지수화했습니다. 선이 올라가면 그 지역 시세가 오른 것입니다.</li>
+        <li><b>거래가 없는 달은 점을 찍지 않습니다.</b> 표본이 적은 동은 한두 건에 크게 출렁이니,
+          아래 거래량과 함께 보셔야 합니다.</li>
+        <li>월세는 <b>환산보증금(보증금 + 월세×100)</b> 기준이라 매매·전세와 같은 축에서 비교됩니다.</li>
+        <li><b>공식(부동산원) 지수</b>는 한국부동산원이 분기별로 내는 자치구 단위 공식 통계입니다.
+          산출 방식이 달라 값은 다르지만, <b>방향이 어긋나면</b> 우리 표본이 치우쳤다는 신호입니다.</li>
+      </ol>
+    </div>
+  </section>
+
   <!-- ═══════════════ TOP 10 전환 버튼 3개 ═══════════════
        화면에서는 아래 세 섹션 중 하나만 보이고, "전체 인쇄"에서는 셋 다 출력된다.
        (@media print의 `section[data-tabpanel] { display:block !important }`) -->
@@ -120,6 +165,12 @@
     </button>
     <button type="button" class="top-tab" role="tab" data-tab="vol">
       <b>📈 아파트 실거래량 TOP 10</b><em>월별 추이 + 구·동 거래량 순위</em>
+    </button>
+    <button type="button" class="top-tab" role="tab" data-tab="py">
+      <b>📐 아파트 평당가격 TOP 10</b><em>단위면적 가격 상위 10건</em>
+    </button>
+    <button type="button" class="top-tab" role="tab" data-tab="rise">
+      <b>🚀 평당가 상승률 TOP 10</b><em>전반부 → 후반부 변동률</em>
     </button>
   </nav>
 
@@ -190,6 +241,60 @@
     </div>
   </section>
 
+  <!-- ─────────────── ④ 평당가격 TOP 10 ─────────────── -->
+  <section class="card-section" id="sec-py" data-tabpanel="py">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 아파트 평당가격 TOP 10</h2>
+      <button class="sec-print-btn" onclick="printSection('sec-py')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc">금액이 아니라 <b>평당가(거래금액 ÷ 전용면적 ÷ 3.3058)</b> 상위 10건입니다.
+      큰 평형이 밀리고 <b>작지만 비싼 단지</b>가 드러나므로, 금액 TOP10과 함께 보시면 좋습니다.</p>
+    <div class="tab-row" id="pyTypeTabs">
+      <button class="active" data-t="sale">매매</button>
+      <button data-t="jeonse">전세</button>
+      <button data-t="wolse">월세</button>
+    </div>
+    <div class="table-wrap">
+      <table class="rank-table">
+        <thead><tr><th>순위</th><th>단지명</th><th>전용면적</th><th>층</th><th>거래가</th><th>평당가 <span class="th-sub">전용 기준</span></th><th>거래일</th></tr></thead>
+        <tbody id="pyBody"></tbody>
+      </table>
+    </div>
+    <div id="pyPrintAll" class="print-only"></div>
+  </section>
+
+  <!-- ─────────────── ⑤ 평당가 상승률 TOP 10 ─────────────── -->
+  <section class="card-section" id="sec-rise" data-tabpanel="rise">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 평당가 상승률 TOP 10</h2>
+      <button class="sec-print-btn" onclick="printSection('sec-rise')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc" id="riseDesc"></p>
+
+    <div class="read-guide">
+      <h4>이 표를 읽는 법</h4>
+      <ol>
+        <li>조회 기간을 <b>정확히 반으로 나눠</b>, 단지별 <b>전반부·후반부 중위 평당가</b>를 비교했습니다.</li>
+        <li><b>두 구간 모두 거래가 있는 단지만</b> 계산됩니다. 기간이 짧으면 후보가 적으니
+          <b>최근 6개월 이상</b>으로 보시길 권합니다.</li>
+        <li><b>거래 건수가 1~2건인 단지는 등락이 과장</b>돼 보입니다. 반드시 건수를 함께 보세요.</li>
+      </ol>
+    </div>
+
+    <div class="tab-row" id="riseTypeTabs">
+      <button class="active" data-t="sale">매매</button>
+      <button data-t="jeonse">전세</button>
+      <button data-t="wolse">월세</button>
+    </div>
+    <div class="table-wrap">
+      <table class="rank-table rank-neutral">
+        <thead><tr><th>순위</th><th>단지명</th><th>전반부 평당가</th><th>후반부 평당가</th><th>변동률</th><th>거래 <span class="th-sub">건</span></th></tr></thead>
+        <tbody id="riseBody"></tbody>
+      </table>
+    </div>
+    <div id="risePrintAll" class="print-only"></div>
+  </section>
+
   <!-- ─────────────── 입지분석 ─────────────── -->
   <section class="card-section" id="sec-location">
     <div class="sec-head">
@@ -221,11 +326,11 @@
 
 <script src="../vendor/leaflet/leaflet.js"></script>
 <script src="../vendor/chart.umd.min.js"></script>
-<script src="../data/apt.js?v=202608211111"></script>
-<script src="../data/geo.js?v=202608211111"></script>
+<script src="../data/apt.js?v=202608212208"></script>
+<script src="../data/geo.js?v=202608212208"></script>
 <!-- 입지분석: 지하철·학교·공원·상권·인구(locinfo) + 개발 호재는 뉴타운 자료를 재사용 -->
-<script src="../data/locinfo.js?v=1"></script>
-<script src="../data/newtown.js?v=1"></script>
+<script src="../data/locinfo.js?v=202608212208"></script>
+<script src="../data/newtown.js?v=202608212208"></script>
 <script src="../shared/brand.js?v=1"></script>
 <script src="app.js?v=1"></script>
 </body>

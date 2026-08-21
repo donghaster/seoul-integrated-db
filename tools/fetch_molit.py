@@ -65,7 +65,10 @@ KINDS = {
 
 PAGE_SIZE = 1000
 CACHE_VER = "v1"
-CURRENT_MONTH_TTL = 60 * 60 * 6      # 진행 중인 달은 신고가 계속 들어오므로 6시간
+CURRENT_MONTH_TTL = 60 * 60 * 6      # 최근 달은 신고가 계속 들어오므로 6시간
+# 실거래 신고 기한이 계약일로부터 30일이라, 지난달·지지난달 거래도 이번 달까지 계속 접수된다.
+# 최근 N개월은 캐시를 믿지 말고 다시 받는다(안 그러면 처음 받은 수치로 영영 굳는다).
+RECENT_REFRESH_MONTHS = int(os.environ.get("RECENT_MONTHS", "3"))
 
 _SSL = ssl.create_default_context()
 _SSL.check_hostname = False
@@ -240,11 +243,23 @@ def _is_current(ym: str) -> bool:
     return ym >= f"{t.year:04d}{t.month:02d}"
 
 
+def _is_recent(ym: str) -> bool:
+    """오늘이 속한 달부터 거꾸로 RECENT_REFRESH_MONTHS개월 안에 드는가."""
+    t = date.today()
+    y, m = t.year, t.month
+    for _ in range(max(1, RECENT_REFRESH_MONTHS)):
+        if ym == f"{y:04d}{m:02d}":
+            return True
+        y, m = (y - 1, 12) if m == 1 else (y, m - 1)
+    return ym > f"{y:04d}{m:02d}"
+
+
 def load_month(kind: str, gu: str, ym: str) -> list[dict]:
     lawd = SEOUL_GU[gu]
     path = _path(kind, lawd, ym)
     if os.path.exists(path):
-        fresh = (not _is_current(ym)) or (time.time() - os.path.getmtime(path) < CURRENT_MONTH_TTL)
+        # 최근 몇 달은 신고가 계속 들어오므로 캐시를 짧게만 믿는다
+        fresh = (not _is_recent(ym)) or (time.time() - os.path.getmtime(path) < CURRENT_MONTH_TTL)
         if fresh:
             try:
                 with open(path, encoding="utf-8") as fh:

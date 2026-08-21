@@ -940,10 +940,281 @@
       '<span class="tag">' + p.tag + "</span></div>";
   }).join("");
 
+
+  /* ════════════════ 아파트 실거래 가격지수 ════════════════
+     월별 중위 평당가(apt.js의 idx)를 첫 달=100으로 지수화해 흐름을 본다.
+     자치구를 골랐으면 한국부동산원 공식 지수(분기)를 겹쳐 방향을 대조할 수 있다. */
+
+  var idxChart = null;
+  var idxState = { view: "type", mode: "index", official: false };
+
+  function idxSeries(key) {
+    // 전체 12개월치에서 선택 기간만큼 잘라 온다
+    var reg = D.regions[key];
+    if (!reg || !reg.idx) return null;
+    var n = parseInt(state.win, 10);
+    return {
+      sale: reg.idx.sale.slice(-n),
+      jeonse: reg.idx.jeonse.slice(-n),
+      wolse: reg.idx.wolse.slice(-n),
+    };
+  }
+
+  function toIndex(arr) {
+    // 값이 있는 첫 달을 100으로. 빈 달은 null 그대로 두어 점을 찍지 않는다.
+    var base = null;
+    for (var i = 0; i < arr.length; i++) { if (arr[i]) { base = arr[i]; break; } }
+    if (!base) return arr.map(function () { return null; });
+    return arr.map(function (v) { return v ? +(v / base * 100).toFixed(1) : null; });
+  }
+
+  function officialSeries(labels) {
+    // 분기 지수를 월 눈금에 맞춰 편다(해당 분기의 값을 그 분기 달들에 반복).
+    var gu = state.gu === ALL ? null : state.gu;
+    var pi = gu && (window.APT_LOCATION || {})[gu] && window.APT_LOCATION[gu].priceIndex;
+    if (!pi || !pi.points) return null;
+    var byQ = {};
+    pi.points.forEach(function (p) { byQ[p.period] = p.value; });
+    var months = D.windows[state.win].labels;   // "25.09" 형태
+    var vals = months.map(function (m) {
+      var yy = "20" + m.slice(0, 2), mm = parseInt(m.slice(3), 10);
+      var q = yy + "Q" + String(Math.ceil(mm / 3)).padStart(2, "0");
+      return byQ[q] != null ? byQ[q] : null;
+    });
+    if (!vals.some(function (v) { return v != null; })) return null;
+    return idxState.mode === "index" ? toIndex(vals) : vals;
+  }
+
+  function renderIndex() {
+    var labels = D.windows[state.win].labels;
+    var isIdx = idxState.mode === "index";
+    var sets = [];
+
+    document.getElementById("idxSecTitle").textContent =
+      (state.gu === ALL ? "서울시 전체" : regionLabel()) + " 아파트";
+
+    if (idxState.view === "type") {
+      var ser = idxSeries(regionKey());
+      if (ser) {
+        TYPES.forEach(function (t) {
+          var raw = ser[t];
+          sets.push({
+            label: TYPE_LABEL[t],
+            data: isIdx ? toIndex(raw) : raw,
+            borderColor: TYPE_COLOR[t], backgroundColor: TYPE_COLOR[t] + "22",
+            borderWidth: 2.5, pointRadius: 3, tension: 0.3, spanGaps: false,
+          });
+        });
+      }
+    } else {
+      // 지역 비교 — 지금 보는 곳 / 그 자치구 / 서울 전체를 매매 기준으로 겹친다
+      var targets = [];
+      if (state.gu !== ALL && state.dong !== ALL) {
+        targets.push({ key: state.gu + "|" + state.dong, name: state.dong, color: "#4f7fe6" });
+      }
+      if (state.gu !== ALL) targets.push({ key: state.gu, name: state.gu, color: "#cf9a45" });
+      targets.push({ key: ALL, name: "서울 전체", color: "#8a93a3" });
+
+      targets.forEach(function (tg) {
+        var ser = idxSeries(tg.key);
+        if (!ser) return;
+        sets.push({
+          label: tg.name + " (매매)",
+          data: isIdx ? toIndex(ser.sale) : ser.sale,
+          borderColor: tg.color, backgroundColor: tg.color + "22",
+          borderWidth: tg.key === ALL ? 2 : 2.8,
+          borderDash: tg.key === ALL ? [6, 4] : [],
+          pointRadius: 3, tension: 0.3, spanGaps: false,
+        });
+      });
+    }
+
+    if (idxState.official) {
+      var off = officialSeries(labels);
+      if (off) {
+        sets.push({
+          label: "공식(부동산원) " + (isIdx ? "지수" : "지수값"),
+          data: off, borderColor: "#bc3d3d", backgroundColor: "transparent",
+          borderWidth: 2, borderDash: [3, 3], pointRadius: 2, tension: 0,
+          spanGaps: true,
+        });
+      }
+    }
+
+    if (idxChart) idxChart.destroy();
+    idxChart = new Chart(document.getElementById("idxChart"), {
+      type: "line",
+      data: { labels: labels, datasets: sets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { labels: { boxWidth: 12, font: { size: 11 } } },
+          title: {
+            display: true,
+            text: regionLabel() + " · 월별 중위 평당가 " + (isIdx ? "지수 (첫 달=100)" : "(만원/평)"),
+            font: { size: 13, weight: "bold" },
+          },
+          tooltip: {
+            callbacks: {
+              label: function (c) {
+                if (c.parsed.y == null) return c.dataset.label + ": 거래 없음";
+                return c.dataset.label + ": " + c.parsed.y.toLocaleString() + (isIdx ? "" : "만원");
+              },
+            },
+          },
+        },
+        scales: {
+          y: { title: { display: true, text: isIdx ? "지수" : "만원/평" } },
+        },
+      },
+    });
+
+    var n = parseInt(state.win, 10);
+    document.getElementById("idxDesc").innerHTML =
+      "조회 기간 <b>" + win().label + "</b> · 월별 중위 평당가를 " +
+      (isIdx ? "첫 달 100 기준으로 지수화" : "만원/평 그대로") + "했습니다." +
+      (state.gu === ALL ? " 자치구를 고르면 <b>공식(부동산원) 지수</b>와 겹쳐 볼 수 있습니다." : "");
+    var btn = document.getElementById("idxOfficialBtn");
+    btn.classList.toggle("is-on", idxState.official);
+    btn.disabled = state.gu === ALL;
+    btn.title = state.gu === ALL ? "자치구를 선택하면 공식 지수를 겹쳐 볼 수 있습니다" : "";
+  }
+
+  document.querySelectorAll("#idxViewTabs button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("#idxViewTabs button").forEach(function (x) { x.classList.remove("active"); });
+      b.classList.add("active");
+      idxState.view = b.dataset.v;
+      renderIndex();
+    });
+  });
+  document.querySelectorAll("#idxModeTabs button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("#idxModeTabs button").forEach(function (x) { x.classList.remove("active"); });
+      b.classList.add("active");
+      idxState.mode = b.dataset.m;
+      renderIndex();
+    });
+  });
+  document.getElementById("idxOfficialBtn").addEventListener("click", function () {
+    idxState.official = !idxState.official;
+    renderIndex();
+  });
+
+
+  /* ════════════════ 평당가격 TOP 10 ════════════════ */
+
+  var pyState = { type: "sale" };
+
+  function pyRowsHtml(rows, type) {
+    if (!rows || !rows.length) {
+      return '<tr class="empty-row"><td colspan="7">해당 기간 · 지역에 ' + TYPE_LABEL[type] + " 실거래가 없습니다.</td></tr>";
+    }
+    return rows.map(function (r, i) {
+      var rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
+      var where = (state.gu === ALL || state.dong === ALL)
+        ? '<div class="rt-sub">' + esc(r.gu) + " " + esc(r.dg) + "</div>" : "";
+      return "<tr>" +
+        '<td><span class="rank-chip ' + rc + '">' + (i + 1) + "</span></td>" +
+        '<td><div class="rt-name">' + esc(r.n) + "</div>" + where + "</td>" +
+        "<td>" + areaText(r.a) + "</td>" +
+        "<td>" + (r.f ? r.f + "층" : "-") + "</td>" +
+        '<td class="rt-price">' + priceText(r, type) + "</td>" +
+        '<td class="rt-price">' + (r.py || 0).toLocaleString() + "만원</td>" +
+        '<td class="rt-sub">' + dateText(r.d) + "</td>" +
+        "</tr>";
+    }).join("");
+  }
+
+  function renderPy() {
+    var w = D.regions[regionKey()];
+    var win2 = w && w.w[state.win];
+    var tops = (win2 && win2.topPy) || { sale: [], jeonse: [], wolse: [] };
+    document.getElementById("pyBody").innerHTML = pyRowsHtml(tops[pyState.type], pyState.type);
+    document.getElementById("pyPrintAll").innerHTML = TYPES
+      .filter(function (t) { return t !== pyState.type; })
+      .map(function (t) {
+        return '<h3 style="margin:18px 0 8px; font-size:15px;">' + regionLabel() + " · " + TYPE_LABEL[t] + " 평당가격 TOP 10</h3>" +
+          '<table class="rank-table"><thead><tr><th>순위</th><th>단지명</th><th>전용면적</th><th>층</th><th>거래가</th><th>평당가</th><th>거래일</th></tr></thead><tbody>' +
+          pyRowsHtml(tops[t], t) + "</tbody></table>";
+      }).join("");
+  }
+
+  document.querySelectorAll("#pyTypeTabs button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("#pyTypeTabs button").forEach(function (x) { x.classList.remove("active"); });
+      b.classList.add("active");
+      pyState.type = b.dataset.t;
+      renderPy();
+    });
+  });
+
+  /* ════════════════ 평당가 상승률 TOP 10 ════════════════ */
+
+  var riseState = { type: "sale" };
+
+  function riseRowsHtml(rows) {
+    if (!rows || !rows.length) {
+      return '<tr class="empty-row"><td colspan="6">전·후반부 모두 거래가 있는 단지가 없습니다. ' +
+        "조회 기간을 늘려 보세요.</td></tr>";
+    }
+    return rows.map(function (r, i) {
+      var rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
+      var up = r.rate >= 0;
+      var few = r.cnt <= 3;
+      return "<tr>" +
+        '<td><span class="rank-chip ' + rc + '">' + (i + 1) + "</span></td>" +
+        '<td class="rt-name">' + esc(r.n) + "</td>" +
+        "<td>" + r.before.toLocaleString() + "만원</td>" +
+        "<td>" + r.after.toLocaleString() + "만원</td>" +
+        '<td style="font-weight:800;color:' + (up ? "var(--up)" : "var(--down)") + '">' +
+          (up ? "+" : "") + r.rate.toFixed(1) + "%</td>" +
+        "<td>" + r.cnt + (few ? ' <span class="spread-warn" title="표본이 적어 등락이 과장될 수 있습니다">표본 적음</span>' : "") + "</td>" +
+        "</tr>";
+    }).join("");
+  }
+
+  function renderRise() {
+    var w = D.regions[regionKey()];
+    var win2 = w && w.w[state.win];
+    var rises = (win2 && win2.rise) || { sale: [], jeonse: [], wolse: [] };
+    document.getElementById("riseBody").innerHTML = riseRowsHtml(rises[riseState.type]);
+
+    var n = parseInt(state.win, 10);
+    var half = Math.floor(n / 2);
+    var labels = win().labels;
+    document.getElementById("riseDesc").innerHTML =
+      "조회 기간 <b>" + win().label + "</b>을 반으로 나눠 " +
+      "<b>전반부(" + labels[0] + "~" + labels[half - 1] + ")</b> → " +
+      "<b>후반부(" + labels[half] + "~" + labels[labels.length - 1] + ")</b> " +
+      "중위 평당가 변동률이 큰 단지 순입니다.";
+
+    document.getElementById("risePrintAll").innerHTML = TYPES
+      .filter(function (t) { return t !== riseState.type; })
+      .map(function (t) {
+        return '<h3 style="margin:18px 0 8px; font-size:15px;">' + regionLabel() + " · " + TYPE_LABEL[t] + " 평당가 상승률 TOP 10</h3>" +
+          '<table class="rank-table"><thead><tr><th>순위</th><th>단지명</th><th>전반부</th><th>후반부</th><th>변동률</th><th>거래</th></tr></thead><tbody>' +
+          riseRowsHtml(rises[t]) + "</tbody></table>";
+      }).join("");
+  }
+
+  document.querySelectorAll("#riseTypeTabs button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("#riseTypeTabs button").forEach(function (x) { x.classList.remove("active"); });
+      b.classList.add("active");
+      riseState.type = b.dataset.t;
+      renderRise();
+    });
+  });
+
   /* ════════════════ 렌더 ════════════════ */
 
   function renderAll() {
     renderKpi();
+    renderIndex();
+    renderPy();
+    renderRise();
     renderDeal();
     renderCompare();
     renderVolume();
@@ -961,6 +1232,7 @@
   window.addEventListener("beforeprint", function () {
     renderCompare();
     renderVolume();
+    renderIndex();
   });
 
   fillGu();

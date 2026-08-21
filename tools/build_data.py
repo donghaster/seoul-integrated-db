@@ -164,6 +164,63 @@ def med(vals: list[float]) -> int:
 
 # ---------------------------------------------------------------- 아파트
 
+def py_top_rows(rows: list[dict], n: int = TOP_N) -> list[dict]:
+    """평당가 상위 n건. 금액 상위(top_rows)와 달리 단위면적 가격으로 줄을 세운다."""
+    scored = [(pyeong_price(r), r) for r in rows]
+    scored = [(p, r) for p, r in scored if p]
+    scored.sort(key=lambda x: x[0], reverse=True)
+    picked, seen = [], defaultdict(int)
+    for p, r in scored:
+        k = (r["name"], round(r["area"]))
+        if seen[k] >= 3:
+            continue
+        seen[k] += 1
+        row = slim(r)
+        row["py"] = int(round(p))
+        picked.append(row)
+        if len(picked) >= n:
+            break
+    return picked
+
+
+def rise_rows(rows: list[dict], yms: list[str], n: int = TOP_N) -> list[dict]:
+    """기간을 반으로 갈라 단지별 '전반부 -> 후반부 중위 평당가' 변동률 상위 n곳.
+    두 구간 모두 거래가 있는 단지만 계산되므로 기간이 짧으면 후보가 적다."""
+    if len(yms) < 2:
+        return []
+    half = set(yms[: len(yms) // 2])
+    early, late = defaultdict(list), defaultdict(list)
+    for r in rows:
+        p = pyeong_price(r)
+        if not p:
+            continue
+        (early if ym_of(r) in half else late)[r["name"]].append(p)
+
+    out = []
+    for name in early.keys() & late.keys():
+        a, b = med(early[name]), med(late[name])
+        if not a or not b:
+            continue
+        out.append({
+            "n": name, "before": a, "after": b,
+            "rate": round((b - a) / a * 100, 1),
+            "cnt": len(early[name]) + len(late[name]),
+        })
+    out.sort(key=lambda x: x["rate"], reverse=True)
+    return out[:n]
+
+
+def month_median_py(rows: list[dict], yms: list[str], value) -> list:
+    """월별 중위 평당가 시계열. 거래가 없는 달은 None(그래프에서 점을 찍지 않는다)."""
+    bucket = defaultdict(list)
+    for r in rows:
+        area = r.get("area")
+        if not area:
+            continue
+        bucket[ym_of(r)].append(value(r) / (area / PYEONG))
+    return [med(bucket[y]) if bucket.get(y) else None for y in yms]
+
+
 def build_apt(yms: list[str]) -> dict:
     sale = load_all("aptSale", yms)
     rent = load_all("aptRent", yms)
@@ -194,6 +251,8 @@ def build_apt(yms: list[str]) -> dict:
             sub = {t: [r for r in buckets[t] if ym_of(r) in wset] for t in ("sale", "jeonse", "wolse")}
             per_window[str(w)] = {
                 "top": {t: top_rows(sub[t]) for t in ("sale", "jeonse", "wolse")},
+                "topPy": {t: py_top_rows(sub[t]) for t in ("sale", "jeonse", "wolse")},
+                "rise": {t: rise_rows(sub[t], yms[-w:]) for t in ("sale", "jeonse", "wolse")},
                 "cnt": {t: len(sub[t]) for t in ("sale", "jeonse", "wolse")},
                 "med": {
                     "sale": med([r["amount"] for r in sub["sale"]]),
@@ -203,7 +262,15 @@ def build_apt(yms: list[str]) -> dict:
                 },
             }
 
-        regions[key] = {"w": per_window, "vol": vol}
+        # 가격지수용 월별 중위 평당가 — 전체 기간으로 한 번만 만들고 화면에서 잘라 쓴다.
+        # 월세는 환산보증금(보증금 + 월세×100) 기준.
+        idx = {
+            "sale":   month_median_py(buckets["sale"], yms, lambda r: r["amount"]),
+            "jeonse": month_median_py(buckets["jeonse"], yms, lambda r: r["deposit"]),
+            "wolse":  month_median_py(buckets["wolse"], yms, lambda r: r["deposit"] + r["rent"] * 100),
+        }
+
+        regions[key] = {"w": per_window, "vol": vol, "idx": idx}
 
     def total_cnt(key: str, w: int) -> int:
         return sum(regions[key]["w"][str(w)]["cnt"].values())
