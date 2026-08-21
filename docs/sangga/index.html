@@ -71,6 +71,9 @@
     <button data-target="sec-policy">상가·오피스텔 정책</button>
   </nav>
 
+  <!-- 상가·오피스텔 둘 다 거래가 없는 지역일 때만 나온다 -->
+  <p class="sec-desc empty-note" id="noDataNote" hidden></p>
+
   <!-- ─────────────── 핵심 요약 ─────────────── -->
   <section class="card-section" id="sec-kpi">
     <div class="sec-head">
@@ -84,7 +87,7 @@
   <!-- ─────────────── 지도 ─────────────── -->
   <section class="card-section" id="sec-map">
     <div class="sec-head">
-      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 오피스텔 실거래 TOP10 위치 지도</h2>
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> <span id="mapSecTitle">오피스텔</span> 실거래 TOP10 위치 지도</h2>
       <button class="sec-print-btn" onclick="printSection('sec-map')">이 섹션 인쇄</button>
     </div>
     <p class="sec-desc">선택 지역의 <b>오피스텔 매매 TOP10</b> 위치입니다. 상업·업무용(상가) 실거래는 지번이 <b>비공개(1**)</b>로 제공되어 지도에 표시하지 않습니다.</p>
@@ -107,10 +110,22 @@
   <!-- ─────────────── 상가·업무용 TOP10 ─────────────── -->
   <section class="card-section" id="sec-nrg">
     <div class="sec-head">
-      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 상가·업무용 실거래가 TOP 10</h2>
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> <span id="nrgSecTitle">상가·업무용</span> 실거래가 TOP 10</h2>
       <button class="sec-print-btn" onclick="printSection('sec-nrg')">이 섹션 인쇄</button>
     </div>
-    <p class="sec-desc">국토교통부 <b>상업·업무용 부동산 매매</b> 실거래입니다. 상업용은 건물명이 공개되지 않아 <b>건축물 용도·지번</b>으로 표시되며, 면적은 <b>건물 연면적</b> 기준입니다.</p>
+    <p class="sec-desc">국토교통부 <b>상업·업무용 부동산 매매</b> 실거래입니다.</p>
+
+    <div class="read-guide">
+      <h4>이 표를 읽는 법 — 세 가지만 기억하세요</h4>
+      <ol>
+        <li><b>평당가는 건물 연면적 기준</b>입니다. 아파트·오피스텔의 전용면적 평당가와
+          <b>직접 비교할 수 없습니다</b>. 상가끼리만 비교하세요.</li>
+        <li><b>건물명이 공개되지 않습니다.</b> 국토부가 용도·지번만 제공해(지번도 일부는 <code>1**</code>로 가림)
+          어느 건물인지 특정할 수 없고, 그래서 지도에도 표시하지 않습니다.</li>
+        <li><b>최고가 10건일 뿐 시세가 아닙니다.</b> 통상가 한 채와 큰 필지가 섞여 잡히므로,
+          <b>대지면적</b>을 함께 보고 같은 성격끼리 견주셔야 합니다.</li>
+      </ol>
+    </div>
     <div class="tab-row" id="nrgTabs">
       <button class="active" data-g="shop">일반상가 (근린생활·판매)</button>
       <button data-g="office">업무용 (사무실 등)</button>
@@ -118,7 +133,7 @@
     </div>
     <div class="table-wrap">
       <table class="rank-table">
-        <thead><tr><th>순위</th><th>용도</th><th>소재지</th><th>연면적</th><th>층</th><th>거래가</th><th>평당가</th><th>거래일</th></tr></thead>
+        <thead><tr><th>순위</th><th>용도</th><th>소재지</th><th>연면적 <span class="th-sub">대지면적</span></th><th>층</th><th>거래가</th><th>평당가 <span class="th-sub">연면적 기준</span></th><th>거래일</th></tr></thead>
         <tbody id="nrgBody"></tbody>
       </table>
     </div>
@@ -128,18 +143,30 @@
   <!-- ─────────────── 오피스텔 TOP10 ─────────────── -->
   <section class="card-section" id="sec-offi">
     <div class="sec-head">
-      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 오피스텔 실거래가 TOP 10</h2>
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> <span id="offiSecTitle">오피스텔</span> 실거래가 TOP 10</h2>
       <button class="sec-print-btn" onclick="printSection('sec-offi')">이 섹션 인쇄</button>
     </div>
-    <p class="sec-desc">오피스텔 <b>매매·전세·월세</b> 상위 10건입니다. 월세는 <b>환산보증금(보증금 + 월세×100)</b> 기준으로 줄을 세웁니다. 건물명을 클릭하면 위 지도에 위치가 표시됩니다.</p>
+    <p class="sec-desc">오피스텔 <b>매매·전세·월세</b> 상위 10건입니다. 건물명을 클릭하면 위 지도에 위치가 표시됩니다.</p>
+
+    <div class="read-guide">
+      <h4>이 표를 읽는 법 — 세 가지만 기억하세요</h4>
+      <ol>
+        <li><b>평당가는 전용면적 기준</b>입니다. 네이버·KB의 공급(분양)면적 기준보다 30%가량 높게 나오므로,
+          그 시세와 비교하실 때는 함께 적어 둔 <b>공급 환산값</b>을 쓰세요.</li>
+        <li><b>월세는 환산보증금(보증금 + 월세×100)</b> 순으로 줄을 세웁니다.
+          보증금이 큰 물건이 위로 올라오니 월세 액수 자체와는 순서가 다를 수 있습니다.</li>
+        <li><b>주거용으로 쓰면 주택 수에 포함</b>되어 기존 주택의 양도세·종부세가 달라집니다.
+          업무용/주거용 구분을 반드시 확인하세요.</li>
+      </ol>
+    </div>
     <div class="tab-row" id="offiTabs">
       <button class="active" data-t="sale">매매</button>
       <button data-t="jeonse">전세</button>
       <button data-t="wolse">월세</button>
     </div>
     <div class="table-wrap">
-      <table class="rank-table">
-        <thead><tr><th>순위</th><th>건물명</th><th>전용면적</th><th>층</th><th id="offiPriceHead">거래가</th><th>평당가</th><th>거래일</th></tr></thead>
+      <table class="rank-table rank-neutral">
+        <thead><tr><th>순위</th><th>건물명</th><th>전용면적</th><th>층</th><th id="offiPriceHead">거래가</th><th>평당가 <span class="th-sub">전용 / 공급환산</span></th><th>거래일</th></tr></thead>
         <tbody id="offiBody"></tbody>
       </table>
     </div>
@@ -150,7 +177,7 @@
   <!-- ─────────────── 거래량 비교 ─────────────── -->
   <section class="card-section" id="sec-volume">
     <div class="sec-head">
-      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 거래량 비교 (상가 vs 오피스텔)</h2>
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> <span id="volSecTitle">거래량 비교</span> (상가 vs 오피스텔)</h2>
       <button class="sec-print-btn" onclick="printSection('sec-volume')">이 섹션 인쇄</button>
     </div>
     <p class="sec-desc">선택 지역의 <b>월별 거래건수</b>와, 서울 <b>자치구별 수익형 부동산 거래량 순위</b>입니다.</p>
@@ -161,7 +188,7 @@
     <div class="chart-box" style="height:340px; margin-top:22px;"><canvas id="volGuChart"></canvas></div>
     <div class="table-wrap" style="margin-top:18px;">
       <table class="rank-table">
-        <thead><tr><th>순위</th><th>자치구</th><th>상가·업무용</th><th>오피스텔 매매</th><th>오피스텔 전월세</th><th>상가 중위가</th><th>오피스텔 중위 매매가</th></tr></thead>
+        <thead><tr><th>순위</th><th>자치구</th><th>상가·업무용 <span class="th-sub">건</span></th><th>오피스텔 매매 <span class="th-sub">건</span></th><th>오피스텔 전월세 <span class="th-sub">건</span></th><th>상가 중위가</th><th>오피스텔 중위 매매가</th></tr></thead>
         <tbody id="volGuBody"></tbody>
       </table>
     </div>

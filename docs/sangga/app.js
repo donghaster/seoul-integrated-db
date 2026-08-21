@@ -64,6 +64,35 @@
     return Math.round(value / (area / PYEONG)).toLocaleString() + "만원";
   }
 
+  // 오피스텔 전용면적 평당가 -> 공급(분양)면적 기준 환산.
+  // 네이버·KB 시세는 대개 공급면적 기준이라 그대로 비교하면 30%쯤 비싸 보인다.
+  var SUPPLY_RATIO = 0.74;        // 전용률 74% 가정
+  function pyTextBoth(value, area) {
+    if (!area) return "-";
+    var py = Math.round(value / (area / PYEONG));
+    return py.toLocaleString() + "만원" +
+      '<div class="rt-sub">공급 환산 ' + Math.round(py * SUPPLY_RATIO).toLocaleString() + "만원</div>";
+  }
+
+  /* 선택한 지역을 섹션 제목에 반영한다 */
+  function scopeLabel() {
+    if (state.gu === ALL) return "서울";
+    return state.dong === ALL ? state.gu : state.gu + " " + state.dong;
+  }
+
+  function renderTitles() {
+    var s = scopeLabel();
+    var set = function (id, text) {
+      var el = document.getElementById(id);
+      if (el) el.textContent = text;
+    };
+    var pre = s === "서울" ? "" : s + " ";
+    set("mapSecTitle", pre + "오피스텔");
+    set("nrgSecTitle", pre + "상가·업무용");
+    set("offiSecTitle", pre + "오피스텔");
+    set("volSecTitle", pre + "거래량 비교");
+  }
+
   function regionKey() {
     if (state.gu === ALL) return ALL;
     if (state.dong === ALL) return state.gu;
@@ -267,7 +296,7 @@
         "<td>" + areaText(r.a) + "</td>" +
         "<td>" + (r.f ? r.f + "층" : "-") + "</td>" +
         '<td class="rt-price">' + offiPriceText(r, type) + "</td>" +
-        "<td>" + pyText(convValue(r, type), r.a) + "</td>" +
+        "<td>" + pyTextBoth(convValue(r, type), r.a) + "</td>" +
         '<td class="rt-sub">' + dateText(r.d) + "</td>" +
         "</tr>";
     }).join("");
@@ -410,14 +439,18 @@
     });
 
     var top = D.rankGu[state.win].slice(0, 12);
+    var guCanvas = document.getElementById("volGuChart");
+    // 막대 수에 맞춰 높이를 잡는다(고정 340px이면 자치구 이름이 겹친다)
+    guCanvas.parentElement.style.height = Math.max(260, top.length * 34 + 96) + "px";
     if (volGuChart) volGuChart.destroy();
-    volGuChart = new Chart(document.getElementById("volGuChart"), {
+    volGuChart = new Chart(guCanvas, {
       type: "bar",
       data: {
-        labels: top.map(function (x) { return x.label; }),
+        // 위 표의 순위와 짝이 맞게 번호를 붙인다
+        labels: top.map(function (x, i) { return (i + 1) + ". " + x.label; }),
         datasets: [
-          { label: "상가·업무용 매매", data: top.map(function (x) { return x.nrg; }), backgroundColor: "#4f7fe6" },
-          { label: "오피스텔 (매매+전월세)", data: top.map(function (x) { return x.offi; }), backgroundColor: "#4fada8" },
+          { label: "상가·업무용 매매", data: top.map(function (x) { return x.nrg; }), backgroundColor: "#4f7fe6", barThickness: 13 },
+          { label: "오피스텔 (매매+전월세)", data: top.map(function (x) { return x.offi; }), backgroundColor: "#4fada8", barThickness: 13 },
         ],
       },
       options: {
@@ -638,13 +671,47 @@
 
   /* ════════════════ 렌더 ════════════════ */
 
+  /* 그 지역에 아예 거래가 없는 유형은 섹션을 통째로 감춘다.
+     "신고가 없습니다" 한 줄만 남기고 자리를 차지하는 것보다 낫다. */
+  function toggleSections() {
+    var r = region();
+    var nrgTotal = NRG_GROUPS.reduce(function (s, g) { return s + (r.nrgCnt[g] || 0); }, 0);
+    var offiTotal = OFFI_TYPES.reduce(function (s, t) { return s + (r.offiCnt[t] || 0); }, 0);
+
+    var set = function (secId, navTarget, on) {
+      var sec = document.getElementById(secId);
+      if (sec) sec.hidden = !on;
+      var nav = document.querySelector('nav.section-nav button[data-target="' + navTarget + '"]');
+      if (nav) nav.hidden = !on;
+    };
+    set("sec-nrg", "sec-nrg", nrgTotal > 0);
+    set("sec-offi", "sec-offi", offiTotal > 0);
+    // 오피스텔 매매가 없으면 지도에 찍을 게 없다
+    set("sec-map", "sec-map", (r.offiCnt.sale || 0) > 0);
+
+    // 어느 쪽도 없으면 그 사실을 한 번만 알린다
+    var note = document.getElementById("noDataNote");
+    if (note) {
+      var none = nrgTotal === 0 && offiTotal === 0;
+      note.hidden = !none;
+      if (none) {
+        note.innerHTML = "<b>" + esc(regionLabel()) + "</b>에는 선택한 기간(" + esc(win().name) +
+          ")에 상가·업무용과 오피스텔 실거래 신고가 <b>모두 없습니다</b>. " +
+          "기간을 늘리거나 다른 지역을 골라 보세요.";
+      }
+    }
+    return { nrgTotal: nrgTotal, offiTotal: offiTotal };
+  }
+
   function renderAll() {
+    renderTitles();
+    var has = toggleSections();
     renderKpi();
-    renderNrg();
-    renderOffi();
+    if (has.nrgTotal) renderNrg();
+    if (has.offiTotal) renderOffi();
     renderVolume();
     renderLocation();
-    renderMap();
+    if (has.offiTotal) renderMap();
   }
 
   fillDong();
