@@ -293,6 +293,12 @@ table.rank-table tr:hover td { background: var(--accent-pale); }
 .nt-bar { display: inline-flex; gap: 2px; vertical-align: middle; }
 .nt-bar i { width: 11px; height: 7px; border-radius: 2px; background: var(--card-2); display: inline-block; }
 
+/* 조건에 맞는 자료가 없을 때의 안내 박스 */
+.empty-note {
+  background: var(--accent-pale); border: 1px solid var(--line-soft);
+  border-radius: 12px; padding: 16px 18px; margin: 0; line-height: 1.8;
+}
+
 /* ─────────────── 지도 ─────────────── */
 .map-flex { display: flex; gap: 22px; flex-wrap: wrap; }
 .leaflet-map-wrap { flex: 1 1 460px; min-width: 300px; }

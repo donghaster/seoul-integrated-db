@@ -402,9 +402,68 @@
     zoneLayer = L.layerGroup().addTo(zoneMap);
   }
 
+  /* 구역 단위 상세가 있는 뉴타운만 추려 온다. 위 필터(자치구·차수·상태)에 걸리는 것만 남긴다. */
+  function zonePacks() {
+    var shown = filtered();
+    return Object.keys(N.zoneDetail).map(function (id) {
+      var d = N.districts.filter(function (x) { return x.id === id; })[0];
+      return d ? { id: id, name: d.name, gu: d.gu, pack: N.zoneDetail[id] } : null;
+    }).filter(function (x) {
+      return x && shown.some(function (d) { return d.id === x.id; });
+    });
+  }
+
+  /* 상세가 있는 뉴타운 전체 목록 — 안내 문구에 쓴다 */
+  function zonePackLabels() {
+    return Object.keys(N.zoneDetail).map(function (id) {
+      var d = N.districts.filter(function (x) { return x.id === id; })[0];
+      return d ? d.name + "(" + d.gu + ")" : id;
+    }).join(" · ");
+  }
+
   function renderZones() {
+    var avail = zonePacks();
+    var sec = document.getElementById("sec-zones");
+    var title = document.getElementById("zoneSecTitle");
+    var tabs = document.getElementById("zoneTabs");
+    var body = document.getElementById("zoneBody");
+    var empty = document.getElementById("zoneEmpty");
+
+    // 지금 필터에 맞는 상세가 하나도 없으면, 엉뚱한 구의 구역을 보여주지 않고 이유를 알린다
+    if (!avail.length) {
+      title.textContent = "구역별 상세";
+      tabs.innerHTML = "";
+      tabs.hidden = true;
+      body.hidden = true;
+      empty.hidden = false;
+      empty.innerHTML =
+        "<b>" + esc(state.gu === ALL ? "선택한 조건" : state.gu) + "</b>에는 구역 단위까지 확인된 뉴타운이 없습니다.<br />" +
+        "구역별 시공사·세대수까지 제공하는 곳은 <b>" + esc(zonePackLabels()) + "</b> 입니다. " +
+        "위 <b>지구별 진행상황</b>에서는 선택하신 지역의 지구 단위 요약을 보실 수 있습니다.";
+      return;
+    }
+
+    // 현재 선택이 목록에 없으면 첫 번째로 옮긴다
+    if (!avail.some(function (x) { return x.id === state.zone; })) state.zone = avail[0].id;
+
+    title.textContent = "구역별 상세 (" + avail.map(function (x) { return x.name.replace("뉴타운", ""); }).join(" · ") + ")";
+    tabs.hidden = false;
+    body.hidden = false;
+    empty.hidden = true;
+    tabs.innerHTML = avail.map(function (x) {
+      return '<button class="' + (x.id === state.zone ? "active" : "") + '" data-z="' + x.id + '">' +
+        esc(x.name) + ' <span style="opacity:.7;font-weight:600">' + esc(x.gu) + "</span></button>";
+    }).join("");
+    tabs.querySelectorAll("button").forEach(function (b) {
+      b.addEventListener("click", function () {
+        state.zone = b.dataset.z;
+        renderZones();
+      });
+    });
+
     var pack = N.zoneDetail[state.zone];
     if (!pack) return;
+    zoneMap.invalidateSize();
     zoneLayer.clearLayers();
     zoneMarkers = {};
     var pts = [];
@@ -462,15 +521,6 @@
       "※ 인가일·세대수·시공사는 변경될 수 있습니다. 계약 전 조합·구청 고시 원문을 확인하세요.</p>";
   }
 
-  document.querySelectorAll("#zoneTabs button").forEach(function (b) {
-    b.addEventListener("click", function () {
-      document.querySelectorAll("#zoneTabs button").forEach(function (x) { x.classList.remove("active"); });
-      b.classList.add("active");
-      state.zone = b.dataset.z;
-      renderZones();
-    });
-  });
-
   /* ════════════════ 뉴타운 실거래 ════════════════ */
 
   var pyChart = null;
@@ -504,27 +554,57 @@
       "각 뉴타운이 속한 <b>법정동</b>의 국토교통부 아파트 실거래를 붙였습니다(표본 " + aptWin().label +
       "). 뉴타운 구역 내 거래만 골라낸 것이 아니라 <b>해당 동 전체</b> 기준입니다.";
 
-    var top = rows.slice(0, 15);
+    var top = rows.slice(0, 20);
+    var canvas = document.getElementById("ntPyeongChart");
+
+    if (!top.length) {
+      canvas.parentElement.hidden = true;
+      if (pyChart) { pyChart.destroy(); pyChart = null; }
+      return;
+    }
+    canvas.parentElement.hidden = false;
+
+    // 막대 개수에 맞춰 높이를 늘린다. 340px에 27개를 밀어 넣으면 이름이 겹쳐 읽을 수 없다.
+    canvas.parentElement.style.height = Math.max(220, top.length * 30 + 96) + "px";
+
     if (pyChart) pyChart.destroy();
-    pyChart = new Chart(document.getElementById("ntPyeongChart"), {
+    pyChart = new Chart(canvas, {
       type: "bar",
       data: {
-        labels: top.map(function (x) { return x.d.name; }),
+        // 이름이 길어 두 줄로 접히지 않게 "뉴타운"은 떼고 자치구를 붙여 어디인지 알 수 있게 한다
+        labels: top.map(function (x) { return [x.d.name.replace("뉴타운", ""), x.d.gu]; }),
         datasets: [{
           label: "중위 매매 평당가 (만원)",
           data: top.map(function (x) { return x.st.medPy; }),
           backgroundColor: top.map(function (x) { return stageColor(x.d.stage); }),
           borderRadius: 5,
+          barThickness: 18,
         }],
       },
       options: {
         indexAxis: "y",
         responsive: true, maintainAspectRatio: false,
+        layout: { padding: { right: 16 } },
         plugins: {
           legend: { display: false },
           title: { display: true, text: "뉴타운 소재 법정동 중위 매매 평당가 (만원)", font: { size: 13, weight: "bold" } },
+          tooltip: {
+            callbacks: {
+              title: function (c) { return top[c[0].dataIndex].d.name; },
+              label: function (c) {
+                var x = top[c.dataIndex];
+                return [x.d.gu + " " + x.d.dongs[0],
+                        "평당 " + x.st.medPy.toLocaleString() + "만원",
+                        "중위 매매 " + eokman(x.st.medSale)];
+              },
+            },
+          },
         },
-        scales: { x: { beginAtZero: true, title: { display: true, text: "만원/평" } } },
+        scales: {
+          x: { beginAtZero: true, title: { display: true, text: "만원/평" },
+               ticks: { callback: function (v) { return v.toLocaleString(); } } },
+          y: { ticks: { font: { size: 11 }, autoSkip: false } },
+        },
       },
     });
   }
@@ -552,11 +632,11 @@
     renderKpi();
     renderMap();
     renderGrid();
+    renderZones();   // 자치구를 바꾸면 구역별 상세도 그 구의 것만 남아야 한다
     renderDeal();
   }
 
   initMap();
   initZoneMap();
   renderAll();
-  renderZones();
 })();

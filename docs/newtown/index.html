@@ -153,26 +153,30 @@
   <!-- ─────────────── 구역별 상세 ─────────────── -->
   <section class="card-section" id="sec-zones">
     <div class="sec-head">
-      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 구역별 상세 (노량진 · 흑석 · 신길)</h2>
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> <span id="zoneSecTitle">구역별 상세</span></h2>
       <button class="sec-print-btn" onclick="printSection('sec-zones')">이 섹션 인쇄</button>
     </div>
-    <p class="sec-desc">구역 단위 시공사·세대수까지 확인된 3개 뉴타운입니다. 다른 지구는 구역 수가 많고 해제·변경이 잦아 <b>지구 단위 요약</b>으로만 제공합니다.</p>
-    <div class="tab-row" id="zoneTabs">
-      <button class="active" data-z="noryangjin">노량진뉴타운</button>
-      <button data-z="heukseok">흑석뉴타운</button>
-      <button data-z="singil">신길뉴타운</button>
-    </div>
-    <div class="map-flex">
-      <div class="leaflet-map-wrap">
-        <div id="zoneMap" class="leaflet-map" style="height:420px;"></div>
-      </div>
-      <div class="zone-detail-wrap">
-        <div class="zone-detail" id="zoneDetail">
-          <p class="placeholder">지도의 구역 또는 아래 카드를 클릭하세요.</p>
+    <p class="sec-desc">구역 단위 시공사·세대수까지 확인된 뉴타운만 나옵니다. 다른 지구는 구역 수가 많고 해제·변경이 잦아 위 <b>지구별 진행상황</b>에서 지구 단위 요약으로 제공합니다.</p>
+
+    <!-- 위 자치구 필터에 걸리는 뉴타운만 탭으로 나온다(app.js가 채움) -->
+    <div class="tab-row" id="zoneTabs"></div>
+
+    <!-- 필터에 맞는 상세가 없을 때 이유를 알려 주는 자리 -->
+    <p class="sec-desc empty-note" id="zoneEmpty" hidden></p>
+
+    <div id="zoneBody">
+      <div class="map-flex">
+        <div class="leaflet-map-wrap">
+          <div id="zoneMap" class="leaflet-map" style="height:420px;"></div>
+        </div>
+        <div class="zone-detail-wrap">
+          <div class="zone-detail" id="zoneDetail">
+            <p class="placeholder">지도의 구역 또는 아래 카드를 클릭하세요.</p>
+          </div>
         </div>
       </div>
+      <div class="zone-grid" id="zoneGrid" style="margin-top:22px;"></div>
     </div>
-    <div class="zone-grid" id="zoneGrid" style="margin-top:22px;"></div>
   </section>
 
   <!-- ─────────────── 뉴타운 실거래 ─────────────── -->
@@ -188,7 +192,12 @@
         <tbody id="dealBody"></tbody>
       </table>
     </div>
+    <!-- 높이는 막대 개수에 맞춰 app.js가 정한다 -->
     <div class="chart-box" style="height:340px; margin-top:22px;"><canvas id="ntPyeongChart"></canvas></div>
+    <p class="sec-desc" style="margin:12px 0 0;">
+      막대 색은 <b>진행 단계</b>입니다 — 붉은색 초기, 노란색 인가·이주, 파란색 착공, 청록색 준공·입주.
+      막대에 마우스를 올리면 해당 뉴타운의 자치구·법정동과 중위 매매가가 나옵니다.
+    </p>
   </section>
 
   <!-- ─────────────── 체크포인트 ─────────────── -->
