@@ -60,7 +60,22 @@ def load_cache() -> dict:
             cache[m.group(1)] = {"lat": float(m.group(2)), "lng": float(m.group(3))}
         print(f"  씨앗(geo-coords.js) {len(cache):,}개")
 
-    # 2) 이웃 프로젝트 + 자체 지오코딩 캐시
+    # 2) 지난번에 만들어 저장소에 커밋해 둔 geo.js
+    #    GitHub Actions에는 이웃 프로젝트도 없고 .cache도 비어 있을 수 있는데,
+    #    이걸 안 읽으면 매번 수천 건을 처음부터 다시 지오코딩하느라 몇십 분씩 걸린다.
+    prev = os.path.join(DATA_DIR, "geo.js")
+    if os.path.exists(prev):
+        try:
+            text = open(prev, encoding="utf-8").read()
+            body = json.loads(text.split("=", 1)[1].strip().rstrip(";\n"))
+            for k, v in body.items():
+                if v and "lat" in v and "lng" in v:
+                    cache[k] = {"lat": float(v["lat"]), "lng": float(v["lng"])}
+            print(f"  씨앗(기존 geo.js) {len(body):,}개")
+        except (OSError, ValueError, IndexError):
+            pass
+
+    # 3) 이웃 프로젝트 + 자체 지오코딩 캐시
     for path in (os.path.join(SIBLING, ".cache", "geocode-cache.json"), CACHE_PATH):
         if not os.path.exists(path):
             continue
