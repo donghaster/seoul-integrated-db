@@ -10,6 +10,7 @@
 """
 from __future__ import annotations
 
+import glob
 import json
 import os
 import re
@@ -45,6 +46,9 @@ def _load_key() -> str:
 
 
 KAKAO_KEY = _load_key()
+
+# 한 번 실행에서 새로 지오코딩할 최대 개수(CI 시간 상한)
+MAX_NEW = int(os.environ.get("GEO_MAX_NEW", "1200"))
 
 
 # ---------------------------------------------------------------- 캐시
@@ -163,13 +167,42 @@ def collect_targets() -> list[tuple[str, str, str, str]]:
             seen.add(key)
             out.append((gu, dong, name, r.get("jb") or ""))
 
-    # 집계 파일은 기간(3·6·12개월)별로 TOP10을 따로 담고 있으므로 전부 훑는다.
+    # 아파트는 조회 기간을 자유롭게 고를 수 있어 어떤 단지든 TOP10에 오를 수 있다.
+    # 그래서 미리 구운 TOP10이 아니라 "거래가 한 번이라도 있었던 단지"를 모두 모은다.
+    # 지번은 원본 캐시에만 있으므로(화면에서 안 써서 apt.js에서 뺐다) 캐시를 먼저 훑는다.
+    for kind in ("aptSale", "aptRent"):
+        for path in sorted(glob.glob(os.path.join(CACHE_DIR, f"{kind}-*.json"))):
+            try:
+                rows = json.load(open(path, encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            for r in rows:
+                gu, dong, name = r.get("gu"), r.get("dong"), r.get("name")
+                if not gu or not dong or not name:
+                    continue
+                key = f"{gu}|{dong}|{name}"
+                if key in seen:
+                    continue
+                seen.add(key)
+                out.append((gu, dong, name, r.get("jibun") or ""))
+
+    # 캐시가 비어 있는 달이 있어도 빠뜨리지 않도록 apt.js로 한 번 더 메운다(지번은 없음).
     apt = read_window_var("apt.js", "APT_DATA")
-    if apt:
-        for reg in apt["regions"].values():
-            for w in reg["w"].values():
-                for t in ("sale", "jeonse", "wolse"):
-                    add(w["top"].get(t))
+    if apt and apt.get("deals"):
+        enc = apt["deals"]
+        for row in enc["rows"]:
+            reg = enc["regions"][row[1]]
+            name = enc["names"][row[2]]
+            if "|" not in reg or not name:
+                continue
+            gu, dong = reg.split("|", 1)
+            if not dong:
+                continue
+            key = f"{gu}|{dong}|{name}"
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append((gu, dong, name, ""))
 
     sangga = read_window_var("sangga.js", "SANGGA_DATA")
     if sangga:
@@ -202,6 +235,11 @@ def main() -> None:
     todo = [t for t in targets if f"{t[0]}|{t[1]}|{t[2]}" not in cache and f"{t[0]}|{t[1]}|{t[2]}" not in known_misses]
     print(f"새로 지오코딩할 대상 {len(todo):,}개")
 
+    # 한 번에 다 채우려 들면 CI가 길어진다. 캐시는 누적되므로 며칠에 걸쳐 메워진다.
+    if len(todo) > MAX_NEW:
+        print(f"  이번 실행은 {MAX_NEW:,}개까지만 처리합니다(나머지는 다음 실행에서).")
+        todo = todo[:MAX_NEW]
+
     if todo and not KAKAO_KEY:
         print("  ! KAKAO_REST_KEY가 없어 새 지오코딩은 건너뜁니다(캐시에 있는 것만 사용).")
         todo = []
@@ -222,11 +260,13 @@ def main() -> None:
     save_cache(cache, misses)
 
     # 이번 대시보드가 실제로 쓰는 키만 골라 geo.js로 내보낸다(파일 크기 절약)
+    # 소수 5자리면 1m 남짓 — 지도 핀에는 넘치고, 파일은 훨씬 가벼워진다
     used = {}
     for gu, dong, name, _ in targets:
         key = f"{gu}|{dong}|{name}"
-        if key in cache:
-            used[key] = cache[key]
+        c = cache.get(key)
+        if c:
+            used[key] = {"lat": round(c["lat"], 5), "lng": round(c["lng"], 5)}
 
     os.makedirs(DATA_DIR, exist_ok=True)
     path = os.path.join(DATA_DIR, "geo.js")

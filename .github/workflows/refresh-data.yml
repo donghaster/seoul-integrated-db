@@ -73,11 +73,16 @@ jobs:
       - name: 좌표 갱신
         run: python tools/build_geo.py
 
+      # 깨진 데이터가 커밋돼 사이트가 죽는 일을 막는다.
+      # 실제로 apt.js 구조를 바꿨을 때 뉴타운 화면과 좌표 갱신이 조용히 깨진 적이 있다.
+      - name: 빌드 점검
+        run: python tools/check_build.py
+
       - name: 바뀐 게 있으면 커밋
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/data docs/*/index.html
+          git add docs/data docs/index.html docs/*/index.html
           if git diff --cached --quiet; then
             echo "변경 없음 — 커밋 건너뜀"
             exit 0
