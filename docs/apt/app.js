@@ -163,6 +163,77 @@
     };
   }
 
+
+  /* ── 전세가율 ──
+     전세 신고가 없는 평형에 "얼마쯤 하느냐"를 답하려면 기준이 필요하다.
+     같은 단지·같은 평형에서 매매·전세가 각 3건 이상인 곳만 모아 비율을 구하고,
+     동 -> 구 -> 서울 순으로 표본이 찰 때까지 넓힌다.
+
+     연식으로 나누는 이유: 재건축을 앞둔 구축은 매매가가 앞서가 전세가율이
+     눌리고, 신축은 전세가 함께 높다. 섞으면 둘 다 틀린다. */
+
+  var RATIO_MIN = 8;               // 이 표본은 넘어야 범위를 말한다
+
+  function eraOf(y) {
+    if (!y) return "?";
+    return y >= 2020 ? "신축" : (y >= 2010 ? "준신축" : "구축");
+  }
+
+  var RATIOS = {};                 // "동|연식" / "구|연식" / "구" / "서울|연식" -> [비율…]
+
+  (function buildRatios() {
+    var bag = {};
+    for (var i = 0; i < DEALS.length; i++) {
+      var x = DEALS[i];
+      if (x.t === "wolse" || !x.a || !x.dg) continue;
+      var k = x.gu + "|" + x.dg + "|" + x.n + "|" + Math.round(x.a);
+      var b = bag[k] || (bag[k] = { s: [], j: [], gu: x.gu, dg: x.dg, y: 0 });
+      (x.t === "sale" ? b.s : b.j).push(x.v);
+      if (x.y > b.y) b.y = x.y;
+    }
+    var push = function (k, v) { (RATIOS[k] = RATIOS[k] || []).push(v); };
+    Object.keys(bag).forEach(function (k) {
+      var b = bag[k];
+      if (b.s.length < 3 || b.j.length < 3) return;
+      var ms = median(b.s), mj = median(b.j);
+      if (!ms || !mj) return;
+      var r = mj / ms * 100;
+      var e = eraOf(b.y);
+      push(b.gu + "|" + b.dg + "|" + e, r);
+      push(b.gu + "|" + e, r);
+      push(b.gu, r);
+      push("서울|" + e, r);
+      push("서울", r);
+    });
+    Object.keys(RATIOS).forEach(function (k) {
+      RATIOS[k].sort(function (a, b2) { return a - b2; });
+    });
+  })();
+
+  function quart(v, p) { return v[Math.min(v.length - 1, Math.floor(v.length * p))]; }
+
+  /* 가장 좁으면서 표본이 찬 기준을 고른다 */
+  function jeonseRatio(gu, dg, y) {
+    var e = eraOf(y);
+    var tries = [
+      { k: gu + "|" + dg + "|" + e, basis: dg + " " + e },
+      { k: gu + "|" + e, basis: gu + " " + e },
+      { k: gu, basis: gu + " 전체" },
+      { k: "서울|" + e, basis: "서울 " + e },
+      { k: "서울", basis: "서울 전체" },
+    ];
+    for (var i = 0; i < tries.length; i++) {
+      var v = RATIOS[tries[i].k];
+      if (v && v.length >= RATIO_MIN) {
+        return {
+          lo: Math.round(quart(v, 0.25)), mid: Math.round(quart(v, 0.5)),
+          hi: Math.round(quart(v, 0.75)), n: v.length, basis: tries[i].basis,
+        };
+      }
+    }
+    return null;
+  }
+
   /* 두 좌표 사이 거리(m) — 서울 안이라 평면 근사로 충분하다 */
   function distM(c1, c2) {
     var dy = (c1.lat - c2.lat) * 111000;
@@ -1366,6 +1437,38 @@
       }).join("") + "</tbody></table></div>";
   }
 
+
+  /* 전세 신고가 없을 때 — 매매가에 그 지역 전세가율을 곱해 범위를 낸다 */
+  function jeonseGuessHtml(sum, band) {
+    var a = sum.apt;
+    var q = jeonseRatio(a.gu, a.dg, a.y);
+    var base = "<p class=\"placeholder\">신고된 전세 거래가 없습니다.";
+
+    if (!q) return base + "</p>";
+
+    var head = base + " 대신 <b>" + esc(q.basis) + "</b>의 실제 전세가율(" +
+      q.lo + "~" + q.hi + "%, 중위 " + q.mid + "% · 표본 " + q.n.toLocaleString() + "개 평형)로 " +
+      "가늠해 보면 아래와 같습니다.</p>";
+
+    var rows = sum.bands.filter(function (g) { return g.medSale; });
+    if (!rows.length) {
+      return base + " 매매도 없어 계산할 기준이 없습니다. 아래 <b>인근 유사 단지</b>를 보세요.</p>";
+    }
+
+    return head + '<div class="table-wrap"><table class="detail-deals"><thead><tr>' +
+      "<th>전용면적</th><th>중위 매매가</th><th>추정 전세</th><th>중위 기준</th></tr></thead><tbody>" +
+      rows.map(function (g) {
+        return "<tr><td>" + bandLabel(g.b) + "</td>" +
+          '<td class="rt-price">' + eokman(g.medSale) + "</td>" +
+          "<td><b>" + eokman(Math.round(g.medSale * q.lo / 100)) + " ~ " +
+            eokman(Math.round(g.medSale * q.hi / 100)) + "</b></td>" +
+          "<td>" + eokman(Math.round(g.medSale * q.mid / 100)) + "</td></tr>";
+      }).join("") + "</tbody></table>" +
+      '<p class="dim-note" style="margin-top:8px">' +
+      "매매 중위값 × 전세가율입니다. <b>실제 계약은 동·향·층·수리 상태에 따라 이 범위를 벗어납니다.</b> " +
+      "고객께는 <b>참고 범위</b>로만 말씀하세요.</p></div>";
+  }
+
   function similarHtml(key, band) {
     var sim = similarApts(key, band, 4);
     if (!sim.length) {
@@ -1426,6 +1529,18 @@
             : "매매 시세는 <b>아래 인근 유사 단지</b>로 가늠하셔야 합니다."));
     }
 
+    if (!sum.cnt.jeonse && g.medSale) {
+      var q = jeonseRatio(a.gu, a.dg, a.y);
+      if (q) {
+        out.push("<b>전세는 신고된 거래가 없습니다.</b> " +
+          esc(q.basis) + "의 실제 전세가율이 <b>" + q.lo + "~" + q.hi + "%</b>(중위 " + q.mid + "%)라, " +
+          bandLabel(g.b) + " 매매 중위 " + eokman(g.medSale) + " 기준으로 보면 " +
+          "<b>" + eokman(Math.round(g.medSale * q.lo / 100)) + " ~ " +
+          eokman(Math.round(g.medSale * q.hi / 100)) + "</b> 정도가 됩니다. " +
+          "<b>계산으로 짚은 범위</b>일 뿐이니 실제 계약은 동·향·층에 따라 달라진다고 꼭 덧붙이세요.");
+      }
+    }
+
     var sim = similarApts(a.key, g.b, 4);
     if (sim.length) {
       var pys = sim.map(function (x) { return x.py; }).filter(Boolean);
@@ -1474,7 +1589,8 @@
         "</tr></thead><tbody>" + bandRowsHtml(sum) + "</tbody></table></div>" +
 
         "<h4>최근 매매</h4>" + dealListHtml(a.deals, "sale") +
-        "<h4>최근 전세</h4>" + dealListHtml(a.deals, "jeonse") +
+        "<h4>최근 전세</h4>" +
+        (sum.cnt.jeonse ? dealListHtml(a.deals, "jeonse") : jeonseGuessHtml(sum, mainBand)) +
 
         (special ? '<p class="thin-note"><span>' + special.why + "</span></p>" : "") +
 
