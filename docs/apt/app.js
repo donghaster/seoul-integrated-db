@@ -344,13 +344,21 @@
     }
     return bucketList().map(function (k) {
       var g = bag[k];
-      if (!g) return { v: null, n: 0, names: [] };
-      var seen = {}, names = [];
-      g.forEach(function (x) { if (!seen[x.n]) { seen[x.n] = 1; names.push(x.n); } });
+      if (!g) return { v: null, n: 0, names: [], hot: null };
+      var cnt = {}, names = [];
+      g.forEach(function (x) {
+        if (!cnt[x.n]) names.push(x.n);
+        cnt[x.n] = (cnt[x.n] || 0) + 1;
+      });
+      // 한 단지가 그 구간을 좌우하면 중위값은 사실상 그 단지 값이 된다
+      var best = null;
+      names.forEach(function (nm) { if (!best || cnt[nm] > best[1]) best = [nm, cnt[nm]]; });
+      names.sort(function (a, b) { return cnt[b] - cnt[a]; });
       return {
         v: median(g.map(pyOf)),
         n: g.length,
         names: names,
+        hot: (best && g.length >= MIN_N && best[1] / g.length >= 0.3) ? best : null,
       };
     });
   }
@@ -1446,14 +1454,26 @@
     return "이 지역은 원래 거래가 드뭅니다. 아래 <b>월별 브리핑 표</b>의 건수를 함께 보고 말씀하세요.";
   }
 
-  // 표본이 얇은 구간은 속 빈 작은 점으로 — 꽉 찬 점만 믿고 읽으시면 된다
+  var HOT_COLOR = "#bc3d3d";
+
+  /* 점 모양으로 "이 값을 믿어도 되는지"를 알린다.
+       꽉 찬 동그라미  = 표본 넉넉, 그대로 읽으셔도 된다
+       속 빈 동그라미  = 표본 5건 미만, 한두 건에 출렁인다
+       붉은 세모      = 한 단지가 30% 넘게 차지, 그 단지 값에 끌려간 구간 */
   function pointStyleOf(stats, color) {
     return {
-      pointRadius: stats.map(function (x) { return x.n ? (x.n < THIN ? 3 : 5) : 0; }),
-      pointHoverRadius: stats.map(function (x) { return x.n ? (x.n < THIN ? 5 : 7) : 0; }),
-      pointBackgroundColor: stats.map(function (x) { return x.n < THIN ? "#ffffff" : color; }),
-      pointBorderColor: color,
-      pointBorderWidth: stats.map(function (x) { return x.n < THIN ? 2 : 1.5; }),
+      pointStyle: stats.map(function (x) { return x.hot ? "triangle" : "circle"; }),
+      pointRadius: stats.map(function (x) {
+        return x.n ? (x.hot ? 8 : (x.n < THIN ? 3 : 5)) : 0;
+      }),
+      pointHoverRadius: stats.map(function (x) {
+        return x.n ? (x.hot ? 10 : (x.n < THIN ? 5 : 7)) : 0;
+      }),
+      pointBackgroundColor: stats.map(function (x) {
+        return x.hot ? color : (x.n < THIN ? "#ffffff" : color);
+      }),
+      pointBorderColor: stats.map(function (x) { return x.hot ? HOT_COLOR : color; }),
+      pointBorderWidth: stats.map(function (x) { return x.hot ? 3 : (x.n < THIN ? 2 : 1.5); }),
     };
   }
 
@@ -1557,6 +1577,11 @@
                 items.forEach(function (c) {
                   var st = (c.dataset._stats || [])[c.dataIndex];
                   if (!st || !st.n) return;
+                  if (st.hot) {
+                    // 이 구간의 중위값은 사실상 이 단지 값이다. 가장 먼저 알린다.
+                    out.push("△ " + c.dataset.label + ": " + st.hot[0] + " 한 단지가 " +
+                             st.hot[1] + "건(" + Math.round(st.hot[1] / st.n * 100) + "%)");
+                  }
                   var ns = st.names.slice(0, 4).join(", ") +
                            (st.names.length > 4 ? " 외 " + (st.names.length - 4) + "곳" : "");
                   out.push("· " + c.dataset.label + " 거래단지: " + ns);
@@ -1575,15 +1600,32 @@
     });
 
     // 표본이 얇은 구간이 몇 개나 되는지 세어 그래프 위에 미리 알린다
-    var thin = 0, drawn = 0;
+    var thin = 0, drawn = 0, hots = [];
     sets.forEach(function (d) {
-      (d._stats || []).forEach(function (x) {
+      (d._stats || []).forEach(function (x, i) {
         if (!x.n) return;
         drawn++;
         if (x.n < THIN) thin++;
+        if (x.hot) {
+          hots.push({ label: d.label, when: labels[i], name: x.hot[0],
+                      c: x.hot[1], n: x.n, pct: Math.round(x.hot[1] / x.n * 100) });
+        }
       });
     });
+
     var notes = [];
+    if (hots.length) {
+      // 표본이 많아도 한 단지에 몰리면 지수가 그 단지 값으로 끌려간다.
+      // 서초구 2026-08 전세가 그랬다(양재리본타워2단지 105/336건).
+      hots.sort(function (a, b) { return b.pct - a.pct; });
+      notes.push("<b>붉은 세모(△)는 한 단지가 30% 넘게 차지한 구간</b>입니다. " +
+        hots.slice(0, 3).map(function (h) {
+          return h.when + " " + h.label + " <b>" + esc(h.name) + " " + h.c + "/" + h.n + "건(" + h.pct + "%)</b>";
+        }).join(", ") +
+        (hots.length > 3 ? " 외 " + (hots.length - 3) + "곳" : "") + ". " +
+        "<b>그 구간의 중위값은 사실상 그 단지 값</b>이라, 신축 입주장처럼 싼(또는 비싼) 물량이 " +
+        "한꺼번에 신고되면 시세가 급변한 것처럼 보입니다. <b>시세 변동으로 읽지 마세요.</b>");
+    }
     if (thin) {
       notes.push("<b>표본 " + THIN + "건 미만 구간이 " + thin + "곳</b> 있습니다(전체 " + drawn + "곳). " +
         "속이 빈 작은 점이 그 구간이고, <b>한두 건에 지수가 크게 출렁이니 시세 흐름으로 읽지 마세요.</b> " +
