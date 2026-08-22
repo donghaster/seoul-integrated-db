@@ -2401,7 +2401,7 @@
     return '<li class="cc-li"><div class="cc ' + tone + '">' +
       '<div class="cc-head"><span class="cc-badge">결론</span><b>' + tag + "</b></div>" +
       '<p class="cc-why">' + lines.join(" ") + "</p>" +
-      '<p class="cc-do"><span>고객께</span>' + advice + "</p>" +
+      '<p class="cc-do"><span>첨언</span>' + advice + "</p>" +
       "</div></li>";
   }
 
