@@ -502,12 +502,21 @@
     // 건물 단위로 하나만 찍고, 그 건물의 거래는 오른쪽에 모아 보여준다.
     selectedKey = null;
     var order = [];
+    nameIndex = {};
     rows.forEach(function (row, i) {
-      var key = row.gu + "|" + row.dg + "|" + row.n;
-      if (markers[key]) { markers[key].rows.push({ row: row, rank: i }); return; }
-      var c = GEO[key];
+      var c = GEO[row.gu + "|" + row.dg + "|" + row.n];
       if (!c) { miss++; return; }
-      markers[key] = { marker: null, coord: c, rows: [{ row: row, rank: i }], rank: i, name: row.n };
+      // 좌표가 같으면 화면에서 겹쳐 클릭이 안 되므로 한 지점으로 묶는다
+      var key = c.lat.toFixed(5) + "," + c.lng.toFixed(5);
+      nameIndex[row.gu + "|" + row.dg + "|" + row.n] = key;
+      if (markers[key]) {
+        var g0 = markers[key];
+        g0.rows.push({ row: row, rank: i });
+        if (g0.names.indexOf(row.n) === -1) g0.names.push(row.n);
+        return;
+      }
+      markers[key] = { marker: null, coord: c, rows: [{ row: row, rank: i }],
+                       rank: i, name: row.n, names: [row.n] };
       order.push(key);
       pts.push([c.lat, c.lng]);
     });
@@ -515,7 +524,7 @@
     order.forEach(function (key) {
       var g = markers[key];
       var label = (g.rows.length > 1)
-        ? g.name + " (TOP10 " + g.rows.length + "건)"
+        ? mapTitle(g) + " (TOP10 " + g.rows.length + "건)"
         : (g.rank + 1) + "위 " + g.name;
       g.marker = L.circleMarker([g.coord.lat, g.coord.lng], markerStyle(g, false))
         .addTo(markerLayer)
@@ -531,6 +540,15 @@
 
     document.getElementById("sgDetail").innerHTML =
       '<p class="placeholder">지도의 원 또는 아래 오피스텔 TOP10 표의<br />건물명을 클릭하세요.</p>';
+  }
+
+  var nameIndex = {};          // "구|동|건물" -> 좌표키
+
+  // 한 지점에 건물이 여럿이면 이름을 이어 붙인다
+  function mapTitle(g) {
+    if (g.names.length === 1) return g.names[0];
+    if (g.names.length === 2) return g.names.join(" · ");
+    return g.names[0] + " 외 " + (g.names.length - 1) + "곳";
   }
 
   var selectedKey = null;
@@ -562,11 +580,13 @@
     var t = state.offiType;
     var first = g.rows[0].row;
 
+    var multi = g.names.length > 1;
     var list = g.rows.map(function (x) {
       var on = (focusRank != null && x.rank === focusRank);
       return '<tr' + (on ? ' class="is-on"' : "") + ">" +
         '<td><span class="rank-chip ' + (x.rank === 0 ? "r1" : x.rank === 1 ? "r2" : x.rank === 2 ? "r3" : "") +
           '">' + (x.rank + 1) + "</span></td>" +
+        (multi ? '<td class="dl-name">' + esc(x.row.n) + "</td>" : "") +
         "<td>" + areaText(x.row.a) + "</td>" +
         "<td>" + (x.row.f ? x.row.f + "층" : "-") + "</td>" +
         '<td class="rt-price">' + offiPriceText(x.row, t) + "</td>" +
@@ -577,18 +597,18 @@
     document.getElementById("sgDetail").innerHTML =
       '<span class="zone-tag" style="background:' + OFFI_COLOR[t] + '">오피스텔 ' + OFFI_LABEL[t] +
         (g.rows.length > 1 ? " TOP10 " + g.rows.length + "건" : " " + (g.rank + 1) + "위") + "</span>" +
-      "<h3>" + esc(first.n) + "</h3>" +
+      "<h3>" + esc(mapTitle(g)) + "</h3>" +
       '<p class="detail-where">' + esc(first.gu) + " " + esc(first.dg) +
         (first.y ? " · " + first.y + "년 준공" : "") + "</p>" +
       '<div class="table-wrap"><table class="detail-deals"><thead><tr>' +
-      "<th>순위</th><th>전용면적</th><th>층</th><th>" +
+      "<th>순위</th>" + (multi ? "<th>건물</th>" : "") + "<th>전용면적</th><th>층</th><th>" +
       (t === "wolse" ? "보증금/월세" : "거래금액") + "</th><th>평당가</th><th>거래일</th>" +
       "</tr></thead><tbody>" + list + "</tbody></table></div>";
   }
 
   function focusBuilding(gu, dong, name, rank) {
-    var key = gu + "|" + dong + "|" + name;
-    var hit = markers[key];
+    var key = nameIndex[gu + "|" + dong + "|" + name];
+    var hit = key && markers[key];
     if (!hit) {
       document.getElementById("sgDetail").innerHTML =
         '<p class="placeholder">「' + esc(name) + "」의 좌표를 찾지 못해<br />지도에 표시할 수 없습니다.</p>";
