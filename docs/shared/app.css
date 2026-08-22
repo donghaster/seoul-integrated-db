@@ -646,3 +646,54 @@ section[data-tabpanel].is-on { display: block; }
   text-align: left; font-size: 11.5px; color: var(--txt-dim);
   max-width: 130px; overflow: hidden; text-overflow: ellipsis;
 }
+
+/* ════════════════ 단지 찾아보기 ════════════════ */
+
+.finder-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.finder-bar > label { font-size: 12px; font-weight: 700; color: var(--txt-mute); }
+.finder-input { position: relative; flex: 1 1 320px; max-width: 460px; }
+.finder-input input {
+  width: 100%; padding: 11px 14px; font-size: 14px; font-family: inherit;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--txt);
+}
+.finder-input input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+
+.finder-drop {
+  position: absolute; z-index: 40; top: calc(100% + 5px); left: 0; right: 0;
+  max-height: 340px; overflow-y: auto;
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow-hover);
+}
+.finder-item {
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: baseline;
+  width: 100%; padding: 9px 13px; border: 0; border-bottom: 1px solid var(--line-soft);
+  background: none; text-align: left; cursor: pointer; font-family: inherit;
+}
+.finder-item:last-child { border-bottom: 0; }
+.finder-item:hover, .finder-item.is-on { background: var(--accent-pale); }
+.fi-name { font-size: 13.5px; font-weight: 700; color: var(--txt); }
+.fi-cnt { font-size: 11px; color: var(--txt-mute); grid-row: 1; grid-column: 2; }
+.fi-where { font-size: 11.5px; color: var(--txt-mute); grid-column: 1 / -1; }
+
+.apt-card {
+  background: var(--card-2); border: 1px solid var(--line-soft);
+  border-radius: 12px; padding: 18px 20px 20px;
+}
+.apt-head h3 { font-size: 19px; margin: 0; }
+.apt-card h4 {
+  font-size: 13.5px; margin: 20px 0 8px; color: var(--txt);
+  padding-bottom: 5px; border-bottom: 1px solid var(--line);
+}
+.apt-card h4 .dim-note { font-weight: 500; }
+.apt-card .read-guide h4 { border-bottom: 0; margin: 0 0 8px; color: #8a6a1f; }
+.apt-bands td:first-child { text-align: left; }
+.apt-card .placeholder { font-size: 12.5px; color: var(--txt-mute); padding: 10px 0; margin: 0; }
+
+@media print {
+  .finder-bar, .finder-drop { display: none !important; }
+  .apt-card { break-inside: avoid; background: #fff; }
+}
+.apt-flag {
+  display: inline-block; font-size: 11px; font-weight: 700; vertical-align: 4px;
+  padding: 2px 8px; border-radius: 5px; margin-left: 6px;
+  color: #9c3232; background: #fdefef; border: 1px solid #f0cfcf;
+}

@@ -75,6 +75,149 @@
   // 신고가 며칠 밀린 만큼 기간이 짧아져 다른 대시보드와 건수가 어긋난다.
   if (D.today && D.today > DATA_END) DATA_END = D.today;
 
+
+  /* ════════════════ 단지 찾아보기 ════════════════
+     TOP10에 없는 단지를 고객이 물어볼 때를 위한 계층.
+     조회 기간과 무관하게 자료 전체(12개월)를 쓴다 — 기간을 좁히면
+     대부분의 단지가 표본 부족이 돼 아무 말도 못 하게 된다. */
+
+  var APT_KEYS = [];               // "구|동|단지" 목록
+  var BY_APT = {};                 // "구|동|단지" -> { gu, dg, n, y, deals[] }
+
+  (function buildAptIndex() {
+    for (var i = 0; i < DEALS.length; i++) {
+      var x = DEALS[i];
+      if (!x.dg || !x.n) continue;
+      var k = x.gu + "|" + x.dg + "|" + x.n;
+      var a = BY_APT[k];
+      if (!a) {
+        a = BY_APT[k] = { key: k, gu: x.gu, dg: x.dg, n: x.n, y: 0, deals: [] };
+        APT_KEYS.push(k);
+      }
+      if (x.y && x.y > a.y) a.y = x.y;
+      a.deals.push(x);
+    }
+    APT_KEYS.sort();
+  })();
+
+  /* 검색 — 이름에 들어가면 잡고, 앞에서 맞을수록 위로 */
+  function searchApt(q, limit) {
+    q = (q || "").replace(/\s+/g, "").toLowerCase();
+    if (q.length < 1) return [];
+    var hit = [];
+    for (var i = 0; i < APT_KEYS.length; i++) {
+      var a = BY_APT[APT_KEYS[i]];
+      var nm = a.n.replace(/\s+/g, "").toLowerCase();
+      var at = nm.indexOf(q);
+      if (at === -1) continue;
+      hit.push({ a: a, at: at, cnt: a.deals.length });
+      if (hit.length > 400) break;
+    }
+    hit.sort(function (x, y) {
+      if (x.at !== y.at) return x.at - y.at;          // 앞에서 맞은 것 먼저
+      return y.cnt - x.cnt;                            // 그다음 거래 많은 순
+    });
+    return hit.slice(0, limit || 12).map(function (x) { return x.a; });
+  }
+
+  /* 평형(전용면적)을 사람이 쓰는 단위로 묶는다. 84.97과 84.99는 같은 평형이다. */
+  function areaBand(a) { return Math.round(a); }
+
+  function bandLabel(b) {
+    return b + "㎡ (" + (b / PYEONG).toFixed(0) + "평)";
+  }
+
+  /* 단지 요약 — 평형별로 나눠야 의미가 있다 */
+  function aptSummary(key) {
+    var a = BY_APT[key];
+    if (!a) return null;
+    var bands = {};
+    a.deals.forEach(function (x) {
+      if (!x.a) return;
+      var b = areaBand(x.a);
+      var g = bands[b] || (bands[b] = { b: b, sale: [], jeonse: [], wolse: [], last: "" });
+      g[x.t].push(x);
+      if (x.d > g.last) g.last = x.d;
+    });
+    var list = Object.keys(bands).map(function (k) { return bands[k]; });
+    list.forEach(function (g) {
+      g.n = g.sale.length + g.jeonse.length + g.wolse.length;
+      g.medSale = median(g.sale.map(function (x) { return x.v; }));
+      g.medJeonse = median(g.jeonse.map(function (x) { return x.v; }));
+      g.medWolse = median(g.wolse.map(function (x) { return x.r; }));
+      g.medDep = median(g.wolse.map(function (x) { return x.v; }));
+      g.py = median(g.sale.map(pyOf).filter(Boolean));
+      // 전세가율 — 같은 평형끼리 비교해야 뜻이 있다
+      g.ratio = (g.medSale && g.medJeonse) ? Math.round(g.medJeonse / g.medSale * 100) : 0;
+    });
+    list.sort(function (x, y) { return y.n - x.n; });
+    return {
+      apt: a,
+      bands: list,
+      cnt: {
+        sale: a.deals.filter(function (x) { return x.t === "sale"; }).length,
+        jeonse: a.deals.filter(function (x) { return x.t === "jeonse"; }).length,
+        wolse: a.deals.filter(function (x) { return x.t === "wolse"; }).length,
+      },
+      last: a.deals.reduce(function (m, x) { return x.d > m ? x.d : m; }, ""),
+    };
+  }
+
+  /* 두 좌표 사이 거리(m) — 서울 안이라 평면 근사로 충분하다 */
+  function distM(c1, c2) {
+    var dy = (c1.lat - c2.lat) * 111000;
+    var dx = (c1.lng - c2.lng) * 111000 * Math.cos(c1.lat * Math.PI / 180);
+    return Math.round(Math.sqrt(dx * dx + dy * dy));
+  }
+
+  /* 유사 단지 — "가까이 · 비슷한 연식 · 같은 평형" 순으로 점수를 매긴다.
+     고객께 "이 단지는 자료가 없으니 옆 단지로 보시죠"라고 말할 근거가 돼야
+     하므로, 왜 비슷한지를 함께 돌려준다. */
+  function similarApts(key, band, want) {
+    var me = BY_APT[key];
+    if (!me) return [];
+    var myC = coordOf(me.gu, me.dg, me.n);
+    var out = [];
+
+    for (var i = 0; i < APT_KEYS.length; i++) {
+      var k = APT_KEYS[i];
+      if (k === key) continue;
+      var o = BY_APT[k];
+      if (o.gu !== me.gu) continue;                    // 같은 자치구 안에서만
+
+      // 같은 평형대 거래가 있어야 비교가 된다 (±2㎡)
+      var sameBand = o.deals.filter(function (x) {
+        return x.a && Math.abs(areaBand(x.a) - band) <= 2;
+      });
+      var saleN = sameBand.filter(function (x) { return x.t === "sale"; }).length;
+      if (sameBand.length < 3) continue;
+
+      var oc = coordOf(o.gu, o.dg, o.n);
+      var dist = (myC && oc) ? distM(myC, oc) : null;
+      if (dist != null && dist > 2000) continue;       // 2km 넘으면 "인근"이 아니다
+
+      var ageGap = (me.y && o.y) ? Math.abs(me.y - o.y) : null;
+
+      // 점수: 가까울수록 · 연식 비슷할수록 · 같은 평형 표본 많을수록
+      var sc = 0;
+      sc += dist == null ? 30 : Math.max(0, 60 - dist / 40);       // 0~60
+      sc += ageGap == null ? 10 : Math.max(0, 25 - ageGap * 2.5);  // 0~25
+      sc += Math.min(15, saleN * 2);                                // 0~15
+      if (o.dg === me.dg) sc += 12;                                 // 같은 법정동 가산
+
+      out.push({
+        apt: o, dist: dist, ageGap: ageGap, score: sc,
+        rows: sameBand, saleN: saleN,
+        py: median(sameBand.filter(function (x) { return x.t === "sale"; }).map(pyOf).filter(Boolean)),
+        medSale: median(sameBand.filter(function (x) { return x.t === "sale"; }).map(function (x) { return x.v; })),
+        medJeonse: median(sameBand.filter(function (x) { return x.t === "jeonse"; }).map(function (x) { return x.v; })),
+      });
+    }
+
+    out.sort(function (x, y) { return y.score - x.score; });
+    return out.slice(0, want || 4);
+  }
+
   /* ════════════════ 포맷 유틸 ════════════════ */
 
   function eokman(man) {
@@ -1071,6 +1214,288 @@
     selectMarker(key);
     showDetail(key, rank);
     document.getElementById("sec-map").scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  /* ════════════════ 단지 찾아보기 — 화면 ════════════════ */
+
+  var APT_MIN = 3;      // 이 건수는 넘어야 그 평형만으로 말할 수 있다
+
+  /* 같은 자리에 이름만 조금 다른 단지가 있으면 한 단지를 나눠 신고한 것이다.
+     (예: 호반써밋서초파크뷰 / 호반써밋서초파크뷰(토지임대부아파트))
+     한쪽만 보고 "매매가 안 된다"고 하면 틀린 말이 된다. */
+  function siblingApts(key) {
+    var me = BY_APT[key];
+    if (!me) return [];
+    var myC = coordOf(me.gu, me.dg, me.n);
+    var strip = function (x) { return x.replace(/[\s()（）]/g, "").replace(/[0-9]+동$/, ""); };
+    var mine = strip(me.n);
+    var out = [];
+    for (var i = 0; i < APT_KEYS.length; i++) {
+      var k = APT_KEYS[i];
+      if (k === key) continue;
+      var o = BY_APT[k];
+      if (o.gu !== me.gu || o.dg !== me.dg) continue;
+      var on = strip(o.n);
+      if (on.indexOf(mine) !== 0 && mine.indexOf(on) !== 0) continue;
+      var oc = coordOf(o.gu, o.dg, o.n);
+      if (myC && oc && distM(myC, oc) > 150) continue;
+      out.push({ apt: o, sale: o.deals.filter(function (x) { return x.t === "sale"; }).length });
+    }
+    return out;
+  }
+
+  /* 매매가 안 되거나 시세 비교가 다른 유형인지 본다.
+     여기에 인근 일반단지 시세를 붙이면 고객께 틀린 값을 드리게 된다. */
+  function specialKind(sum) {
+    var n = sum.apt.n;
+    if (/토지임대부/.test(n)) {
+      return { tag: "토지임대부", why: "<b>토지임대부 주택</b>입니다. 건물만 사고 대지는 빌리는 구조라 " +
+        "<b>일반 아파트 시세와 직접 비교할 수 없습니다.</b> 인근 단지 값을 그대로 갖다 붙이지 마세요." };
+    }
+    if (/임대|행복주택|청년주택|공공지원/.test(n)) {
+      return { tag: "임대주택", why: "이름에 <b>임대</b> 표기가 있습니다. 분양이 아닌 임대 물량이면 " +
+        "<b>매매 자체가 안 되는 것이 정상</b>이라, 인근 단지 매매 시세를 이 단지 시세로 말씀하시면 안 됩니다." };
+    }
+    var rent = sum.cnt.jeonse + sum.cnt.wolse;
+    if (sum.cnt.sale === 0 && rent >= 30) {
+      // 같은 자리의 다른 표기 쪽에 매매가 있으면 "매매가 안 된다"가 아니다
+      var sib = siblingApts(sum.apt.key).filter(function (x) { return x.sale > 0; });
+      if (sib.length) {
+        return { tag: "표기 분리", why: "이 이름으로는 매매 신고가 없지만, 같은 자리에 <b>" +
+          sib.map(function (x) { return esc(x.apt.n) + "(매매 " + x.sale + "건)"; }).join(", ") +
+          "</b>으로 따로 신고된 거래가 있습니다. <b>한 단지를 표기만 나눠 신고한 것</b>이니 " +
+          "그쪽도 함께 보셔야 합니다." };
+      }
+      return { tag: "매매 없음", why: "전월세는 <b>" + rent.toLocaleString() + "건</b>인데 " +
+        "<b>매매 신고가 한 건도 없습니다.</b> 임대주택·공공지원 민간임대처럼 " +
+        "<b>매매가 안 되는 유형일 수 있으니</b> 등기부·모집공고로 반드시 확인하세요." };
+    }
+    return null;
+  }
+
+  (function initFinder() {
+    var input = document.getElementById("aptSearch");
+    var drop = document.getElementById("aptDrop");
+    if (!input) return;
+
+    document.getElementById("aptCountNote").textContent =
+      "서울 " + APT_KEYS.length.toLocaleString() + "개 단지 · 자료 " +
+      DATA_START.replace(/-/g, ".") + " ~ " + DATA_END.replace(/-/g, ".");
+
+    var hits = [], cursor = -1;
+
+    function closeDrop() { drop.hidden = true; cursor = -1; }
+
+    function paint() {
+      if (!hits.length) { closeDrop(); return; }
+      drop.innerHTML = hits.map(function (a, i) {
+        var c = { sale: 0, jeonse: 0, wolse: 0 };
+        a.deals.forEach(function (x) { c[x.t]++; });
+        return '<button type="button" class="finder-item' + (i === cursor ? " is-on" : "") +
+          '" data-k="' + esc(a.key) + '">' +
+          '<span class="fi-name">' + esc(a.n) + "</span>" +
+          '<span class="fi-where">' + esc(a.gu) + " " + esc(a.dg) +
+            (a.y ? " · " + a.y + "년" : "") + "</span>" +
+          '<span class="fi-cnt">매매 ' + c.sale + " · 전월세 " + (c.jeonse + c.wolse) + "</span></button>";
+      }).join("");
+      drop.hidden = false;
+    }
+
+    function run() {
+      hits = searchApt(input.value, 12);
+      cursor = -1;
+      paint();
+    }
+
+    input.addEventListener("input", run);
+    input.addEventListener("focus", function () { if (input.value) run(); });
+
+    input.addEventListener("keydown", function (e) {
+      if (drop.hidden || !hits.length) return;
+      if (e.key === "ArrowDown") { cursor = Math.min(cursor + 1, hits.length - 1); paint(); e.preventDefault(); }
+      else if (e.key === "ArrowUp") { cursor = Math.max(cursor - 1, 0); paint(); e.preventDefault(); }
+      else if (e.key === "Enter") { showApt(hits[cursor < 0 ? 0 : cursor].key); closeDrop(); e.preventDefault(); }
+      else if (e.key === "Escape") closeDrop();
+    });
+
+    drop.addEventListener("click", function (e) {
+      var b = e.target.closest("button[data-k]");
+      if (!b) return;
+      showApt(b.dataset.k);
+      closeDrop();
+    });
+
+    document.addEventListener("click", function (e) {
+      if (!e.target.closest(".finder-input")) closeDrop();
+    });
+
+    // 표·지도에서 단지를 눌렀을 때도 여기로 끌어올 수 있게 열어 둔다
+    window.__showApt = showApt;
+  })();
+
+  function bandRowsHtml(sum) {
+    return sum.bands.map(function (g) {
+      var thin = g.sale.length < APT_MIN;
+      return "<tr>" +
+        "<td><b>" + bandLabel(g.b) + "</b></td>" +
+        "<td>" + (g.sale.length ? g.sale.length + "건" : "-") +
+          (thin && g.sale.length ? ' <span class="brief-thin">적음</span>' : "") + "</td>" +
+        "<td>" + (g.medSale ? eokman(g.medSale) : "-") + "</td>" +
+        "<td>" + (g.py ? Math.round(g.py).toLocaleString() + "만원" : "-") + "</td>" +
+        "<td>" + (g.jeonse.length ? g.jeonse.length + "건" : "-") + "</td>" +
+        "<td>" + (g.medJeonse ? eokman(g.medJeonse) : "-") + "</td>" +
+        "<td>" + (g.ratio ? g.ratio + "%" : "-") + "</td>" +
+        "<td>" + (g.wolse.length ? g.wolse.length + "건" : "-") + "</td>" +
+        "<td>" + (g.medWolse ? eokman(g.medDep) + " / " + Math.round(g.medWolse).toLocaleString() + "만원" : "-") + "</td>" +
+        "</tr>";
+    }).join("");
+  }
+
+  function dealListHtml(rows, type, cap) {
+    var v = rows.filter(function (x) { return x.t === type; })
+      .sort(function (a, b) { return a.d < b.d ? 1 : -1; }).slice(0, cap || 6);
+    if (!v.length) return '<p class="placeholder">신고된 거래가 없습니다.</p>';
+    return '<div class="table-wrap"><table class="detail-deals"><thead><tr>' +
+      "<th>거래일</th><th>전용면적</th><th>층</th><th>" +
+      (type === "wolse" ? "보증금/월세" : "금액") + "</th><th>평당가</th></tr></thead><tbody>" +
+      v.map(function (x) {
+        return "<tr><td>" + dateText(x.d) + "</td><td>" + areaText(x.a) + "</td>" +
+          "<td>" + (x.f ? x.f + "층" : "-") + "</td>" +
+          '<td class="rt-price">' + priceText(x, type) + "</td>" +
+          "<td>" + pyText(x, type) + "</td></tr>";
+      }).join("") + "</tbody></table></div>";
+  }
+
+  function similarHtml(key, band) {
+    var sim = similarApts(key, band, 4);
+    if (!sim.length) {
+      return '<p class="placeholder">같은 자치구 2km 안에 비교할 만한 단지를 찾지 못했습니다.</p>';
+    }
+    var me = BY_APT[key];
+    return '<div class="table-wrap"><table class="detail-deals"><thead><tr>' +
+      "<th>단지</th><th>거리</th><th>준공</th><th>매매</th><th>중위 매매가</th>" +
+      "<th>평당가</th><th>전세</th><th>중위 보증금</th></tr></thead><tbody>" +
+      sim.map(function (x) {
+        return "<tr>" +
+          '<td class="dl-name">' + esc(x.apt.n) +
+            (x.apt.dg !== me.dg ? ' <span class="dim-note">' + esc(x.apt.dg) + "</span>" : "") + "</td>" +
+          "<td>" + (x.dist == null ? "-" : (x.dist < 1000 ? x.dist + "m" : (x.dist / 1000).toFixed(1) + "km")) + "</td>" +
+          "<td>" + (x.apt.y ? x.apt.y + "년" : "-") + "</td>" +
+          "<td>" + (x.saleN || "-") + "</td>" +
+          "<td>" + (x.medSale ? eokman(x.medSale) : "-") + "</td>" +
+          "<td>" + (x.py ? Math.round(x.py).toLocaleString() + "만원" : "-") + "</td>" +
+          "<td>" + x.rows.filter(function (r) { return r.t === "jeonse"; }).length + "</td>" +
+          "<td>" + (x.medJeonse ? eokman(x.medJeonse) : "-") + "</td>" +
+          "</tr>";
+      }).join("") + "</tbody></table></div>";
+  }
+
+  /* 금집부쌤이 고객께 바로 읽어 드릴 문장 */
+  function aptScript(sum, mainBand) {
+    var a = sum.apt, out = [];
+    var total = sum.cnt.sale + sum.cnt.jeonse + sum.cnt.wolse;
+
+    out.push("<b>" + esc(a.n) + "</b>는 " + esc(a.gu) + " " + esc(a.dg) + "에 있고" +
+      (a.y ? " <b>" + a.y + "년 준공</b>" : "") + "입니다. " +
+      "자료 기간(" + DATA_START.slice(2).replace(/-/g, ".") + "~" + DATA_END.slice(2).replace(/-/g, ".") + ") 신고된 거래는 " +
+      "<b>매매 " + sum.cnt.sale + "건 · 전세 " + sum.cnt.jeonse + "건 · 월세 " + sum.cnt.wolse + "건</b>, " +
+      "모두 " + total.toLocaleString() + "건입니다.");
+
+    var sp = specialKind(sum);
+    if (sp) out.push("⚠ " + sp.why);
+
+    if (!mainBand) {
+      out.push("면적이 확인되는 거래가 없어 시세를 말씀드리기 어렵습니다.");
+      return out;
+    }
+
+    var g = mainBand;
+    if (g.sale.length >= APT_MIN) {
+      out.push("가장 거래가 많은 <b>" + bandLabel(g.b) + "</b>는 매매 " + g.sale.length + "건, " +
+        "<b>중위 " + eokman(g.medSale) + "</b>(평당 " + Math.round(g.py).toLocaleString() + "만원)입니다." +
+        (g.ratio ? " 전세는 중위 " + eokman(g.medJeonse) + "로 <b>전세가율 " + g.ratio + "%</b>입니다." : ""));
+    } else if (g.sale.length) {
+      out.push("<b>" + bandLabel(g.b) + "</b> 매매는 <b>" + g.sale.length + "건뿐</b>이라 " +
+        "이것만으로 시세를 말씀드리기 어렵습니다. " +
+        "가장 최근 거래는 " + dateText(g.sale[g.sale.length - 1].d) + " " +
+        eokman(g.sale[g.sale.length - 1].v) + "입니다. <b>아래 인근 유사 단지</b>를 함께 보고 말씀드리겠습니다.");
+    } else {
+      out.push("<b>" + bandLabel(g.b) + "</b>는 <b>매매 신고가 없습니다</b>. " +
+        (g.jeonse.length ? "전세는 " + g.jeonse.length + "건, 중위 " + eokman(g.medJeonse) + "입니다. " : "") +
+        ((sp && sp.tag !== "표기 분리") ? "매매가 되는 물건인지부터 확인하셔야 합니다."
+            : "매매 시세는 <b>아래 인근 유사 단지</b>로 가늠하셔야 합니다."));
+    }
+
+    var sim = similarApts(a.key, g.b, 4);
+    if (sim.length) {
+      var pys = sim.map(function (x) { return x.py; }).filter(Boolean);
+      var band = pys.length ? median(pys) : 0;
+      out.push("인근 <b>" + sim.length + "곳</b>(" +
+        sim.map(function (x) { return esc(x.apt.n) + (x.dist != null ? " " + (x.dist < 1000 ? x.dist + "m" : (x.dist / 1000).toFixed(1) + "km") : ""); }).join(", ") +
+        ")의 같은 평형대 기준으로는 " +
+        (band ? "<b>평당 " + Math.round(band).toLocaleString() + "만원</b> 수준입니다. " : "매매 표본이 없습니다. ") +
+        ((sp && sp.tag !== "표기 분리")
+            ? "<b>다만 이 값은 일반 분양 단지 기준</b>이라 " + esc(a.n) + "에 그대로 적용하시면 안 됩니다."
+            : "연식·동·향·층에 따라 차이가 나므로 <b>참고 범위</b>로만 말씀하세요."));
+    }
+
+    if (sum.cnt.sale < APT_MIN * 2) {
+      out.push("<b>이 단지는 원래 손바뀜이 드뭅니다.</b> 매물이 나오면 비교 대상이 적어 " +
+        "<b>호가와 실거래가 벌어지기 쉽습니다.</b> 계약 전 인근 시세를 꼭 함께 보세요.");
+    }
+    return out;
+  }
+
+  function showApt(key) {
+    var sum = aptSummary(key);
+    var host = document.getElementById("aptResult");
+    if (!sum) { host.innerHTML = ""; return; }
+
+    var a = sum.apt;
+    var mainBand = sum.bands[0] || null;
+    var c = coordOf(a.gu, a.dg, a.n);
+    var special = specialKind(sum);
+
+    host.innerHTML =
+      '<div class="apt-card">' +
+        '<div class="apt-head">' +
+          "<h3>" + esc(a.n) +
+            (special ? ' <span class="apt-flag">' + special.tag + "</span>" : "") + "</h3>" +
+          '<p class="detail-where">' + esc(a.gu) + " " + esc(a.dg) +
+            (a.y ? " · " + a.y + "년 준공" : "") +
+            " · 신고 " + (sum.cnt.sale + sum.cnt.jeonse + sum.cnt.wolse).toLocaleString() + "건" +
+            (sum.last ? " · 최근 " + dateText(sum.last) : "") + "</p>" +
+        "</div>" +
+
+        "<h4>평형별 시세</h4>" +
+        '<div class="table-wrap"><table class="detail-deals apt-bands"><thead><tr>' +
+          '<th>전용면적</th><th>매매</th><th>중위 매매가</th><th>평당가</th>' +
+          '<th>전세</th><th>중위 보증금</th><th>전세가율</th><th>월세</th><th>보증금 / 월세</th>' +
+        "</tr></thead><tbody>" + bandRowsHtml(sum) + "</tbody></table></div>" +
+
+        "<h4>최근 매매</h4>" + dealListHtml(a.deals, "sale") +
+        "<h4>최근 전세</h4>" + dealListHtml(a.deals, "jeonse") +
+
+        (special ? '<p class="thin-note"><span>' + special.why + "</span></p>" : "") +
+
+        (mainBand ? "<h4>인근 유사 단지 <span class=\"dim-note\">" + bandLabel(mainBand.b) +
+          " 기준 · 같은 자치구 2km 이내</span></h4>" + similarHtml(key, mainBand.b) : "") +
+
+        '<div class="read-guide" style="margin-top:18px;">' +
+          "<h4>금집부쌤이 보는 " + esc(a.n) + "</h4><ol>" +
+          aptScript(sum, mainBand).map(function (t) { return "<li>" + t + "</li>"; }).join("") +
+          "</ol></div>" +
+
+        (c ? '<p class="dim-note">지도에서 보기: <button type="button" class="mini-btn" id="aptGoMap">' +
+             "TOP10 지도로 이동</button></p>" : "") +
+      "</div>";
+
+    var go = document.getElementById("aptGoMap");
+    if (go) {
+      go.addEventListener("click", function () {
+        focusApt(a.gu, a.dg, a.n);
+      });
+    }
   }
 
   /* ════════════════ 입지분석 ════════════════ */

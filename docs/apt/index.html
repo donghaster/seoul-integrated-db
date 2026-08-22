@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>금집부쌤의 서울시 통합 부동산 대시보드 — 아파트</title>
-  <link rel="stylesheet" href="../shared/app.css?v=d74265e50c" />
+  <link rel="stylesheet" href="../shared/app.css?v=9c088815fa" />
   <link rel="stylesheet" href="../vendor/leaflet/leaflet.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🏘️</text></svg>" />
 </head>
@@ -84,6 +84,7 @@
 
   <nav class="section-nav" aria-label="섹션 바로가기">
     <button data-target="sec-kpi">핵심 요약</button>
+    <button data-target="sec-finder">단지 찾기</button>
     <button data-target="sec-map">실거래 지도</button>
     <button data-target="sec-index">가격지수</button>
     <button data-target="sec-brief">월별 브리핑</button>
@@ -102,6 +103,30 @@
     </div>
     <p class="sec-desc" id="kpiDesc"></p>
     <div class="stat-row" id="kpiRow"></div>
+  </section>
+
+  <!-- ─────────────── 단지 찾아보기 ─────────────── -->
+  <section class="card-section" id="sec-finder">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 단지 찾아보기</h2>
+      <button class="sec-print-btn" onclick="printSection('sec-finder')">이 섹션 인쇄</button>
+    </div>
+    <p class="sec-desc">
+      고객이 물어보시는 단지를 <b>이름으로 바로</b> 찾습니다. TOP10에 없어도 됩니다.
+      자료는 <b>조회 기간과 무관하게 전체 기간</b>을 씁니다 &mdash; 기간을 좁히면 대부분의 단지가
+      표본 부족이 되기 때문입니다.
+    </p>
+
+    <div class="finder-bar">
+      <label for="aptSearch">단지명</label>
+      <div class="finder-input">
+        <input type="text" id="aptSearch" placeholder="예: 래미안, 반포자이, 헬리오시티" autocomplete="off" />
+        <div class="finder-drop" id="aptDrop" hidden></div>
+      </div>
+      <span class="dim-note" id="aptCountNote"></span>
+    </div>
+
+    <div id="aptResult"></div>
   </section>
 
   <!-- ─────────────── 실거래 지도 ─────────────── -->
@@ -397,6 +422,6 @@
 <script src="../data/locinfo.js?v=e97bc091b7"></script>
 <script src="../data/newtown.js?v=8ba14b3baf"></script>
 <script src="../shared/brand.js?v=9fd1821c1b"></script>
-<script src="app.js?v=cedf6bb15c"></script>
+<script src="app.js?v=aea205e627"></script>
 </body>
 </html>
