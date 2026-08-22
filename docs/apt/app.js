@@ -1882,7 +1882,8 @@
       " · 월세 " + r.cnt.wolse.toLocaleString() + ")</li>" +
       "</ul>" +
       (rows.length ? "<h3 style='margin-top:16px;font-size:14.5px'>" +
-        (state.gu === ALL ? "서울 자치구" : state.gu + " 법정동") + " 중위 매매 평당가 순위</h3>" +
+        (state.gu === ALL ? "서울 자치구" : state.gu + " 법정동") +
+        " 중위 매매 평당가 순위 <span class='rt-sub'>어디가 비싼가</span></h3>" +
         '<table class="rank-table"><thead><tr><th>순위</th><th>' +
         (state.gu === ALL ? "자치구" : "법정동") + "</th><th>중위 평당가</th><th>매매 건수</th></tr></thead><tbody>" +
         rows.map(function (x, i) {
@@ -1958,11 +1959,14 @@
       if (idx >= 0) {
         var gap = yoy - R.avg;
         rankLine = '<div class="pi-rank">' +
-          "<b>서울 " + R.n + "개 구 중 " + (idx + 1) + "위</b>" +
-          '<span class="dim-note">25개구 평균 ' + sign(R.avg) + " · " +
+          "<b>상승률 서울 " + R.n + "개 구 중 " + (idx + 1) + "위</b>" +
+          '<span class="dim-note">전년 동기 대비 기준 · 25개구 평균 ' + sign(R.avg) + " · " +
           esc(gu) + "가 " + (Math.abs(gap) < 0.5 ? "평균 수준" :
             (gap > 0 ? "<b class='up'>" + gap.toFixed(1) + "%p 높음</b>"
-                     : "<b class='down'>" + Math.abs(gap).toFixed(1) + "%p 낮음</b>")) + "</span></div>";
+                     : "<b class='down'>" + Math.abs(gap).toFixed(1) + "%p 낮음</b>")) + "</span></div>" +
+          '<p class="pi-note">위 <b>평당가 순위</b>는 <b>어디가 비싼가</b>, 이 <b>상승률 순위</b>는 ' +
+          "<b>어디가 많이 올랐나</b>입니다. <b>서로 다른 순위</b>라 어긋나는 것이 정상입니다 " +
+          "&mdash; 성동구는 값은 5위지만 상승률은 1위, 서초구는 값 2위인데 상승률은 14위입니다.</p>";
       }
     }
 
