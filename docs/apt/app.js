@@ -2009,7 +2009,7 @@
         (rank > 0 ? '<div class="dv-kpi"><span>구 안 순위</span><b>' + rank + "위</b>" +
           '<span class="dim-note">' + C.peers.length + "개 동 중</span></div>" : "") +
       "</div>" + bars + peerLine +
-      '<div class="lb-speak"><span class="lb-quote">고객께</span><p>&ldquo;' + speak + '&rdquo;</p></div>' +
+      '<div class="lb-speak"><span class="lb-quote">첨언</span><p>&ldquo;' + speak + '&rdquo;</p></div>' +
       '<p class="lb-foot">공식 실거래가격지수는 <b>자치구 단위까지만</b> 나옵니다. ' +
         "이 표는 <b>우리 실거래로 계산</b>한 값이라 위 공식지수와 산출 방식이 다릅니다. " +
         "분기 매매 " + DONG_MIN_Q + "건 미만은 뺐고, <b>*</b>는 아직 진행 중인 분기입니다.</p>" +
@@ -2100,7 +2100,7 @@
           '<span class="lb-s">전년 대비 ' + sign(yoy) + " · " + rWord + "</span></div>" +
       "</div>" +
       '<p class="lb-story">' + story + "</p>" +
-      '<div class="lb-speak"><span class="lb-quote">고객께</span><p>&ldquo;' + speak + '&rdquo;</p></div>' +
+      '<div class="lb-speak"><span class="lb-quote">첨언</span><p>&ldquo;' + speak + '&rdquo;</p></div>' +
       '<p class="lb-foot">값 순위는 <b>선택한 조회 기간</b>의 실거래로 이 대시보드가 계산했고, ' +
         "상승률 순위는 <b>한국부동산원 공식지수</b>의 전년 동기 대비입니다. " +
         "<b>재는 것이 달라 두 순위가 어긋나는 것이 정상</b>입니다.</p>" +
