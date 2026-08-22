@@ -1852,6 +1852,170 @@
     return "#bc3d3d";
   }
 
+  /* ── 구 안에서 동의 자리 ──
+     분기별 (동 중위 평당가 / 구 중위 평당가)로 낸다. 표본이 얇은 분기는 뺀다. */
+
+  var DONG_MIN_Q = 5;              // 분기당 이 건수는 넘어야 값을 쓴다
+
+  function quarterOf(dateStr) {
+    var y = dateStr.slice(0, 4), m = parseInt(dateStr.slice(5, 7), 10);
+    return y + "Q" + Math.ceil(m / 3);
+  }
+
+  function qLabel(q) { return q.slice(2, 4) + "." + q.slice(5) + "Q"; }
+
+  // 자료가 걸쳐 있는 분기 목록(오래된 것부터)
+  function quarterList() {
+    var qs = {}, out = [];
+    var cur = new Date(DATA_START + "T00:00:00"), last = new Date(DATA_END + "T00:00:00");
+    while (cur <= last) {
+      var q = cur.getFullYear() + "Q" + Math.ceil((cur.getMonth() + 1) / 3);
+      if (!qs[q]) { qs[q] = 1; out.push(q); }
+      cur.setMonth(cur.getMonth() + 1);
+    }
+    return out;
+  }
+
+  // 그 분기가 아직 진행 중인가(자료 기준일이 분기 안에 있으면)
+  function isPartialQ(q) {
+    var y = parseInt(q.slice(0, 4), 10), n = parseInt(q.slice(5), 10);
+    var end = new Date(y, n * 3, 0);                       // 분기 마지막 날
+    return end > new Date(DATA_END + "T00:00:00");
+  }
+
+  /* 지역(구 또는 구|동)의 분기별 매매 중위 평당가.
+     같은 구의 동을 줄 세울 때 구 안 모든 동을 훑으므로 한 번 구한 건 남겨 둔다. */
+  var _qPy = {};
+  function quarterPy(key) {
+    if (_qPy[key]) return _qPy[key];
+    var rows = BY_REGION[key] || [], bag = {};
+    for (var i = 0; i < rows.length; i++) {
+      var x = rows[i];
+      if (x.t !== "sale" || !x.a) continue;
+      var q = quarterOf(x.d);
+      (bag[q] = bag[q] || []).push(pyOf(x));
+    }
+    var out = {};
+    Object.keys(bag).forEach(function (q) {
+      out[q] = { n: bag[q].length, py: median(bag[q]) };
+    });
+    _qPy[key] = out;
+    return out;
+  }
+
+  var _dongCmp = {};
+  function dongVsGu(gu, dong) {
+    var ck = gu + "|" + dong;
+    if (_dongCmp[ck]) return _dongCmp[ck];
+    var guQ = quarterPy(gu), myQ = quarterPy(ck);
+    var qs = quarterList();
+    var series = qs.map(function (q) {
+      var g = guQ[q], d = myQ[q];
+      var ok = g && d && g.py && d.n >= DONG_MIN_Q;
+      return { q: q, partial: isPartialQ(q), n: d ? d.n : 0,
+               py: d ? d.py : 0, guPy: g ? g.py : 0,
+               pct: ok ? Math.round(d.py / g.py * 100) : null };
+    });
+    // 같은 구의 다른 동들 — 가장 최근 '확정' 분기 기준으로 줄 세운다
+    var solid = series.filter(function (x) { return x.pct != null && !x.partial; });
+    var baseQ = solid.length ? solid[solid.length - 1].q : null;
+    var peers = [];
+    if (baseQ) {
+      (D.dongs[gu] || []).forEach(function (d2) {
+        var qq = quarterPy(gu + "|" + d2)[baseQ];
+        var g = guQ[baseQ];
+        if (!qq || !g || !g.py || qq.n < DONG_MIN_Q) return;
+        peers.push({ dong: d2, pct: Math.round(qq.py / g.py * 100), n: qq.n, py: qq.py });
+      });
+      peers.sort(function (a, b) { return b.pct - a.pct; });
+    }
+    _dongCmp[ck] = { series: series, peers: peers, baseQ: baseQ };
+    return _dongCmp[ck];
+  }
+
+  function dongVsGuHtml() {
+    if (state.gu === ALL || state.dong === ALL) return "";
+    var gu = state.gu, dong = state.dong;
+    var C = dongVsGu(gu, dong);
+    var usable = C.series.filter(function (x) { return x.pct != null; });
+    if (usable.length < 2) {
+      return '<div class="dv-box"><h3>📍 ' + esc(gu) + " 안에서 " + esc(dong) + "</h3>" +
+        '<p class="placeholder">분기마다 매매 ' + DONG_MIN_Q +
+        "건이 안 돼 구 안 위치를 흐름으로 보여드리기 어렵습니다. 위 <b>평당가 순위</b> 표를 쓰세요.</p></div>";
+    }
+
+    var last = usable.filter(function (x) { return !x.partial; }).pop() || usable[usable.length - 1];
+    var rank = -1;
+    for (var i = 0; i < C.peers.length; i++) if (C.peers[i].dong === dong) { rank = i + 1; break; }
+
+    // 막대 — 100%가 기준선이라 위/아래가 곧 구 평균 대비다
+    var peak = usable.reduce(function (m, x) { return Math.max(m, Math.abs(x.pct - 100)); }, 0) || 1;
+    var bars = '<div class="dv-chart"><div class="dv-bars">' + C.series.map(function (x) {
+      if (x.pct == null) {
+        return '<div class="dv-col dim" title="표본 ' + x.n + '건 — 계산에서 뺐습니다">' +
+          '<span class="dv-val">-</span><span class="dv-gap"></span>' +
+          '<span class="dv-q">' + qLabel(x.q) + "</span></div>";
+      }
+      var d = x.pct - 100;
+      var h = Math.max(3, Math.round(Math.abs(d) / peak * 40));
+      var up = d >= 0;
+      return '<div class="dv-col' + (x.partial ? " partial" : "") + '" title="' + qLabel(x.q) +
+        " 매매 " + x.n + "건 · 동 " + x.py.toLocaleString() + "만원 / 구 " + x.guPy.toLocaleString() + '만원">' +
+        '<span class="dv-val">' + x.pct + "%</span>" +
+        '<span class="dv-bar ' + (up ? "up" : "down") + '" style="height:' + h + 'px"></span>' +
+        '<span class="dv-q">' + qLabel(x.q) + (x.partial ? " *" : "") + "</span></div>";
+    }).join("") + '</div><div class="dv-zero"><span>구 평균 100%</span></div></div>';
+
+    // 흐름 한 줄 — 확정 분기만 써서 처음과 끝을 비교한다
+    var solid = usable.filter(function (x) { return !x.partial; });
+    var trend = "";
+    if (solid.length >= 2) {
+      var a = solid[0], b = solid[solid.length - 1];
+      var move = b.pct - a.pct;                 // 비율 자체의 변화
+      var word;
+      if (Math.abs(move) < 5) {
+        word = "<b>거의 그대로</b>입니다";
+      } else if (b.pct >= 100) {
+        // 구 평균 위에 있는 동 — 비율이 오르면 프리미엄이 커진 것
+        word = move > 0 ? "<b>구 평균 대비 프리미엄이 " + move + "%p 커졌습니다</b>"
+                        : "<b>구 평균 대비 프리미엄이 " + Math.abs(move) + "%p 줄었습니다</b>";
+      } else {
+        // 구 평균 아래 동 — 비율이 내리면 오히려 더 벌어진 것이다
+        word = move > 0 ? "<b>구 평균에 " + move + "%p 다가섰습니다</b>"
+                        : "<b>구 평균과의 거리가 " + Math.abs(move) + "%p 더 벌어졌습니다</b>";
+      }
+      trend = qLabel(a.q) + " " + a.pct + "% → " + qLabel(b.q) + " " + b.pct + "%로 " + word;
+    }
+
+    var peerLine = C.peers.length > 1
+      ? '<p class="dv-peers"><b>' + qLabel(C.baseQ) + " 기준 " + esc(gu) + " 동별</b> " +
+        C.peers.map(function (x) {
+          return '<span class="dv-peer' + (x.dong === dong ? " me" : "") + '">' +
+            esc(x.dong) + " " + x.pct + "%</span>";
+        }).join("") + "</p>"
+      : "";
+
+    var speak = esc(dong) + "은 " + esc(gu) + " 평균의 <b>" + last.pct + "%</b> 수준" +
+      (rank > 0 ? "으로, 구 안 " + C.peers.length + "개 동 가운데 <b>" + rank + "위</b>" : "") + "입니다. " +
+      (trend ? trend + ". " : "") +
+      "구 전체가 오르내려도 이 비율은 <b>동의 상대적 자리</b>를 보여줍니다.";
+
+    return '<div class="dv-box">' +
+      "<h3>📍 " + esc(gu) + " 안에서 " + esc(dong) +
+        " <span class='rt-sub'>분기별 구 평균 대비</span></h3>" +
+      '<div class="dv-top">' +
+        '<div class="dv-kpi"><span>최근 확정 분기</span><b>' + last.pct + "%</b>" +
+          '<span class="dim-note">' + qLabel(last.q) + " · 매매 " + last.n + "건</span></div>" +
+        (rank > 0 ? '<div class="dv-kpi"><span>구 안 순위</span><b>' + rank + "위</b>" +
+          '<span class="dim-note">' + C.peers.length + "개 동 중</span></div>" : "") +
+      "</div>" + bars + peerLine +
+      '<div class="lb-speak"><span class="lb-quote">고객께</span><p>&ldquo;' + speak + '&rdquo;</p></div>' +
+      '<p class="lb-foot">공식 실거래가격지수는 <b>자치구 단위까지만</b> 나옵니다. ' +
+        "이 표는 <b>우리 실거래로 계산</b>한 값이라 위 공식지수와 산출 방식이 다릅니다. " +
+        "분기 매매 " + DONG_MIN_Q + "건 미만은 뺐고, <b>*</b>는 아직 진행 중인 분기입니다.</p>" +
+      "</div>";
+  }
+
   /* 값(중위 평당가) 순위 — 화면 표와 같은 조회 기간으로 매긴다 */
   function priceRankOf(gu) {
     var rows = D.gus.map(function (g) {
@@ -1983,6 +2147,7 @@
         }).join("") + "</tbody></table>" : "") +
       locBriefHtml() +
       priceIndexHtml() +
+      dongVsGuHtml() +
       "<p style='margin-top:10px;color:var(--txt-mute);font-size:12.5px'>" +
       "※ 평당가 = 거래금액 ÷ (전용면적 ÷ 3.3058). 매매 신고 3건 이상인 지역만 순위에 넣습니다.</p>";
   }
