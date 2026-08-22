@@ -2350,6 +2350,118 @@
     };
   }
 
+  /* 그래프를 읽어 고객께 그대로 드릴 문장으로 푼다.
+     월별 브리핑과 같은 규칙 — 표본이 얇거나 한 단지에 쏠린 구간은 빼고,
+     뺐다는 사실을 함께 말한다. */
+  function renderIndexScript(sets, labels, isIdx) {
+    var host = document.getElementById("idxScript");
+    if (!host) return;
+    document.getElementById("idxScriptTitle").textContent =
+      "금집부쌤이 보는 " + regionLabel() + " 가격 흐름";
+
+    var unit = state.gran === "week" ? "주" : "달";
+    var unitEun = state.gran === "week" ? "주는" : "달은";      // 받침 유무로 조사가 갈린다
+    var out = [];
+
+    // 쓸 만한 구간만 남긴다
+    function usable(d) {
+      var st = d._stats || [];
+      var v = [];
+      for (var i = 0; i < st.length; i++) {
+        if (st[i].n >= THIN && !st[i].hot && st[i].v) v.push({ i: i, s: st[i] });
+      }
+      return v;
+    }
+
+    sets.forEach(function (d) {
+      if (!d._stats) return;                       // 공식지수 선은 건너뛴다
+      var all = d._stats.filter(function (x) { return x.n; });
+      var total = all.reduce(function (t, x) { return t + x.n; }, 0);
+      if (!total) {
+        out.push("<b>" + esc(d.label) + "</b>는 이 기간에 거래가 없었습니다.");
+        return;
+      }
+      var v = usable(d);
+      if (v.length < 2) {
+        out.push("<b>" + esc(d.label) + "</b>는 " + total.toLocaleString() + "건인데, " +
+          "쓸 만한 " + unit + "이 " + v.length + "곳뿐이라 <b>흐름을 말씀드리기 어렵습니다</b>. " +
+          (state.gran === "week" ? "<b>월간</b>으로 바꾸시면" : "<b>기간을 넓히시면</b>") + " 나아집니다.");
+        return;
+      }
+      var a = v[0], b = v[v.length - 1];
+      var r = (b.s.v - a.s.v) / a.s.v * 100;
+      var word = Math.abs(r) < 1.5 ? "거의 그대로입니다"
+        : (r > 0 ? "<b>" + r.toFixed(1) + "% 올랐습니다</b>"
+                 : "<b>" + Math.abs(r).toFixed(1) + "% 내렸습니다</b>");
+      var t = "<b>" + esc(d.label) + "</b>는 " + labels[a.i] + " 평당 " +
+        Math.round(a.s.v).toLocaleString() + "만원(" + a.s.n + "건)에서 " +
+        labels[b.i] + " " + Math.round(b.s.v).toLocaleString() + "만원(" + b.s.n + "건)으로 " + word + ".";
+
+      // 중간에 크게 출렁였으면 단일 추세로 말하지 않는다
+      if (v.length >= 3) {
+        var vals = v.map(function (x) { return x.s.v; });
+        var hi = Math.max.apply(null, vals), lo = Math.min.apply(null, vals);
+        if (lo && (hi - lo) / lo * 100 >= 15) {
+          t += " 그런데 <b>쭉 한 방향으로 움직인 건 아닙니다</b> \u2014 가장 높았던 " + unitEun + " " +
+            labels[v[vals.indexOf(hi)].i] + " " + Math.round(hi).toLocaleString() + "만원, 낮았던 " + unitEun + " " +
+            labels[v[vals.indexOf(lo)].i] + " " + Math.round(lo).toLocaleString() + "만원으로 <b>" +
+            Math.round((hi - lo) / lo * 100) + "%</b>나 차이가 납니다.";
+        }
+      }
+
+      var thin = d._stats.filter(function (x) { return x.n && x.n < THIN; }).length;
+      var hots = [];
+      d._stats.forEach(function (x, i) { if (x.hot) hots.push({ i: i, h: x.hot, n: x.n }); });
+      if (thin || hots.length) {
+        var why = [];
+        if (thin) why.push("표본 " + THIN + "건 미만 " + thin + "곳");
+        if (hots.length) {
+          why.push(hots.map(function (x) {
+            return labels[x.i] + " <b>" + esc(x.h[0]) + "</b> " + x.h[1] + "/" + x.n + "건";
+          }).join(", "));
+        }
+        t += " (" + why.join(", ") + "은 계산에서 뺐습니다.)";
+      }
+      out.push(t);
+    });
+
+    // 월세는 환산보증금이라 오해하기 쉽다
+    var w = sets.filter(function (d) { return d.label === TYPE_LABEL.wolse && d._stats; })[0];
+    if (w && usable(w).length >= 2) {
+      out.push("<b>월세선은 환산보증금(보증금 + 월세\u00d7100)</b> 기준입니다. " +
+        "보증금을 올리고 월세를 낮춘 준전세로 옮겨가도 이 선은 <b>똑같이 올라갑니다</b>. " +
+        "월세가 올랐는지는 <b>아래 월별 브리핑의 중위 월세</b> 칸에서 확인하세요.");
+    }
+
+    // 공식지수를 켰으면 방향이 맞는지 짚는다
+    if (idxState.official && state.gu !== ALL) {
+      var pi = (window.APT_LOCATION || {})[state.gu];
+      var pts = pi && pi.priceIndex && pi.priceIndex.points;
+      if (pts && pts.length >= 2) {
+        var pl = pts[pts.length - 1], pf = pts[0];
+        var pr = pf.value ? (pl.value - pf.value) / pf.value * 100 : 0;
+        var sale = sets.filter(function (d) { return d.label === TYPE_LABEL.sale && d._stats; })[0];
+        var su = sale ? usable(sale) : [];
+        var mine = su.length >= 2 ? (su[su.length - 1].s.v - su[0].s.v) / su[0].s.v * 100 : null;
+        var qTxt = function (q) { return q.replace(/(\d{4})Q0?(\d)/, "$1년 $2분기"); };
+        var line = "<b>공식(부동산원) 지수</b>는 " + qTxt(pf.period) + "부터 " + qTxt(pl.period) + "까지 <b>" +
+          (pr >= 0 ? "+" : "\u2212") + Math.abs(pr).toFixed(1) + "%</b>입니다. <b>분기 단위라 우리 조회 기간과 구간이 다르니</b> 값을 직접 견주지 마시고 <b>방향만</b> 보세요.";
+        if (mine !== null) {
+          line += (mine >= 0) === (pr >= 0)
+            ? " 우리 표본과 <b>방향이 같습니다</b> \u2014 믿고 말씀하셔도 됩니다."
+            : " 우리 표본과 <b>방향이 엇갈립니다</b>. 이럴 땐 <b>공식지수를 앞세우고</b>, 우리 수치는 참고로만 쓰세요.";
+        }
+        out.push(line);
+      }
+    }
+
+    out.push("이 그래프는 <b>국토교통부 실거래 신고</b>를 " + unit + " 단위로 모아 " +
+      (isIdx ? "<b>첫 구간 100</b> 기준으로 지수화" : "<b>만원/평</b> 그대로") + "한 것입니다. " +
+      regionLabel() + " " + win().label + " 구간입니다.");
+
+    host.innerHTML = out.map(function (t) { return "<li>" + t + "</li>"; }).join("");
+  }
+
   function renderIndex() {
     var labels = bucketLabels();
     var isIdx = idxState.mode === "index";
@@ -2508,6 +2620,8 @@
     var warn = document.getElementById("idxThinNote");
     warn.hidden = !notes.length;
     warn.innerHTML = notes.map(function (t) { return "<span>" + t + "</span>"; }).join("");
+
+    renderIndexScript(sets, labels, isIdx);
 
     document.getElementById("idxDesc").innerHTML =
       "조회 기간 <b>" + win().label + "</b> · " + (state.gran === "week" ? "주별" : "월별") + " 중위 평당가를 " +
