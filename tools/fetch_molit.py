@@ -69,6 +69,10 @@ CURRENT_MONTH_TTL = 60 * 60 * 6      # 최근 달은 신고가 계속 들어오�
 # 실거래 신고 기한이 계약일로부터 30일이라, 지난달·지지난달 거래도 이번 달까지 계속 접수된다.
 # 최근 N개월은 캐시를 믿지 말고 다시 받는다(안 그러면 처음 받은 수치로 영영 굳는다).
 RECENT_REFRESH_MONTHS = int(os.environ.get("RECENT_MONTHS", "3"))
+# 최근 N개월만 다시 받으면, 그보다 오래된 달은 처음 받은 값으로 영영 굳는다.
+# 실제로 로컬 캐시의 과거 9개월이 18일 동안 굳어 지연 신고 1,500건이 빠졌었다.
+# CI가 며칠 실패해도 같은 일이 생기므로, 오래된 파일은 무조건 다시 받는다.
+MAX_CACHE_DAYS = int(os.environ.get("MAX_CACHE_DAYS", "10"))
 
 _SSL = ssl.create_default_context()
 _SSL.check_hostname = False
@@ -258,8 +262,12 @@ def load_month(kind: str, gu: str, ym: str) -> list[dict]:
     lawd = SEOUL_GU[gu]
     path = _path(kind, lawd, ym)
     if os.path.exists(path):
+        age = time.time() - os.path.getmtime(path)
         # 최근 몇 달은 신고가 계속 들어오므로 캐시를 짧게만 믿는다
-        fresh = (not _is_recent(ym)) or (time.time() - os.path.getmtime(path) < CURRENT_MONTH_TTL)
+        fresh = (not _is_recent(ym)) or (age < CURRENT_MONTH_TTL)
+        # 오래된 달이라도 캐시가 묵으면 그동안 들어온 지연 신고를 놓친다
+        if age > MAX_CACHE_DAYS * 86400:
+            fresh = False
         if fresh:
             try:
                 with open(path, encoding="utf-8") as fh:

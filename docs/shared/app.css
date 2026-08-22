@@ -251,12 +251,47 @@ table.rank-table tr:hover td { background: var(--accent-pale); }
 .loc-caveat b { color: var(--txt); }
 
 /* 공식 가격지수 간이 추세 막대 */
-.pi-spark {
-  display: flex; align-items: flex-end; gap: 3px; height: 50px;
-  padding: 6px 10px; background: #fff; border: 1px solid var(--line); border-radius: 10px;
+/* ── 공식 실거래가격지수 ──
+   예전엔 지수 '수준'을 막대로 그렸는데, 0에서 시작하지 않아 +33%가 3.8배로
+   보였다. 고객에게 뜻이 있는 건 수준이 아니라 방향·속도·서울 내 위치라,
+   0을 기준선으로 한 분기 변동률 막대로 바꿨다. */
+
+.pi-top { display: flex; align-items: baseline; gap: 20px; flex-wrap: wrap; margin: 10px 0 8px; }
+.pi-now { display: flex; align-items: baseline; gap: 7px; }
+.pi-now-q { font-size: 12px; color: var(--txt-mute); }
+.pi-now-v { font-size: 22px; font-weight: 800; color: var(--txt); font-variant-numeric: tabular-nums; }
+.pi-kpi { display: flex; align-items: baseline; gap: 6px; font-size: 12.5px; color: var(--txt-mute); }
+.pi-kpi b { font-size: 15px; font-variant-numeric: tabular-nums; }
+.pi-top .up, .pi-rank .up { color: var(--up); }
+.pi-top .down, .pi-rank .down { color: var(--down); }
+
+.pi-rank {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  background: var(--accent-pale); border: 1px solid var(--accent-light);
+  border-radius: 8px; padding: 8px 13px; font-size: 12.5px; color: var(--txt-dim); margin-bottom: 12px;
 }
-.pi-spark i { flex: 1; background: var(--accent); border-radius: 2px 2px 0 0; opacity: .75; }
-.pi-spark i:last-child { opacity: 1; background: var(--accent-2); }
+.pi-rank > b { font-size: 13.5px; color: var(--accent-2); }
+
+.pi-cap { font-size: 12.5px; font-weight: 700; color: var(--txt); margin: 0 0 6px; }
+.pi-cap .dim-note { font-weight: 500; margin-left: 6px; }
+
+.pi-chart { position: relative; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 8px; }
+.pi-bars { display: flex; align-items: flex-end; gap: 6px; }
+.pi-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.pi-val { font-size: 10.5px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pi-val.up, .pi-bar.up { color: var(--up); }
+.pi-val.down, .pi-bar.down { color: var(--down); }
+.pi-bar { width: 100%; max-width: 34px; border-radius: 3px 3px 0 0; background: var(--up); }
+.pi-bar.down { background: var(--down); }
+.pi-bar.neg { border-radius: 0 0 3px 3px; }
+.pi-q { font-size: 10px; color: var(--txt-mute); white-space: nowrap; }
+.pi-zero {
+  position: absolute; left: 12px; right: 12px; bottom: 24px;
+  border-top: 1px dashed var(--line); pointer-events: none;
+}
+.pi-zero span {
+  position: absolute; right: 0; top: -14px; font-size: 9.5px; color: var(--txt-mute); background: #fff; padding: 0 3px;
+}
 
 /* 지하철역·공원·상권·학교 이름을 담는 칩 */
 .loc-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }

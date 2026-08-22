@@ -1896,42 +1896,90 @@
 
   /* 한국부동산원 공동주택 매매 실거래가격지수 — 구 단위 공식 통계.
      우리가 직접 계산한 중위 평당가와 방향이 맞는지 대조하는 용도. */
+  /* 자치구별 전년 동기 대비 상승률 순위 — "우리 동네가 더 오르나"에 답한다 */
+  var _piRank = null;
+  function priceIndexRank() {
+    if (_piRank) return _piRank;
+    var rows = [];
+    Object.keys(LOC).forEach(function (g) {
+      var pi = LOC[g] && LOC[g].priceIndex;
+      if (!pi || !pi.points || pi.points.length < 5) return;
+      var p = pi.points, last = p[p.length - 1], y = p[p.length - 5];
+      if (!y || !y.value) return;
+      rows.push({ gu: g, yoy: (last.value - y.value) / y.value * 100 });
+    });
+    rows.sort(function (x, y2) { return y2.yoy - x.yoy; });
+    var avg = rows.reduce(function (t, r) { return t + r.yoy; }, 0) / (rows.length || 1);
+    _piRank = { rows: rows, avg: avg, n: rows.length };
+    return _piRank;
+  }
+
   function priceIndexHtml() {
     var gu = state.gu === ALL ? null : state.gu;
     var pi = gu && LOC[gu] && LOC[gu].priceIndex;
-    if (!pi || !pi.points || !pi.points.length) return "";
+    if (!pi || !pi.points || pi.points.length < 2) return "";
 
     var pts = pi.points;
-    var last = pts[pts.length - 1];
-    var first = pts[0];
+    var last = pts[pts.length - 1], first = pts[0];
+    var fmtQ = function (p) { return p.period.replace(/(\d{4})Q0?(\d)/, "$1년 $2분기"); };
+    var shortQ = function (p) { return p.period.replace(/(\d{2})(\d{2})Q0?(\d)/, "$2.$3Q"); };
+    var sign = function (v) { return (v >= 0 ? "+" : "\u2212") + Math.abs(v).toFixed(1) + "%"; };
+    var cls = function (v) { return v >= 0 ? "up" : "down"; };
+
     var yoy = null;
     if (pts.length >= 5) {
-      var y = pts[pts.length - 5];
-      if (y && y.value) yoy = ((last.value - y.value) / y.value * 100);
+      var y0 = pts[pts.length - 5];
+      if (y0 && y0.value) yoy = (last.value - y0.value) / y0.value * 100;
     }
-    var total = first.value ? ((last.value - first.value) / first.value * 100) : 0;
-    var fmtQ = function (p) { return p.period.replace(/(\d{4})Q0?(\d)/, "$1년 $2분기"); };
-    var sign = function (v) { return (v >= 0 ? "+" : "") + v.toFixed(1) + "%"; };
-    var cls = function (v) { return v >= 0 ? "var(--up)" : "var(--down)"; };
+    var total = first.value ? (last.value - first.value) / first.value * 100 : 0;
 
-    // 막대 하나짜리 간이 추세 — 별도 차트 없이 흐름만 읽히게
-    var vals = pts.map(function (p) { return p.value; });
-    var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
-    var span = (hi - lo) || 1;
-    var spark = '<div class="pi-spark">' + pts.map(function (p) {
-      var h = 12 + Math.round((p.value - lo) / span * 34);
-      return '<i style="height:' + h + 'px" title="' + fmtQ(p) + " " + p.value + '"></i>';
-    }).join("") + "</div>";
+    // 분기 변동률 — 0을 기준선으로 두므로 크기를 그대로 비교할 수 있다
+    var qoq = [];
+    for (var i = 1; i < pts.length; i++) {
+      var prev = pts[i - 1].value;
+      qoq.push({ p: pts[i], v: prev ? (pts[i].value - prev) / prev * 100 : 0 });
+    }
+    var peak = qoq.reduce(function (m, x) { return Math.max(m, Math.abs(x.v)); }, 0) || 1;
+
+    var bars = '<div class="pi-chart"><div class="pi-bars">' + qoq.map(function (x) {
+      var h = Math.max(3, Math.round(Math.abs(x.v) / peak * 46));
+      return '<div class="pi-col" title="' + fmtQ(x.p) + " " + x.p.value + " (" + sign(x.v) + ')">' +
+        '<span class="pi-val ' + cls(x.v) + '">' + sign(x.v) + "</span>" +
+        '<span class="pi-bar ' + cls(x.v) + (x.v < 0 ? " neg" : "") + '" style="height:' + h + 'px"></span>' +
+        '<span class="pi-q">' + shortQ(x.p) + "</span></div>";
+    }).join("") + '</div><div class="pi-zero"><span>0%</span></div></div>';
+
+    // 서울 안에서 어디쯤인지
+    var rankLine = "";
+    if (yoy !== null) {
+      var R = priceIndexRank();
+      var idx = -1;
+      for (var j = 0; j < R.rows.length; j++) if (R.rows[j].gu === gu) { idx = j; break; }
+      if (idx >= 0) {
+        var gap = yoy - R.avg;
+        rankLine = '<div class="pi-rank">' +
+          "<b>서울 " + R.n + "개 구 중 " + (idx + 1) + "위</b>" +
+          '<span class="dim-note">25개구 평균 ' + sign(R.avg) + " · " +
+          esc(gu) + "가 " + (Math.abs(gap) < 0.5 ? "평균 수준" :
+            (gap > 0 ? "<b class='up'>" + gap.toFixed(1) + "%p 높음</b>"
+                     : "<b class='down'>" + Math.abs(gap).toFixed(1) + "%p 낮음</b>")) + "</span></div>";
+      }
+    }
 
     return "<h3 style='margin-top:18px;font-size:14.5px'>🏛️ " + esc(gu) +
       " 공식 실거래가격지수 <span class='rt-sub'>한국부동산원</span></h3>" +
-      "<ul>" +
-      "<li>최근 <b>" + fmtQ(last) + " " + last.value + "</b> " +
-      "<span class='rt-sub'>(" + esc(pi.unit) + ")</span></li>" +
-      (yoy !== null ? "<li>전년 동기 대비 <b style='color:" + cls(yoy) + "'>" + sign(yoy) + "</b></li>" : "") +
-      "<li>" + fmtQ(first) + " 이후 누적 <b style='color:" + cls(total) + "'>" + sign(total) + "</b></li>" +
-      "</ul>" + spark +
-      "<p style='margin-top:8px;color:var(--txt-mute);font-size:12px'>" +
+      '<div class="pi-top">' +
+        '<div class="pi-now"><span class="pi-now-q">' + fmtQ(last) + "</span>" +
+          '<span class="pi-now-v">' + last.value + "</span>" +
+          '<span class="dim-note">' + esc(pi.unit) + "</span></div>" +
+        (yoy !== null ? '<div class="pi-kpi"><span>전년 동기 대비</span><b class="' + cls(yoy) + '">' +
+          sign(yoy) + "</b></div>" : "") +
+        '<div class="pi-kpi"><span>' + fmtQ(first) + " 이후</span><b class=\"" + cls(total) + '">' +
+          sign(total) + "</b></div>" +
+      "</div>" + rankLine +
+      '<p class="pi-cap">분기별 변동률 <span class="dim-note">막대는 0%가 기준선이라 길이를 그대로 비교하셔도 됩니다</span></p>' +
+      bars +
+      "<p style='margin-top:10px;color:var(--txt-mute);font-size:12px'>" +
       "위 중위 평당가는 <b>이 대시보드가 직접 계산</b>한 값이고, 이 지수는 <b>한국부동산원 공식 통계</b>입니다. " +
       "산출 방식이 달라 숫자는 다르지만 <b>방향(오름/내림)이 어긋나면</b> 표본이 치우쳤다는 신호로 보시면 됩니다. " +
       "분기 단위라 최신 분기는 늦게 반영됩니다.</p>";
