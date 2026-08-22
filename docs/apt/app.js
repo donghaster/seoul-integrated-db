@@ -2353,6 +2353,58 @@
   /* 그래프를 읽어 고객께 그대로 드릴 문장으로 푼다.
      월별 브리핑과 같은 규칙 — 표본이 얇거나 한 단지에 쏠린 구간은 빼고,
      뺐다는 사실을 함께 말한다. */
+  /* ── 결론 ──
+     "지금 어떤 국면인가"까지만 말한다. 앞으로 어떻게 될지는 말하지 않는다.
+     추세(첫->끝) · 기울기 변화(뒤 절반 vs 앞 절반) · 흔들림(고저 격차) 세 가지로 가른다. */
+  /* 그 구간이 아직 신고를 받는 중인가.
+     실거래 신고 기한이 계약일로부터 30일이라, 구간 끝이 자료 기준일에서
+     30일 안쪽이면 아직 덜 들어온 것으로 본다. 월별 브리핑과 같은 잣대다. */
+  function bucketPending(key) {
+    var end;
+    if (key.length === 7) {                       // "2026-08"
+      end = new Date(parseInt(key.slice(0, 4), 10), parseInt(key.slice(5), 10), 0);
+    } else {                                      // "2026-08-17" (주 시작)
+      end = new Date(key + "T00:00:00");
+      end.setDate(end.getDate() + 6);
+    }
+    var cut = new Date(DATA_END + "T00:00:00");
+    cut.setDate(cut.getDate() - 30);
+    return end > cut;
+  }
+
+  function phaseOf(vals) {
+    if (!vals || vals.length < 2) return null;
+    var a = vals[0], b = vals[vals.length - 1];
+    if (!a) return null;
+    var r = (b - a) / a * 100;
+
+    // 뒤 절반이 앞 절반보다 빨라졌는지 느려졌는지
+    var accel = null;
+    if (vals.length >= 4) {
+      var h = Math.floor(vals.length / 2);
+      var e1 = (vals[h - 1] - vals[0]) / vals[0] * 100;
+      var e2 = (vals[vals.length - 1] - vals[h]) / vals[h] * 100;
+      accel = e2 - e1;
+    }
+    var hi = Math.max.apply(null, vals), lo = Math.min.apply(null, vals);
+    var swing = lo ? (hi - lo) / lo * 100 : 0;
+
+    var tag, tone;
+    if (swing >= 25) { tag = "흔들림이 큰 국면"; tone = "warn"; }
+    else if (r >= 5) { tag = (accel !== null && accel < -2) ? "오름세가 둔화되는 국면" : "오름세 국면"; tone = "up"; }
+    else if (r <= -5) { tag = (accel !== null && accel > 2) ? "내림세가 진정되는 국면" : "약세 국면"; tone = "down"; }
+    else { tag = "보합 국면"; tone = "flat"; }
+    return { tag: tag, tone: tone, r: r, accel: accel, swing: swing };
+  }
+
+  function conclHtml(tag, tone, lines, advice) {
+    return '<li class="cc-li"><div class="cc ' + tone + '">' +
+      '<div class="cc-head"><span class="cc-badge">결론</span><b>' + tag + "</b></div>" +
+      '<p class="cc-why">' + lines.join(" ") + "</p>" +
+      '<p class="cc-do"><span>고객께</span>' + advice + "</p>" +
+      "</div></li>";
+  }
+
   function renderIndexScript(sets, labels, isIdx) {
     var host = document.getElementById("idxScript");
     if (!host) return;
@@ -2362,6 +2414,7 @@
     var unit = state.gran === "week" ? "주" : "달";
     var unitEun = state.gran === "week" ? "주는" : "달은";      // 받침 유무로 조사가 갈린다
     var out = [];
+    var concl = null;                       // 맨 앞에 붙일 결론
 
     // 쓸 만한 구간만 남긴다
     function usable(d) {
@@ -2372,6 +2425,69 @@
       }
       return v;
     }
+
+    // 매매 흐름으로 국면을 가른다(없으면 전세)
+    (function () {
+      var lead = sets.filter(function (d) { return d._stats && d.label.indexOf("매매") >= 0; })[0]
+              || sets.filter(function (d) { return d._stats; })[0];
+      if (!lead) return;
+      var keys = bucketList();
+      var solid = usable(lead).filter(function (x) { return !bucketPending(keys[x.i]); });
+      var v = solid.map(function (x) { return x.s.v; });
+      var ph = phaseOf(v);
+      var thin = (lead._stats || []).filter(function (x) { return x.n && x.n < THIN; }).length;
+      var drawn = (lead._stats || []).filter(function (x) { return x.n; }).length;
+
+      if (!ph || v.length < 3) {
+        var all2 = usable(lead);
+        var cut = all2.filter(function (x) { return bucketPending(keys[x.i]); });
+        var why0 = [];
+        if (cut.length) {
+          why0.push("<b>" + cut.map(function (x) { return labels[x.i]; }).join("·") +
+            "은 아직 신고를 받는 중</b>이라 뺐습니다(신고 기한 계약일+30일).");
+        }
+        why0.push("남은 " + unit + "이 <b>" + v.length + "곳뿐</b>이라 " +
+          "이 표본으로 흐름을 말씀드리면 <b>틀릴 가능성이 큽니다</b>.");
+        concl = conclHtml("아직 흐름을 말하기 이른 구간", "flat", why0,
+          "<b>조회 기간을 12개월</b>로 놓으시면 확정된 달이 늘어 제대로 보입니다. " +
+          "그전에는 위 <b>표의 건수</b>와 <b>개별 단지</b>로 설명하세요.");
+        return;
+      }
+
+      var why = [];
+      why.push("<b>" + esc(lead.label) + "</b>가 조회 구간에서 <b>" +
+        (ph.r >= 0 ? "+" : "\u2212") + Math.abs(ph.r).toFixed(1) + "%</b>입니다.");
+      if (ph.accel !== null && Math.abs(ph.accel) >= 2) {
+        why.push("뒤 절반이 앞 절반보다 <b>" + Math.abs(ph.accel).toFixed(1) + "%p " +
+          (ph.accel > 0 ? "빨라졌습니다" : "느려졌습니다") + "</b>.");
+      }
+      if (ph.swing >= 15) {
+        why.push("다만 고점과 저점이 <b>" + Math.round(ph.swing) + "%</b> 벌어져 <b>" + unit +
+          "마다 크게 출렁입니다</b>.");
+      }
+      if (thin) why.push("표본이 얇은 " + unit + "이 " + thin + "/" + drawn + "곳 있습니다.");
+      var pend = usable(lead).filter(function (x) { return bucketPending(keys[x.i]); });
+      if (pend.length) {
+        why.push("<b>" + pend.map(function (x) { return labels[x.i]; }).join("·") +
+          "은 신고가 덜 들어와 결론에서 뺐습니다.</b>");
+      }
+
+      var advice;
+      if (ph.tone === "warn") {
+        advice = "<b>지금 수치 하나로 시세를 못박지 마세요.</b> 관심 단지의 <b>같은 평형 최근 거래</b>를 직접 확인해 드리는 편이 안전합니다.";
+      } else if (ph.tone === "up") {
+        advice = ph.tag.indexOf("둔화") >= 0
+          ? "<b>오르고는 있지만 속도는 줄었습니다.</b> 급하게 결정하실 상황은 아니되, 방향이 꺾인 것도 아니라고 말씀하세요."
+          : "<b>수요가 붙어 있는 구간</b>입니다. 매수 쪽이면 미루실수록 부담이 커질 수 있다고 짚어 주세요.";
+      } else if (ph.tone === "down") {
+        advice = ph.tag.indexOf("진정") >= 0
+          ? "<b>내림폭이 줄고 있습니다.</b> 바닥을 단정하지 마시고 <b>거래량이 함께 도는지</b> 확인하시라고 하세요."
+          : "<b>매도 쪽이면 서두르실 이유</b>가, 매수 쪽이면 <b>기다리실 여유</b>가 있는 구간입니다.";
+      } else {
+        advice = "<b>값이 크게 움직이지 않는 구간</b>입니다. 시세보다 <b>매물 상태·층·향</b>으로 협상하시는 편이 낫습니다.";
+      }
+      concl = conclHtml(ph.tag, ph.tone, why, advice);
+    })();
 
     sets.forEach(function (d) {
       if (!d._stats) return;                       // 공식지수 선은 건너뛴다
@@ -2459,7 +2575,7 @@
       (isIdx ? "<b>첫 구간 100</b> 기준으로 지수화" : "<b>만원/평</b> 그대로") + "한 것입니다. " +
       regionLabel() + " " + win().label + " 구간입니다.");
 
-    host.innerHTML = out.map(function (t) { return "<li>" + t + "</li>"; }).join("");
+    host.innerHTML = (concl || "") + out.map(function (t) { return "<li>" + t + "</li>"; }).join("");
   }
 
   function renderIndex() {
@@ -2874,6 +2990,80 @@
   /* 고객 앞에서 그대로 읽어 드릴 수 있게 금집부쌤 1인칭으로 풀어 준다.
      예측은 하지 않는다 — 확인된 수치와 그 한계만 말한다.
      "집계중"인 달도 흐름에는 넣되, 미확정이라는 사실을 반드시 함께 말한다. */
+  /* 월별 브리핑 결론 — 값·거래량·전월세 구조를 묶어 국면을 잡는다.
+     집계중인 달은 빼고 본다. 안 그러면 신고가 덜 들어온 걸 '급감'으로 읽는다. */
+  function briefConcl(mo) {
+    var solid = mo.filter(function (x) { return !isPending(x.m); });
+    var use = solid.filter(function (x) { return x.sale.n >= MIN_N && x.sale.py && !x.sale.hot; });
+
+    if (use.length < 2) {
+      var tot = mo.reduce(function (t, x) { return t + x.sale.n; }, 0);
+      return conclHtml("매매로는 판단이 어려운 국면", "flat",
+        ["신고가 마감된 달 가운데 매매 " + MIN_N + "건을 넘긴 달이 " + use.length + "곳뿐입니다.",
+         "조회 기간 매매는 모두 " + tot.toLocaleString() + "건입니다."],
+        "매매 흐름 대신 <b>전월세 표</b>와 <b>개별 단지</b>로 설명하시고, " +
+        "기간을 <b>6개월 이상</b>으로 넓혀 다시 보세요.");
+    }
+
+    var vals = use.map(function (x) { return x.sale.py; });
+    var ph = phaseOf(vals);
+    var a = use[0], b = use[use.length - 1];
+
+    var why = ["<b>매매 중위 평당가</b>가 " + moLabel(a.m) + " " + Math.round(a.sale.py).toLocaleString() +
+      "만원에서 " + moLabel(b.m) + " " + Math.round(b.sale.py).toLocaleString() + "만원으로 <b>" +
+      (ph.r >= 0 ? "+" : "\u2212") + Math.abs(ph.r).toFixed(1) + "%</b>입니다."];
+
+    // 거래량 — 마감된 달끼리만
+    var volWord = "";
+    if (solid.length >= 2) {
+      var v1 = solid[0], v2 = solid[solid.length - 1];
+      var n1 = v1.sale.n + v1.jeonse.n + v1.wolse.n, n2 = v2.sale.n + v2.jeonse.n + v2.wolse.n;
+      if (n1) {
+        var vr = (n2 - n1) / n1 * 100;
+        volWord = Math.abs(vr) < 10 ? "거래량은 비슷합니다"
+          : (vr > 0 ? "거래량이 <b>" + Math.round(vr) + "% 늘었습니다</b>"
+                    : "거래량이 <b>" + Math.round(-vr) + "% 줄었습니다</b>");
+        why.push(moLabel(v1.m) + " " + n1.toLocaleString() + "건 → " + moLabel(v2.m) + " " +
+          n2.toLocaleString() + "건으로 " + volWord + ".");
+      }
+    }
+
+    // 전월세 구조
+    var w = solid.filter(function (x) { return x.wolse.n >= MIN_N && x.wolse.rent; });
+    if (w.length >= 2) {
+      var jrA = Math.round(w[0].wolse.junRate * 100), jrB = Math.round(w[w.length - 1].wolse.junRate * 100);
+      if (jrB - jrA >= 8) {
+        why.push("전월세는 <b>준전세 비중이 " + jrA + "% → " + jrB + "%</b>로 늘어, " +
+          "<b>보증금을 올리고 월세를 낮추는 쪽</b>으로 움직였습니다.");
+      } else if (jrA - jrB >= 8) {
+        why.push("전월세는 <b>준전세 비중이 " + jrA + "% → " + jrB + "%</b>로 줄어, " +
+          "<b>월세를 늘리는 쪽</b>으로 움직였습니다.");
+      }
+    }
+
+    var pend = mo.filter(function (x) { return isPending(x.m); });
+    if (pend.length) {
+      why.push("<b>" + pend.map(function (x) { return moLabel(x.m); }).join("·") +
+        "은 신고가 덜 들어와 결론에서 뺐습니다.</b>");
+    }
+
+    var advice;
+    if (ph.tone === "warn") {
+      advice = "<b>달마다 크게 출렁여 한 숫자로 못박기 어렵습니다.</b> 관심 단지의 <b>같은 평형 최근 거래</b>를 직접 짚어 드리세요.";
+    } else if (ph.tone === "up") {
+      advice = (volWord.indexOf("줄었") >= 0)
+        ? "<b>값은 오르는데 거래는 줄었습니다.</b> 호가만 오른 것일 수 있으니 <b>실제 성사가</b>를 꼭 확인하시라고 하세요."
+        : "<b>값과 거래가 함께 도는 구간</b>입니다. 매수 쪽이면 결정을 미루실수록 선택지가 줄어든다고 짚어 주세요.";
+    } else if (ph.tone === "down") {
+      advice = (volWord.indexOf("늘었") >= 0)
+        ? "<b>값은 내렸지만 거래는 늘었습니다.</b> 저가 매물이 소화되는 구간이라 <b>급매 위주로</b> 보시라고 권하세요."
+        : "<b>값도 거래도 식은 구간</b>입니다. 매도 쪽이면 가격 조정을, 매수 쪽이면 여유를 두시라고 말씀하세요.";
+    } else {
+      advice = "<b>값이 크게 움직이지 않는 구간</b>입니다. 시세 협상보다 <b>층·향·수리 상태</b>로 조건을 맞추시는 편이 낫습니다.";
+    }
+    return conclHtml(ph.tag, ph.tone, why, advice);
+  }
+
   function renderBriefScript(mo) {
     var out = [];
     document.getElementById("briefScriptTitle").textContent =
@@ -3004,7 +3194,7 @@
       "건이 안 돼 시세 변동으로 보기 어려운 등락률입니다.");
 
     document.getElementById("briefScript").innerHTML =
-      out.map(function (t) { return "<li>" + t + "</li>"; }).join("");
+      briefConcl(mo) + out.map(function (t) { return "<li>" + t + "</li>"; }).join("");
   }
 
   function renderAll() {

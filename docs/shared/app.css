@@ -838,3 +838,34 @@ section[data-tabpanel].is-on { display: block; }
 .dv-peer.me { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 800; }
 
 @media print { .dv-box { break-inside: avoid; } }
+
+/* ── 결론 — 브리핑 맨 앞에서 "지금 어떤 국면인가"를 답한다 ── */
+.cc-li { list-style: none; margin-left: -18px; margin-bottom: 12px; }
+.cc {
+  border-radius: 10px; padding: 12px 15px 13px;
+  background: #fff; border: 1px solid var(--line); border-left: 5px solid var(--txt-mute);
+}
+.cc.up { border-left-color: var(--up); }
+.cc.down { border-left-color: var(--down); }
+.cc.warn { border-left-color: var(--gold); }
+.cc.flat { border-left-color: var(--txt-mute); }
+.cc-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 7px; }
+.cc-head b { font-size: 15px; color: var(--txt); }
+.cc-badge {
+  font-size: 10.5px; font-weight: 800; color: #fff; background: var(--txt);
+  padding: 3px 9px; border-radius: 999px; letter-spacing: .04em;
+}
+.cc.up .cc-badge { background: var(--up); }
+.cc.down .cc-badge { background: var(--down); }
+.cc.warn .cc-badge { background: var(--gold); }
+.cc-why { font-size: 12.5px; color: var(--txt-dim); line-height: 1.8; margin: 0 0 9px; }
+.cc-why b { color: var(--txt); }
+.cc-do {
+  font-size: 12.5px; color: var(--txt); line-height: 1.8; margin: 0;
+  padding: 9px 12px; background: #fff8ec; border: 1px solid #f0dfb3; border-radius: 8px;
+}
+.cc-do > span {
+  display: inline-block; font-size: 10.5px; font-weight: 800; color: #8a6a1f; margin-right: 7px;
+}
+
+@media print { .cc { break-inside: avoid; } }
