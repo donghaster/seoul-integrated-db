@@ -1852,6 +1852,97 @@
     return "#bc3d3d";
   }
 
+  /* 값(중위 평당가) 순위 — 화면 표와 같은 조회 기간으로 매긴다 */
+  function priceRankOf(gu) {
+    var rows = D.gus.map(function (g) {
+      return { g: g, py: regionOf(g).med.pyeong || 0 };
+    }).filter(function (x) { return x.py; }).sort(function (a, b) { return b.py - a.py; });
+    for (var i = 0; i < rows.length; i++) if (rows[i].g === gu) return { rank: i + 1, n: rows.length, py: rows[i].py };
+    return null;
+  }
+
+  /* 두 순위의 조합이 곧 브리핑이다.
+       비싸고 계속 오른다 / 비싼데 쉬어간다 / 저평가인데 따라붙는다 / 둘 다 조용하다 */
+  function locBriefHtml() {
+    var gu = state.gu === ALL ? null : state.gu;
+    var pi = gu && LOC[gu] && LOC[gu].priceIndex;
+    if (!pi || !pi.points || pi.points.length < 5) return "";
+
+    var pr = priceRankOf(gu);
+    if (!pr) return "";
+
+    var R = priceIndexRank();
+    var ri = -1;
+    for (var i = 0; i < R.rows.length; i++) if (R.rows[i].gu === gu) { ri = i; break; }
+    if (ri < 0) return "";
+
+    var yoy = R.rows[ri].yoy;
+    var rRank = ri + 1, pRank = pr.rank, N = R.n;
+    var gap = yoy - R.avg;
+    var HI = Math.ceil(N / 3), LO = N - HI + 1;      // 상위/하위 3분의 1
+
+    var pBand = pRank <= HI ? 0 : (pRank >= LO ? 2 : 1);      // 0 비쌈 · 1 중간 · 2 저렴
+    var rBand = rRank <= HI ? 0 : (rRank >= LO ? 2 : 1);      // 0 빠름 · 1 보통 · 2 느림
+    var pWord = ["비싼 편", "중간", "저렴한 편"][pBand];
+    var rWord = ["빠른 편", "평균 수준", "느린 편"][rBand];
+
+    // 값 3구간 x 상승률 3구간 — 아홉 칸을 모두 채운다
+    var GRID = [
+      [ // 값 상위
+        ["비싸고 계속 오르는 곳",
+         "이미 서울 상위권 값인데 <b>오르는 속도도 상위권</b>입니다. 수요가 계속 붙고 있다는 뜻이라, 매수를 미루실수록 부담이 커질 수 있습니다."],
+        ["비싼 값을 지키는 곳",
+         "서울 <b>최상위권 값</b>을 유지하면서 상승 속도는 <b>평균 수준</b>입니다. 이미 높은 자리라 급등은 어렵지만, <b>값이 잘 안 빠지는</b> 자리로 보시면 됩니다."],
+        ["비싸지만 쉬어가는 곳",
+         "값은 서울 상위권인데 <b>오르는 속도는 하위권</b>입니다. 이미 높은 자리에 올라와 <b>상승 여력이 제한적</b>이거나 잠시 쉬어가는 구간입니다."],
+      ],
+      [ // 값 중간
+        ["중간값에서 빠르게 오르는 곳",
+         "값은 서울 중간권인데 <b>오르는 속도는 상위권</b>입니다. <b>격차를 좁히는 중</b>이라 눈여겨보실 만합니다."],
+        ["서울 평균 근처",
+         "값과 상승 속도가 모두 <b>서울 중간권</b>입니다. 특별히 앞서지도 뒤처지지도 않는 흐름입니다."],
+        ["중간값에서 쉬어가는 곳",
+         "값은 서울 중간권인데 <b>오르는 속도는 하위권</b>입니다. 당분간 <b>큰 움직임을 기대하기 어려운</b> 구간입니다."],
+      ],
+      [ // 값 하위
+        ["저평가에서 따라붙는 곳",
+         "값은 아직 서울 하위권인데 <b>오르는 속도는 상위권</b>입니다. <b>뒤늦게 따라붙는 구간</b>이라 지금이 관심 가질 시점일 수 있습니다."],
+        ["값이 낮고 완만한 곳",
+         "값은 서울 하위권이고 상승 속도는 <b>평균 수준</b>입니다. <b>실거주 부담이 적으면서</b> 시세는 서울 흐름을 따라가는 자리입니다."],
+        ["값도 움직임도 조용한 곳",
+         "값도 서울 하위권이고 <b>오르는 속도도 하위권</b>입니다. 실거주 부담은 적지만 <b>시세 차익은 기대하기 어려운</b> 구간입니다."],
+      ],
+    ];
+    var tag = GRID[pBand][rBand][0], story = GRID[pBand][rBand][1];
+
+    var sign = function (v) { return (v >= 0 ? "+" : "\u2212") + Math.abs(v).toFixed(1) + "%"; };
+    var speak =
+      esc(gu) + "는 서울 " + N + "개 구 가운데 <b>값은 " + pRank + "위</b>(평당 " +
+      pr.py.toLocaleString() + "만원)로 " + pWord + "인데, <b>오르는 속도는 " + rRank + "위</b>(전년 대비 " +
+      sign(yoy) + ")로 " + rWord + "입니다. " +
+      (Math.abs(gap) < 0.5 ? "서울 평균과 비슷합니다. "
+        : "25개구 평균(" + sign(R.avg) + ")보다 <b>" + Math.abs(gap).toFixed(1) + "%p " +
+          (gap > 0 ? "높습니다" : "낮습니다") + "</b>. ") +
+      story.replace(/<\/?b>/g, "");
+
+    return '<div class="loc-brief">' +
+      '<div class="lb-head"><span class="lb-badge">한 줄 요약</span>' + esc(gu) + " &mdash; <b>" + tag + "</b></div>" +
+      '<div class="lb-grid">' +
+        '<div class="lb-cell"><span class="lb-k">값 (중위 평당가)</span>' +
+          '<span class="lb-v">서울 <b>' + pRank + "위</b></span>" +
+          '<span class="lb-s">' + pr.py.toLocaleString() + "만원 · " + pWord + "</span></div>" +
+        '<div class="lb-cell"><span class="lb-k">상승률 (공식지수)</span>' +
+          '<span class="lb-v">서울 <b>' + rRank + "위</b></span>" +
+          '<span class="lb-s">전년 대비 ' + sign(yoy) + " · " + rWord + "</span></div>" +
+      "</div>" +
+      '<p class="lb-story">' + story + "</p>" +
+      '<div class="lb-speak"><span class="lb-quote">고객께</span><p>&ldquo;' + speak + '&rdquo;</p></div>' +
+      '<p class="lb-foot">값 순위는 <b>선택한 조회 기간</b>의 실거래로 이 대시보드가 계산했고, ' +
+        "상승률 순위는 <b>한국부동산원 공식지수</b>의 전년 동기 대비입니다. " +
+        "<b>재는 것이 달라 두 순위가 어긋나는 것이 정상</b>입니다.</p>" +
+      "</div>";
+  }
+
   function locDataHtml() {
     var r = region();
     var seoul = regionOf(ALL);
@@ -1890,6 +1981,7 @@
           return "<tr><td>" + (i + 1) + "</td><td>" + esc(x.d) + "</td>" +
             '<td class="rt-price">' + x.py.toLocaleString() + "만원</td><td>" + x.c.toLocaleString() + "건</td></tr>";
         }).join("") + "</tbody></table>" : "") +
+      locBriefHtml() +
       priceIndexHtml() +
       "<p style='margin-top:10px;color:var(--txt-mute);font-size:12.5px'>" +
       "※ 평당가 = 거래금액 ÷ (전용면적 ÷ 3.3058). 매매 신고 3건 이상인 지역만 순위에 넣습니다.</p>";
@@ -1964,9 +2056,7 @@
           esc(gu) + "가 " + (Math.abs(gap) < 0.5 ? "평균 수준" :
             (gap > 0 ? "<b class='up'>" + gap.toFixed(1) + "%p 높음</b>"
                      : "<b class='down'>" + Math.abs(gap).toFixed(1) + "%p 낮음</b>")) + "</span></div>" +
-          '<p class="pi-note">위 <b>평당가 순위</b>는 <b>어디가 비싼가</b>, 이 <b>상승률 순위</b>는 ' +
-          "<b>어디가 많이 올랐나</b>입니다. <b>서로 다른 순위</b>라 어긋나는 것이 정상입니다 " +
-          "&mdash; 성동구는 값은 5위지만 상승률은 1위, 서초구는 값 2위인데 상승률은 14위입니다.</p>";
+          "";
       }
     }
 
