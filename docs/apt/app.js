@@ -1446,16 +1446,19 @@
 
     if (!q) return base + "</p>";
 
-    var head = base + " 대신 <b>" + esc(q.basis) + "</b>의 실제 전세가율(" +
-      q.lo + "~" + q.hi + "%, 중위 " + q.mid + "% · 표본 " + q.n.toLocaleString() + "개 평형)로 " +
-      "가늠해 보면 아래와 같습니다.</p>";
+    var head = base + "</p>" +
+      '<div class="calc-head"><span class="calc-badge">계산값</span>' +
+      "실거래가 아니라 <b>유사 실거래로 계산한 값</b>입니다</div>" +
+      "<p>" + esc(q.basis) + "의 실제 전세가율은 <b>" + q.lo + "~" + q.hi + "%</b>" +
+      "(중위 " + q.mid + "% · 같은 단지·같은 평형에서 매매·전세가 각 3건 이상인 <b>" +
+      q.n.toLocaleString() + "개 평형</b>을 짝지어 계산)입니다. 이 비율을 아래 매매가에 대본 값입니다.</p>";
 
     var rows = sum.bands.filter(function (g) { return g.medSale; });
     if (!rows.length) {
       return base + " 매매도 없어 계산할 기준이 없습니다. 아래 <b>인근 유사 단지</b>를 보세요.</p>";
     }
 
-    return head + '<div class="table-wrap"><table class="detail-deals"><thead><tr>' +
+    return '<div class="calc-box">' + head + '<div class="table-wrap"><table class="detail-deals"><thead><tr>' +
       "<th>전용면적</th><th>중위 매매가</th><th>추정 전세</th><th>중위 기준</th></tr></thead><tbody>" +
       rows.map(function (g) {
         return "<tr><td>" + bandLabel(g.b) + "</td>" +
@@ -1464,9 +1467,9 @@
             eokman(Math.round(g.medSale * q.hi / 100)) + "</b></td>" +
           "<td>" + eokman(Math.round(g.medSale * q.mid / 100)) + "</td></tr>";
       }).join("") + "</tbody></table>" +
-      '<p class="dim-note" style="margin-top:8px">' +
-      "매매 중위값 × 전세가율입니다. <b>실제 계약은 동·향·층·수리 상태에 따라 이 범위를 벗어납니다.</b> " +
-      "고객께는 <b>참고 범위</b>로만 말씀하세요.</p></div>";
+      "</div>" +
+      '<p class="calc-foot">매매 중위값 × 전세가율입니다. 동·향·층·수리 상태에 따라 이 범위를 벗어납니다. ' +
+      "<b>실거래로 확인된 값이 아니니</b> 반드시 <b>참고 범위</b>로만 말씀하세요.</p></div>";
   }
 
   function similarHtml(key, band) {
@@ -1532,12 +1535,14 @@
     if (!sum.cnt.jeonse && g.medSale) {
       var q = jeonseRatio(a.gu, a.dg, a.y);
       if (q) {
-        out.push("<b>전세는 신고된 거래가 없습니다.</b> " +
-          esc(q.basis) + "의 실제 전세가율이 <b>" + q.lo + "~" + q.hi + "%</b>(중위 " + q.mid + "%)라, " +
-          bandLabel(g.b) + " 매매 중위 " + eokman(g.medSale) + " 기준으로 보면 " +
+        out.push("<b>전세는 신고된 거래가 없습니다.</b> 아래는 실거래가 아니라 " +
+          "<b>유사 실거래로 계산한 값</b>입니다 — " +
+          esc(q.basis) + "에서 같은 단지·같은 평형의 매매와 전세를 짝지어 낸 전세가율이 " +
+          "<b>" + q.lo + "~" + q.hi + "%</b>(중위 " + q.mid + "%, 표본 " + q.n.toLocaleString() + "개 평형)라, " +
+          bandLabel(g.b) + " 매매 중위 " + eokman(g.medSale) + "에 대보면 " +
           "<b>" + eokman(Math.round(g.medSale * q.lo / 100)) + " ~ " +
           eokman(Math.round(g.medSale * q.hi / 100)) + "</b> 정도가 됩니다. " +
-          "<b>계산으로 짚은 범위</b>일 뿐이니 실제 계약은 동·향·층에 따라 달라진다고 꼭 덧붙이세요.");
+          "<b>실거래로 확인된 값이 아니라는 점</b>을 고객께 꼭 함께 말씀하세요.");
       }
     }
 

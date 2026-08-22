@@ -697,3 +697,36 @@ section[data-tabpanel].is-on { display: block; }
   padding: 2px 8px; border-radius: 5px; margin-left: 6px;
   color: #9c3232; background: #fdefef; border: 1px solid #f0cfcf;
 }
+
+/* ════════════════ 계산값 블록 — 실거래와 확실히 구분한다 ════════════════ */
+
+.calc-box {
+  background: #f7f9fd; border: 1px solid #d6e0f2; border-left: 4px solid var(--accent);
+  border-radius: 10px; padding: 14px 16px; margin: 4px 0 0;
+}
+.calc-head {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 12.5px; font-weight: 700; color: var(--accent-2); margin-bottom: 8px;
+}
+.calc-badge {
+  display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .02em;
+  padding: 3px 9px; border-radius: 999px;
+  color: #fff; background: var(--accent);
+}
+.calc-box > p { font-size: 12.5px; color: var(--txt-dim); line-height: 1.75; margin: 0 0 10px; }
+.calc-box > p b { color: var(--txt); }
+.calc-box .table-wrap { margin-bottom: 10px; }
+.calc-foot {
+  font-size: 12px; color: var(--txt-mute); line-height: 1.7; margin: 0;
+  padding-top: 9px; border-top: 1px dashed #d6e0f2;
+}
+.calc-foot b { color: #9c3232; }
+.calc-warn {
+  background: #fdf2f2; border: 1px solid #f0cfcf; border-radius: 8px;
+  padding: 10px 13px; font-size: 12.5px; color: var(--txt-dim); line-height: 1.75; margin: 0 0 10px;
+}
+.calc-warn b { color: #9c3232; }
+/* 계산값은 실거래처럼 보이면 안 된다 — 숫자를 기울여 구분한다 */
+.calc-box .detail-deals td:nth-child(3) b { font-style: italic; }
+
+@media print { .calc-box { break-inside: avoid; background: #fff; } }

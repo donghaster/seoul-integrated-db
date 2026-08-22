@@ -396,6 +396,58 @@ def monthly_stats(nrg_rows: dict, offi_rows: dict, yms: list[str]) -> dict:
     return out
 
 
+def offi_jeonse_ratio(sale: list, rent: list) -> dict:
+    """오피스텔 전세가율 — 전세 신고가 없는 지역에서 "얼마쯤 하느냐"를 답하는 기준.
+
+    같은 건물·같은 평형에서 매매·전세가 각 3건 이상인 곳만 짝지어 비율을 낸다.
+    지역 전체 중위끼리 나누면 평형 구성이 달라 엉뚱한 값이 나온다.
+
+    오피스텔은 아파트와 값이 전혀 다르다(아파트 42~60% / 오피스텔 81~96%).
+    90% 안팎은 깡통전세 위험 구간이라 화면에서 따로 짚어 준다.
+    """
+    from statistics import median as _med
+
+    def era(y):
+        if not y:
+            return "?"
+        return "신축" if y >= 2020 else ("준신축" if y >= 2010 else "구축")
+
+    bag: dict = {}
+    for r in sale:
+        k = (r["gu"], r.get("dong") or "", r.get("name") or "", round(r["area"]))
+        b = bag.setdefault(k, {"s": [], "j": [], "y": 0})
+        b["s"].append(r["amount"])
+        b["y"] = max(b["y"], r.get("build") or 0)
+    for r in rent:
+        if r["t"] != "jeonse":
+            continue
+        k = (r["gu"], r.get("dong") or "", r.get("name") or "", round(r["area"]))
+        b = bag.setdefault(k, {"s": [], "j": [], "y": 0})
+        b["j"].append(r["deposit"])
+        b["y"] = max(b["y"], r.get("build") or 0)
+
+    buckets: dict[str, list] = {}
+    for (gu, _dong, _nm, _a), b in bag.items():
+        if len(b["s"]) < 3 or len(b["j"]) < 3:
+            continue
+        ms, mj = _med(b["s"]), _med(b["j"])
+        if not ms or not mj:
+            continue
+        v = mj / ms * 100
+        e = era(b["y"])
+        for k in (f"{gu}|{e}", gu, f"서울|{e}", "서울"):
+            buckets.setdefault(k, []).append(v)
+
+    out = {}
+    for k, v in buckets.items():
+        if len(v) < 8:                      # 이 표본은 넘어야 범위를 말한다
+            continue
+        v.sort()
+        q = lambda p: round(v[min(len(v) - 1, int(len(v) * p))])
+        out[k] = [q(0.25), q(0.5), q(0.75), len(v)]
+    return out
+
+
 def build_sangga(yms: list[str]) -> dict:
     nrg = [r for r in load_all("nrgSale", yms) if r["date"] <= TODAY]
     offi_sale = [r for r in load_all("offiSale", yms) if r["date"] <= TODAY]
@@ -510,6 +562,7 @@ def build_sangga(yms: list[str]) -> dict:
         "regions": out_regions,
         "rankGu": rank_gu,
         "groupLabel": NRG_GROUP_LABEL,
+        "jeonseRatio": offi_jeonse_ratio(offi_sale, offi_rent),
         "total": len(nrg) + len(offi_sale) + len(offi_rent),
     }
 

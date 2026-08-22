@@ -277,11 +277,76 @@
     });
   });
 
+  /* ── 전세가율 ──
+     전세 신고가 없는 지역에서도 "얼마쯤 하느냐"는 답할 수 있어야 한다.
+     같은 건물·같은 평형에서 매매·전세가 각 3건 이상인 곳만 짝지어 낸 비율이며
+     build_data.py가 구워 둔다. 오피스텔은 아파트와 값이 전혀 다르다
+     (아파트 42~60% / 오피스텔 81~96%). */
+
+  var RATIO = D.jeonseRatio || {};
+
+  function eraOf(y) {
+    if (!y) return "?";
+    return y >= 2020 ? "신축" : (y >= 2010 ? "준신축" : "구축");
+  }
+
+  // 지금 보는 지역 오피스텔의 대표 연식 — 매매 TOP10의 중위 준공연도로 잡는다
+  function regionEra() {
+    var rows = (region().offiTop.sale || []).concat(region().offiTop.jeonse || []);
+    var ys = rows.map(function (x) { return x.y; }).filter(Boolean).sort();
+    return ys.length ? eraOf(ys[ys.length >> 1]) : "?";
+  }
+
+  function jeonseRatio() {
+    var gu = state.gu, e = regionEra();
+    var tries = [
+      { k: gu + "|" + e, basis: gu + " " + e + " 오피스텔" },
+      { k: gu, basis: gu + " 오피스텔 전체" },
+      { k: "서울|" + e, basis: "서울 " + e + " 오피스텔" },
+      { k: "서울", basis: "서울 오피스텔 전체" },
+    ];
+    for (var i = 0; i < tries.length; i++) {
+      var v = RATIO[tries[i].k];
+      if (v) return { lo: v[0], mid: v[1], hi: v[2], n: v[3], basis: tries[i].basis };
+    }
+    return null;
+  }
+
+  /* 전세 신고가 없을 때 표 대신 넣을 추정 블록 */
+  function jeonseGuessHtml() {
+    var r = region();
+    var q = jeonseRatio();
+    var ms = r.med.offiSale;
+    var head = '<p class="placeholder">이 지역·기간에 <b>오피스텔 전세 신고가 없습니다.</b></p>';
+    if (!q || !ms) return head;
+
+    var lo = Math.round(ms * q.lo / 100), hi = Math.round(ms * q.hi / 100);
+    return head +
+      '<div class="calc-box">' +
+        '<div class="calc-head"><span class="calc-badge">계산값</span>' +
+          "실거래가 아니라 <b>유사 실거래로 계산한 값</b>입니다</div>" +
+        "<p>" + esc(q.basis) + "의 실제 전세가율은 <b>" + q.lo + "~" + q.hi + "%</b>" +
+          "(중위 " + q.mid + "% · 같은 건물·같은 평형에서 매매·전세가 각 3건 이상인 <b>" +
+          q.n.toLocaleString() + "개 평형</b>을 짝지어 계산)입니다. " +
+          "이 지역 오피스텔 <b>중위 매매가 " + eokman(ms) + "</b>에 대보면 " +
+          "전세는 <b>" + eokman(lo) + " ~ " + eokman(hi) + "</b> 수준이 됩니다.</p>" +
+        (q.mid >= 80
+          ? '<p class="calc-warn">⚠ 오피스텔 전세가율은 <b>' + q.mid + "%</b>로 아파트(50%대)보다 훨씬 높습니다. " +
+            "<b>매매가가 조금만 내려도 보증금이 위태로워지는 구간</b>이라, " +
+            "고객께 <b>전세보증금 반환보증 가입</b>과 <b>선순위 근저당 확인</b>을 반드시 안내하세요.</p>"
+          : "") +
+        '<p class="calc-foot">건물·층·향·관리 상태에 따라 이 범위를 벗어납니다. ' +
+          "<b>실거래로 확인된 값이 아니니</b> 반드시 <b>참고 범위</b>로만 말씀하세요.</p>" +
+      "</div>";
+  }
+
   /* ════════════════ 오피스텔 TOP10 ════════════════ */
 
   function offiRowsHtml(rows, type, clickable) {
     if (!rows.length) {
-      return '<tr class="empty-row"><td colspan="7">해당 기간 · 지역에 오피스텔 ' + OFFI_LABEL[type] + " 신고가 없습니다.</td></tr>";
+      return '<tr class="empty-row"><td colspan="7">' +
+        (type === "jeonse" ? "" : "해당 기간 · 지역에 오피스텔 " + OFFI_LABEL[type] + " 신고가 없습니다.") +
+        "</td></tr>";
     }
     return rows.map(function (r, i) {
       var rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
@@ -307,6 +372,12 @@
     var type = state.offiType;
     document.getElementById("offiPriceHead").textContent = type === "wolse" ? "보증금 / 월세" : "거래가";
     document.getElementById("offiBody").innerHTML = offiRowsHtml(r.offiTop[type] || [], type, true);
+
+    // 전세만 비어 있으면 "없습니다"로 끝내지 말고 계산 범위를 짚어 준다
+    var empty = !(r.offiTop[type] || []).length;
+    document.getElementById("offiGuess").innerHTML =
+      (empty && type === "jeonse") ? jeonseGuessHtml()
+        : (empty ? '<p class="placeholder">해당 기간 · 지역에 오피스텔 ' + OFFI_LABEL[type] + " 신고가 없습니다.</p>" : "");
 
     document.getElementById("offiPrintAll").innerHTML = OFFI_TYPES
       .filter(function (t) { return t !== type; })
