@@ -317,9 +317,9 @@
           offiRowsHtml(r.offiTop[t] || [], t, false) + "</tbody></table>";
       }).join("");
 
-    document.querySelectorAll("#offiBody .rt-name-clickable").forEach(function (el) {
+    document.querySelectorAll("#offiBody .rt-name-clickable").forEach(function (el, i) {
       el.addEventListener("click", function () {
-        focusBuilding(el.dataset.gu, el.dataset.dong, el.dataset.b);
+        focusBuilding(el.dataset.gu, el.dataset.dong, el.dataset.b, i);
       });
     });
 
@@ -498,16 +498,29 @@
     var rows = region().offiTop[state.offiType] || [];
     var pts = [], miss = 0;
 
+    // 같은 건물이 호실만 달리해 여러 번 오르면 좌표가 똑같아 마커가 겹친다.
+    // 건물 단위로 하나만 찍고, 그 건물의 거래는 오른쪽에 모아 보여준다.
+    selectedKey = null;
+    var order = [];
     rows.forEach(function (row, i) {
-      var c = GEO[row.gu + "|" + row.dg + "|" + row.n];
+      var key = row.gu + "|" + row.dg + "|" + row.n;
+      if (markers[key]) { markers[key].rows.push({ row: row, rank: i }); return; }
+      var c = GEO[key];
       if (!c) { miss++; return; }
-      var m = L.circleMarker([c.lat, c.lng], {
-        radius: 16 - i, color: "#fff", weight: 2.5,
-        fillColor: OFFI_COLOR[state.offiType], fillOpacity: 0.92,
-      }).addTo(markerLayer).bindTooltip((i + 1) + "위 " + row.n, { direction: "top", className: "zone-tooltip" });
-      m.on("click", function () { showDetail(row, i); });
-      markers[row.gu + "|" + row.dg + "|" + row.n] = { marker: m, coord: c, row: row, rank: i };
+      markers[key] = { marker: null, coord: c, rows: [{ row: row, rank: i }], rank: i, name: row.n };
+      order.push(key);
       pts.push([c.lat, c.lng]);
+    });
+
+    order.forEach(function (key) {
+      var g = markers[key];
+      var label = (g.rows.length > 1)
+        ? g.name + " (TOP10 " + g.rows.length + "건)"
+        : (g.rank + 1) + "위 " + g.name;
+      g.marker = L.circleMarker([g.coord.lat, g.coord.lng], markerStyle(g, false))
+        .addTo(markerLayer)
+        .bindTooltip(label, { direction: "top", className: "zone-tooltip" });
+      g.marker.on("click", function () { selectMarker(key); showDetail(key); });
     });
 
     document.getElementById("mapMissNote").textContent =
@@ -520,24 +533,62 @@
       '<p class="placeholder">지도의 원 또는 아래 오피스텔 TOP10 표의<br />건물명을 클릭하세요.</p>';
   }
 
-  function showDetail(row, rank) {
-    var t = state.offiType;
-    document.getElementById("sgDetail").innerHTML =
-      '<span class="zone-tag" style="background:' + OFFI_COLOR[t] + '">오피스텔 ' + OFFI_LABEL[t] + " " + (rank + 1) + "위</span>" +
-      "<h3>" + esc(row.n) + "</h3>" +
-      "<table>" +
-      "<tr><td>소재지</td><td>" + esc(row.gu) + " " + esc(row.dg) + "</td></tr>" +
-      "<tr><td>전용면적</td><td>" + areaText(row.a) + "</td></tr>" +
-      "<tr><td>층</td><td>" + (row.f ? row.f + "층" : "-") + "</td></tr>" +
-      "<tr><td>" + (t === "wolse" ? "보증금/월세" : "거래금액") + "</td><td><b>" + offiPriceText(row, t) + "</b></td></tr>" +
-      "<tr><td>평당가</td><td>" + pyText(convValue(row, t), row.a) + "</td></tr>" +
-      "<tr><td>거래일</td><td>" + dateText(row.d) + "</td></tr>" +
-      (row.y ? "<tr><td>준공</td><td>" + row.y + "년</td></tr>" : "") +
-      "</table>";
+  var selectedKey = null;
+
+  function markerStyle(g, on) {
+    return {
+      radius: (16 - g.rank) + (on ? 3 : 0),
+      color: on ? "#232a38" : "#fff",
+      weight: on ? 3.5 : 2.5,
+      fillColor: OFFI_COLOR[state.offiType],
+      fillOpacity: on ? 1 : 0.92,
+    };
   }
 
-  function focusBuilding(gu, dong, name) {
-    var hit = markers[gu + "|" + dong + "|" + name];
+  function selectMarker(key) {
+    // 눌린 곳이 눈에 보여야 "바뀌었나?" 하지 않는다
+    if (selectedKey && markers[selectedKey] && markers[selectedKey].marker) {
+      markers[selectedKey].marker.setStyle(markerStyle(markers[selectedKey], false));
+    }
+    selectedKey = key;
+    if (key && markers[key] && markers[key].marker) {
+      markers[key].marker.setStyle(markerStyle(markers[key], true)).bringToFront();
+    }
+  }
+
+  function showDetail(key, focusRank) {
+    var g = markers[key];
+    if (!g) return;
+    var t = state.offiType;
+    var first = g.rows[0].row;
+
+    var list = g.rows.map(function (x) {
+      var on = (focusRank != null && x.rank === focusRank);
+      return '<tr' + (on ? ' class="is-on"' : "") + ">" +
+        '<td><span class="rank-chip ' + (x.rank === 0 ? "r1" : x.rank === 1 ? "r2" : x.rank === 2 ? "r3" : "") +
+          '">' + (x.rank + 1) + "</span></td>" +
+        "<td>" + areaText(x.row.a) + "</td>" +
+        "<td>" + (x.row.f ? x.row.f + "층" : "-") + "</td>" +
+        '<td class="rt-price">' + offiPriceText(x.row, t) + "</td>" +
+        "<td>" + pyText(convValue(x.row, t), x.row.a) + "</td>" +
+        '<td class="rt-sub">' + dateText(x.row.d) + "</td></tr>";
+    }).join("");
+
+    document.getElementById("sgDetail").innerHTML =
+      '<span class="zone-tag" style="background:' + OFFI_COLOR[t] + '">오피스텔 ' + OFFI_LABEL[t] +
+        (g.rows.length > 1 ? " TOP10 " + g.rows.length + "건" : " " + (g.rank + 1) + "위") + "</span>" +
+      "<h3>" + esc(first.n) + "</h3>" +
+      '<p class="detail-where">' + esc(first.gu) + " " + esc(first.dg) +
+        (first.y ? " · " + first.y + "년 준공" : "") + "</p>" +
+      '<div class="table-wrap"><table class="detail-deals"><thead><tr>' +
+      "<th>순위</th><th>전용면적</th><th>층</th><th>" +
+      (t === "wolse" ? "보증금/월세" : "거래금액") + "</th><th>평당가</th><th>거래일</th>" +
+      "</tr></thead><tbody>" + list + "</tbody></table></div>";
+  }
+
+  function focusBuilding(gu, dong, name, rank) {
+    var key = gu + "|" + dong + "|" + name;
+    var hit = markers[key];
     if (!hit) {
       document.getElementById("sgDetail").innerHTML =
         '<p class="placeholder">「' + esc(name) + "」의 좌표를 찾지 못해<br />지도에 표시할 수 없습니다.</p>";
@@ -545,7 +596,8 @@
     }
     map.flyTo([hit.coord.lat, hit.coord.lng], 16, { duration: 0.6 });
     hit.marker.openTooltip();
-    showDetail(hit.row, hit.rank);
+    selectMarker(key);
+    showDetail(key, rank);
     document.getElementById("sec-map").scrollIntoView({ behavior: "smooth", block: "center" });
   }
 

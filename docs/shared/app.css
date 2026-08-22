@@ -625,3 +625,18 @@ section[data-tabpanel].is-on { display: block; }
 /* 브리핑 표 머리글 — "중위 / 평당가"처럼 두 줄로 (단어 중간에서 끊기지 않게) */
 .brief-table th .th2 { display: block; white-space: nowrap; word-break: keep-all; }
 .brief-table th .th2 + .th2 { font-weight: 800; color: var(--txt-dim); }
+
+/* 지도 옆 단지 상세 — 한 단지의 TOP10 거래를 모아 보여준다 */
+.detail-where { font-size: 12.5px; color: var(--txt-mute); margin: 4px 0 12px; }
+.detail-deals { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.detail-deals th {
+  text-align: right; font-size: 11px; font-weight: 700; color: var(--txt-mute);
+  padding: 5px 6px; border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+.detail-deals th:first-child, .detail-deals td:first-child { text-align: center; }
+.detail-deals td {
+  text-align: right; padding: 7px 6px; border-bottom: 1px solid var(--line-soft);
+  color: var(--txt); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.detail-deals tbody tr:last-child td { border-bottom: 0; }
+.detail-deals tr.is-on td { background: var(--accent-light); font-weight: 700; }
