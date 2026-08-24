@@ -1358,7 +1358,19 @@
     function closeDrop() { drop.hidden = true; cursor = -1; }
 
     function paint() {
-      if (!hits.length) { closeDrop(); return; }
+      if (!hits.length) {
+        // 조용히 닫히면 "검색이 되긴 한 건가?" 하시게 된다.
+        // 입력이 있는데 결과가 없을 때만 안내를 띄우고, 지우면 닫는다.
+        if (input.value.trim()) {
+          drop.innerHTML = '<div class="finder-empty">' +
+            "「" + esc(input.value.trim()) + "」와 일치하는 단지가 없습니다. " +
+            "<b>띄어쓰기를 빼고</b> 이름의 일부만 넣어 보세요 (예: 래미안, 자이, 힐스테이트).</div>";
+          drop.hidden = false;
+        } else {
+          closeDrop();
+        }
+        return;
+      }
       drop.innerHTML = hits.map(function (a, i) {
         var c = { sale: 0, jeonse: 0, wolse: 0 };
         a.deals.forEach(function (x) { c[x.t]++; });
