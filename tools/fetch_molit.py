@@ -56,11 +56,12 @@ SEOUL_GU = {
 }
 
 KINDS = {
-    "aptSale":   "1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade",
-    "aptRent":   "1613000/RTMSDataSvcAptRent/getRTMSDataSvcAptRent",
-    "offiSale":  "1613000/RTMSDataSvcOffiTrade/getRTMSDataSvcOffiTrade",
-    "offiRent":  "1613000/RTMSDataSvcOffiRent/getRTMSDataSvcOffiRent",
-    "nrgSale":   "1613000/RTMSDataSvcNrgTrade/getRTMSDataSvcNrgTrade",
+    "aptSale":    "1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade",
+    "aptRent":    "1613000/RTMSDataSvcAptRent/getRTMSDataSvcAptRent",
+    "aptPresale": "1613000/RTMSDataSvcSilvTrade/getRTMSDataSvcSilvTrade",
+    "offiSale":   "1613000/RTMSDataSvcOffiTrade/getRTMSDataSvcOffiTrade",
+    "offiRent":   "1613000/RTMSDataSvcOffiRent/getRTMSDataSvcOffiRent",
+    "nrgSale":    "1613000/RTMSDataSvcNrgTrade/getRTMSDataSvcNrgTrade",
 }
 
 PAGE_SIZE = 1000
@@ -205,6 +206,34 @@ def _parse_rent(item, gu, ym, name_tag):
     }
 
 
+def _parse_presale(item, gu, ym):
+    """분양권·입주권 전매(아파트 분양권전매 실거래가). 준공됐어도 소유권보존등기
+    전이면 일반 아파트매매 API에 안 잡히고 여기로만 신고된다.
+    (예: 2026-08-07 준공한 단지가 2025년부터 매매됐는데도 검색이 안 되던 사례)
+
+    개인정보 보호를 위해 층수만 공개되고 준공연도는 아예 내려주지 않는다.
+    ownershipGbn은 '분'(분양권, 준공 전) / '입'(입주권, 준공 후 등기 전)이다.
+    가격은 프리미엄이 실린 실제 거래가라 일반 매매와 같은 성격이라 그대로
+    "sale"로 합친다 — 같은 호실이 이후 등기를 마쳐 일반 매매로 다시 잡혀도
+    시점이 겹치지 않아 이중 집계가 아니다.
+    """
+    amount = _num(item.findtext("dealAmount"))
+    area = _num(item.findtext("excluUseAr"))
+    day = _num(item.findtext("dealDay"))
+    if not amount or not area or not day:
+        return None
+    if _txt(item, "cdealType") == "O":
+        return None
+    return {
+        "t": "sale", "gu": gu, "dong": _txt(item, "umdNm"), "name": _txt(item, "aptNm"),
+        "jibun": _txt(item, "jibun"),
+        "date": f"{ym[:4]}-{ym[4:]}-{int(day):02d}",
+        "area": area, "floor": int(_num(item.findtext("floor")) or 0),
+        "build": 0,                        # 이 API는 준공연도를 안 내려준다
+        "amount": amount, "deposit": 0.0, "rent": 0.0,
+    }
+
+
 def _parse_nrg(item, gu, ym):
     """상업업무용(상가·사무실 등) 매매. 전용면적 대신 건축물 연면적(buildingAr)을 쓴다."""
     amount = _num(item.findtext("dealAmount"))
@@ -228,11 +257,12 @@ def _parse_nrg(item, gu, ym):
 
 
 PARSERS = {
-    "aptSale":  lambda it, gu, ym: _parse_sale(it, gu, ym, "aptNm"),
-    "aptRent":  lambda it, gu, ym: _parse_rent(it, gu, ym, "aptNm"),
-    "offiSale": lambda it, gu, ym: _parse_sale(it, gu, ym, "offiNm"),
-    "offiRent": lambda it, gu, ym: _parse_rent(it, gu, ym, "offiNm"),
-    "nrgSale":  lambda it, gu, ym: _parse_nrg(it, gu, ym),
+    "aptSale":    lambda it, gu, ym: _parse_sale(it, gu, ym, "aptNm"),
+    "aptRent":    lambda it, gu, ym: _parse_rent(it, gu, ym, "aptNm"),
+    "aptPresale": lambda it, gu, ym: _parse_presale(it, gu, ym),
+    "offiSale":   lambda it, gu, ym: _parse_sale(it, gu, ym, "offiNm"),
+    "offiRent":   lambda it, gu, ym: _parse_rent(it, gu, ym, "offiNm"),
+    "nrgSale":    lambda it, gu, ym: _parse_nrg(it, gu, ym),
 }
 
 

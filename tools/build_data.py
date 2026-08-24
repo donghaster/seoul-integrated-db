@@ -266,7 +266,10 @@ def encode_deals(deals: list[dict], yms: list[str]) -> dict:
 def build_apt(yms: list[str]) -> dict:
     sale = load_all("aptSale", yms)
     rent = load_all("aptRent", yms)
-    deals = sale + rent
+    # 분양권·입주권 전매 — 소유권보존등기 전이라 일반 매매 API엔 안 잡히는 거래.
+    # 준공 직후 단지가 "실거래가 없다"고 나오는 사례의 원인이라 합쳐 둔다.
+    presale = load_all("aptPresale", yms)
+    deals = sale + rent + presale
     deals = [d for d in deals if d["date"] <= TODAY]     # 미래 날짜 오신고 제외
 
     by_region: dict[str, dict[str, list]] = defaultdict(lambda: {"sale": [], "jeonse": [], "wolse": []})
