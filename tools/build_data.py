@@ -592,7 +592,7 @@ def bump_cache_version(stamp: str) -> None:
         return digests[path]
 
     pages = [os.path.join(docs, "index.html")]
-    pages += [os.path.join(docs, p, "index.html") for p in ("apt", "newtown", "sangga")]
+    pages += [os.path.join(docs, p, "index.html") for p in ("apt", "newtown", "sangga", "trade")]
 
     for path in pages:
         if not os.path.exists(path):

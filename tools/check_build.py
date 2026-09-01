@@ -87,6 +87,23 @@ elif apt:
     need(total_dongs and len(missing) * 2 < total_dongs,
          f"뉴타운 법정동 {len(missing)}/{total_dongs}곳이 아파트 실거래와 안 맞물립니다: {missing[:5]}")
 
+# ── 상권 ── 상권분석 대시보드의 재료
+tr = load("trade.js", "TRADE_DATA")
+if tr:
+    trades = tr.get("trades") or []
+    need(len(trades) > 1_500, f"trade.js 상권이 {len(trades)}개뿐입니다 (1,650개 안팎이어야 정상)")
+    need(len(tr.get("gus") or []) == 25, f"trade.js 자치구가 {len(tr.get('gus') or [])}개입니다")
+    with_fp = sum(1 for t in trades if t.get("fp"))
+    with_st = sum(1 for t in trades if t.get("st"))
+    need(with_fp > 1_500, f"유동인구가 있는 상권이 {with_fp}개뿐입니다")
+    need(with_st > 1_500, f"점포 통계가 있는 상권이 {with_st}개뿐입니다")
+    # 좌표 역투영이 틀어지면 지도가 엉뚱한 곳을 가리킨다
+    off = [t["n"] for t in trades
+           if not (37.4 < t.get("lat", 0) < 37.75 and 126.7 < t.get("lng", 0) < 127.25)]
+    need(not off, f"서울 밖 좌표가 {len(off)}곳입니다: {off[:5]}")
+    q = tr.get("quarter") or {}
+    need(all(q.get(k) for k in ("flpop", "store", "selng")), f"분기 표기가 빕니다: {q}")
+
 # ── 좌표 ── 지도가 비지 않을 만큼은 있어야 한다
 geo = load("geo.js", "GEO_COORDS")
 if geo is not None:
@@ -99,4 +116,5 @@ if problems:
     sys.exit(1)
 
 print(f"빌드 점검 통과: 아파트 {len((apt or {}).get('deals', {}).get('rows', [])):,}건 / "
-      f"상가 {(sg or {}).get('total', 0):,}건 / 좌표 {len(geo or {}):,}개")
+      f"상가 {(sg or {}).get('total', 0):,}건 / 상권 {len((tr or {}).get('trades', [])):,}개 / "
+      f"좌표 {len(geo or {}):,}개")

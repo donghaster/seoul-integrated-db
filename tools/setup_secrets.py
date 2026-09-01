@@ -23,6 +23,7 @@ REPO = os.environ.get("GH_REPO", "donghaster/seoul-integrated-db")
 NEEDED = [
     ("DATA_GO_KR_KEY", True),    # 국토교통부 실거래가 — 없으면 갱신 자체가 불가
     ("KAKAO_REST_KEY", False),   # 지오코딩 — 없으면 기존 좌표만 사용
+    ("SEOUL_OPEN_DATA_KEY", False),  # 서울 상권분석 — 없으면 상권 대시보드가 안 갱신된다
 ]
 
 

@@ -875,3 +875,54 @@ section[data-tabpanel].is-on { display: block; }
   padding: 13px 16px; font-size: 12.5px; color: var(--txt-dim); line-height: 1.75;
 }
 .finder-empty b { color: var(--txt); }
+
+/* ════════════════ 상권분석 대시보드 ════════════════ */
+
+.tr-quick { margin: 14px 0 10px; }
+.tr-quick .dim-note { display: block; margin-bottom: 6px; font-weight: 700; }
+
+.tr-tag {
+  display: inline-block; font-size: 10.5px; font-weight: 800; color: #fff;
+  padding: 2px 8px; border-radius: 999px; vertical-align: 2px; white-space: nowrap;
+}
+h2 .tr-tag { font-size: 11.5px; margin-left: 6px; }
+
+.tr-list tbody tr, #nearList tbody tr { cursor: pointer; }
+.tr-list tbody tr:hover, #nearList tbody tr:hover { background: var(--accent-pale); }
+.tr-name { font-weight: 700; color: var(--txt); }
+
+.tr-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.tr-chart h4 { font-size: 13px; margin: 0 0 6px; color: var(--txt-dim); }
+
+/* 수익률 계산 입력 */
+.y-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.y-grid .ctl { display: flex; flex-direction: column; gap: 4px; }
+.y-grid label { font-size: 11.5px; font-weight: 700; color: var(--txt-mute); }
+.y-grid input {
+  padding: 9px 12px; font-size: 13.5px; font-family: inherit;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--txt);
+}
+.y-grid input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+.y-check {
+  display: flex; align-items: center; gap: 8px; margin-top: 12px;
+  font-size: 12.5px; font-weight: 700; color: var(--txt-dim);
+}
+.y-check .dim-note { font-weight: 500; }
+.stat-box .value.up { color: var(--up); }
+.stat-box .value.down { color: var(--down); }
+
+/* 상권 비교 */
+.cmp-table th { position: relative; }
+.cmp-table td { text-align: right; }
+.cmp-table td:first-child, .cmp-table th:first-child { text-align: left; }
+.cmp-best { font-weight: 800; color: var(--accent-2); background: var(--accent-pale); }
+.cmp-x {
+  border: 0; background: none; cursor: pointer; color: var(--txt-mute);
+  font-size: 14px; line-height: 1; padding: 0 2px;
+}
+.cmp-x:hover { color: var(--up); }
+
+@media print {
+  .finder-bar, .finder-drop, .tr-quick, #trGuList, .cmp-x { display: none !important; }
+  .tr-charts { grid-template-columns: repeat(3, 1fr); }
+}

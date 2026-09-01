@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>금집부쌤의 서울시 통합 부동산 대시보드 — 상권분석</title>
+  <link rel="stylesheet" href="../shared/app.css?v=2fa563eb4f" />
+  <link rel="stylesheet" href="../vendor/leaflet/leaflet.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>📊</text></svg>" />
+</head>
+<body>
+
+<!-- 인쇄 전용 워터마크(반포114 상호·연락처) -->
+<div class="print-watermark" aria-hidden="true">
+  <img src="../assets/banpo114-logo.png" alt="" onerror="this.classList.add('img-missing')" />
+  <span class="wm-text">반포114공인중개사 · 010-9442-2027</span>
+</div>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-left">
+      <img class="geumjib-badge" src="../assets/geumjib-logo.png" alt="금집부쌤"
+           onerror="this.classList.add('img-missing')" />
+      <div class="brand-titles">
+        <h1><a href="../index.html">금집부쌤의 서울시 통합 부동산 대시보드</a><br /><span class="brand-scope">📊 상권분석</span> <span class="brand-tag">서울 1,650개 상권</span></h1>
+        <p class="brand-sub">서울시 상권분석서비스 유동인구·점포·추정매출 · 국토교통부 상업업무용 실거래가 연동</p>
+      </div>
+    </div>
+    <span class="brand-sep" aria-hidden="true"></span>
+    <div class="brand-plate">
+      <img class="logo" src="../assets/banpo114-logo.png" alt="반포114공인중개사 · 010-9442-2027"
+           onerror="this.classList.add('img-missing')" />
+      <span class="brand-plate-fallback">반포<b>114</b>공인중개사 · 010-9442-2027</span>
+      <img class="mascot" src="../assets/geumddogi.png" alt="반포114공인중개사 캐릭터 금똑이"
+           onerror="this.classList.add('img-missing')" />
+    </div>
+  </div>
+  <div class="topbar-right">
+    <a class="home-link" href="../index.html">← 대시보드 모음</a>
+    <button type="button" id="printAllBtn" class="print-btn">🖨️ 전체 인쇄</button>
+    <div class="fetched" id="fetchedAt"></div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="printBanner" class="print-only print-page-banner"></div>
+
+  <!-- ─────────────── 상권 찾기 ─────────────── -->
+  <section class="card-section" id="sec-find">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 상권 찾기</h2>
+    </div>
+    <p class="sec-desc">
+      상권 이름으로 찾거나, <b>상가 주소를 넣으면 가장 가까운 상권</b>을 잡아 드립니다.
+      자료는 서울시 상권분석서비스 <b id="qNote">최신 분기</b> 기준입니다.
+    </p>
+
+    <div class="finder-bar">
+      <label for="trSearch">상권 이름</label>
+      <div class="finder-input">
+        <input type="text" id="trSearch" placeholder="예: 강남역, 반포, 서래마을" autocomplete="off" />
+        <div class="finder-drop" id="trDrop" hidden></div>
+      </div>
+      <span class="dim-note" id="trCountNote"></span>
+    </div>
+
+    <div class="finder-bar">
+      <label for="trAddr">또는 주소</label>
+      <div class="finder-input">
+        <input type="text" id="trAddr" placeholder="예: 서울 서초구 반포대로 58" autocomplete="off" />
+      </div>
+      <button type="button" class="mini-btn" id="trAddrBtn">주소로 찾기</button>
+      <span class="dim-note" id="trAddrNote"></span>
+    </div>
+
+    <div class="tr-quick">
+      <span class="dim-note">자치구로 훑어보기</span>
+      <div class="tab-row seg-sm chip-wrap" id="trGuChips"></div>
+    </div>
+
+    <div id="trGuList"></div>
+  </section>
+
+  <div id="trResult"></div>
+</div>
+
+<footer class="disclaimer">
+  반포114공인중개사 · 010-9442-2027 &nbsp;|&nbsp; 금집부쌤의 서울시 통합 부동산 대시보드 — 상권분석<br />
+  데이터 출처: 서울 열린데이터광장 상권분석서비스(유동인구·점포·추정매출) · 국토교통부 상업업무용 실거래가<br />
+  유동인구·매출은 <b>추정치</b>이며 분기 단위로 갱신됩니다. 실제 영업 성과와 다를 수 있으니 계약 전 현장 확인이 필요합니다.
+</footer>
+
+<script src="../vendor/leaflet/leaflet.js"></script>
+<script src="../vendor/chart.umd.min.js"></script>
+<script src="../data/trade.js?v=4cac9ab770"></script>
+<script src="../data/sangga.js?v=d611b8816f"></script>
+<script src="../shared/brand.js?v=9fd1821c1b"></script>
+<script src="app.js?v=ac1930c053"></script>
+</body>
+</html>
