@@ -46,6 +46,9 @@
     return (L + 0.05) / 0.05 > 4.5 ? "#16191f" : "#ffffff";
   }
 
+  var CATS = T.cats || [];
+  var CAT_COLOR = ["#4f7fe6", "#e0708f", "#4fada8", "#cf9a45", "#9b59d0",
+                   "#5aa469", "#d4713f", "#6d7fb3", "#8a93a3"];
   var ALL = "all";
   var QUARTER_DAYS = 91;                 // 유동인구는 분기 합계라 일평균으로 바꿔 본다
 
@@ -57,6 +60,13 @@
     });
   }
   function comma(n) { return Math.round(n || 0).toLocaleString(); }
+
+  /* 받침에 맞는 조사를 고른다. '변호사사무소이(가)'처럼 적으면 읽기 사납다. */
+  function josa(w, withB, noB) {
+    var c = String(w || "").charCodeAt(String(w).length - 1);
+    if (!(c >= 0xac00 && c <= 0xd7a3)) return noB;   // 한글이 아니면 받침 없는 쪽
+    return (c - 0xac00) % 28 ? withB : noB;
+  }
   function perDay(n) { return Math.round((n || 0) / QUARTER_DAYS); }
   function pct(a, b) { return b ? Math.round((a / b) * 100) : 0; }
   function perHour(v, i) { return Math.round((v || 0) / QUARTER_DAYS / TM_HOURS[i]); }
@@ -120,8 +130,10 @@
     if (list.length === 1) return list[0];
 
     var fp = { tot: 0, ml: 0, fml: 0, age: [0, 0, 0, 0, 0, 0], tm: [0, 0, 0, 0, 0, 0], dow: [0, 0, 0, 0, 0, 0, 0] };
-    var st = { tot: 0, frc: 0, opn: 0, cls: 0, top: [] };
-    var sl = { amt: 0, cnt: 0, mdwk: 0, wkend: 0, dow: [0, 0, 0, 0, 0, 0, 0], tm: [0, 0, 0, 0, 0, 0], top: [] };
+    var st = { tot: 0, frc: 0, opn: 0, cls: 0, top: [],
+               cat: CATS.map(function () { return [0, 0, 0]; }) };
+    var sl = { amt: 0, cnt: 0, mdwk: 0, wkend: 0, dow: [0, 0, 0, 0, 0, 0, 0], tm: [0, 0, 0, 0, 0, 0],
+               top: [], cat: CATS.map(function () { return 0; }) };
     var stTop = {}, slTop = {}, area = 0, hasFp = false, hasSt = false, hasSl = false;
     var lat = 0, lng = 0, wsum = 0;
 
@@ -140,6 +152,9 @@
       if (t.st) {
         hasSt = true;
         st.tot += t.st.tot; st.frc += t.st.frc; st.opn += t.st.opn; st.cls += t.st.cls;
+        if (t.st.cat) t.st.cat.forEach(function (v, i) {
+          st.cat[i][0] += v[0]; st.cat[i][1] += v[1]; st.cat[i][2] += v[2];
+        });
         t.st.top.forEach(function (r) {
           var e = stTop[r.n] || (stTop[r.n] = { n: r.n, c: 0, f: 0, o: 0, x: 0 });
           e.c += r.c; e.f += r.f; e.o += r.o; e.x += r.x;
@@ -148,6 +163,7 @@
       if (t.sl) {
         hasSl = true;
         sl.amt += t.sl.amt; sl.cnt += t.sl.cnt; sl.mdwk += t.sl.mdwk; sl.wkend += t.sl.wkend;
+        if (t.sl.cat) t.sl.cat.forEach(function (v, i) { sl.cat[i] += v; });
         t.sl.dow.forEach(function (v, i) { sl.dow[i] += v; });
         t.sl.tm.forEach(function (v, i) { sl.tm[i] += v; });
         t.sl.top.forEach(function (r) {
@@ -160,9 +176,9 @@
     st.opr = st.tot ? Math.round(st.opn / st.tot * 1000) / 10 : 0;
     st.clr = st.tot ? Math.round(st.cls / st.tot * 1000) / 10 : 0;
     st.top = Object.keys(stTop).map(function (k) { return stTop[k]; })
-      .sort(function (a, b) { return b.c - a.c; }).slice(0, 14);
+      .sort(function (a, b) { return b.c - a.c; }).slice(0, 16);
     sl.top = Object.keys(slTop).map(function (k) { return slTop[k]; })
-      .sort(function (a, b) { return b.a - a.a; }).slice(0, 14);
+      .sort(function (a, b) { return b.a - a.a; }).slice(0, 16);
 
     return {
       c: ALL, n: scopeName(), t: "합산", gu: state.gu === ALL ? "" : state.gu,
@@ -627,11 +643,19 @@
       section("sec-yield", "🧮", "수익률 계산",
         "매물 조건을 넣으면 즉시 계산됩니다. <b>취득세 등 4.6%</b>를 투입금에 넣을지 고르실 수 있습니다.",
         yieldFormHtml() + '<div id="yieldOut"></div>') +
-      section("sec-map", "🗺️", single ? "위치 · 인근 상권" : "상권 분포",
+      section("sec-map", "🗺️", single ? "위치 · 인근 상권" : "상권 분포 · 업종 지도",
         single ? "가까운 상권을 함께 표시합니다. 원을 누르면 그 상권으로 넘어갑니다."
-               : "고르신 범위의 상권입니다. 원을 누르면 그 상권만 따로 봅니다.",
-        '<div class="chart-box" style="height:420px"><div id="trMap" style="height:100%"></div></div>' +
+               : "원 크기는 유동인구, 색은 상권 유형입니다. 원을 누르면 그 상권만 따로 봅니다.",
+        '<div class="map-wrap">' +
+          '<div class="map-box"><div id="trMap"></div></div>' +
+          '<div id="mapSide"></div>' +
+        "</div>" +
         '<div id="nearList"></div>') +
+      section("sec-ind", "🔍", "업종별 세부분석",
+        "업종을 고르시면 <b>그 업종만</b> 따로 봅니다. 고객이 " +
+        "\"여기서 카페 하면 되겠냐\"고 물으실 때 쓰시면 됩니다.",
+        '<div class="finder-bar"><label for="indPick">업종</label>' +
+        '<select id="indPick" class="ind-sel"></select></div><div id="indBody"></div>') +
       section("sec-cmp", "⚖️", "상권 비교", "비교할 상권을 고르면 나란히 놓고 봅니다. 최대 4곳까지.",
         '<div class="finder-bar"><label for="cmpSearch">상권 추가</label>' +
         '<div class="finder-input"><input type="text" id="cmpSearch" placeholder="상권 이름" autocomplete="off" />' +
@@ -642,6 +666,8 @@
     if (t.sl) drawSl(t);
     initYield();
     drawMap(t, list, single);
+    drawMapSide(t);
+    initIndustry(t, list);
     initCompare(list);
 
     document.getElementById("printBanner").innerHTML =
@@ -744,38 +770,95 @@
   }
 
   /* ── 점포 ── */
+  /* Chart.js 캔버스 + 아래 표로 두 번 보여 주던 것을, 막대 오른쪽에 숫자를
+     같이 적어 하나로 합쳤다. 세로 길이가 절반으로 줄고 눈이 한 번만 움직인다. */
   function stHtml(t) {
     var s = t.st;
     var churn = s.clr - s.opr;
+    var base = seoulBase();
+    var max = s.top.length ? s.top[0].c : 1;
+
+    var rows = s.top.map(function (r) {
+      var net = r.o - r.x;
+      var rate = r.c ? Math.round((r.o - r.x) / r.c * 1000) / 10 : 0;
+      return '<div class="ib-row">' +
+        '<span class="ib-name" title="' + esc(r.n) + '">' + esc(r.n) + "</span>" +
+        '<span class="ib-track"><i style="width:' + Math.max(2, r.c / max * 100) + '%"></i></span>' +
+        '<span class="ib-num"><b>' + comma(r.c) + "개</b>" +
+          '<em class="ib-o">개업 ' + comma(r.o) + "</em>" +
+          '<em class="ib-x">폐업 ' + comma(r.x) + "</em>" +
+          '<em class="' + (net > 0 ? "ib-up" : net < 0 ? "ib-dn" : "ib-fl") + '">' +
+            (net > 0 ? "+" : net < 0 ? "−" : "±") + Math.abs(net) +
+            (r.c >= 30 ? " (" + (rate > 0 ? "+" : rate < 0 ? "−" : "±") +
+              Math.abs(rate) + "%)" : "") + "</em>" +
+        "</span></div>";
+    }).join("");
+
     return '<div class="mini-row">' +
       '<div class="mini"><span>점포 수</span><b>' + comma(s.tot) + "개</b></div>" +
       '<div class="mini"><span>분기 개업률</span><b class="up">' + s.opr + "%</b></div>" +
       '<div class="mini"><span>분기 폐업률</span><b class="down">' + s.clr + "%</b></div>" +
       '<div class="mini"><span>개업 − 폐업</span><b class="' + (churn <= 0 ? "up" : "down") + '">' +
-        (churn <= 0 ? "+" : "−") + Math.abs(churn).toFixed(1) + "%p</b></div>" +
+        (churn <= 0 ? "+" : "−") + Math.abs(churn).toFixed(1) + "%p</b>" +
+        '<span class="mini-foot">서울 ' + (churn - base.churn > 0 ? "보다 심함" : "보다 나음") + "</span></div>" +
       "</div>" +
-      '<h4 class="tr-h4">업종별 점포 수 상위</h4>' +
-      '<div class="chart-box" style="height:' + Math.max(220, s.top.length * 26 + 40) + 'px"><canvas id="stTop"></canvas></div>' +
-      '<div class="table-wrap" style="margin-top:14px"><table class="rank-table"><thead><tr>' +
-      "<th>순위</th><th>업종</th><th>점포</th><th>프랜차이즈</th><th>개업</th><th>폐업</th><th>순증감</th>" +
-      "</tr></thead><tbody>" +
-      s.top.map(function (r, i) {
-        var net = r.o - r.x;
-        return "<tr><td>" + (i + 1) + "</td><td>" + esc(r.n) + "</td>" +
-          '<td class="rt-price">' + comma(r.c) + "</td>" +
-          "<td>" + (r.f ? comma(r.f) : "-") + "</td>" +
-          "<td>" + (r.o ? comma(r.o) : "-") + "</td>" +
-          "<td>" + (r.x ? comma(r.x) : "-") + "</td>" +
-          '<td class="' + (net > 0 ? "d-up" : net < 0 ? "d-down" : "d-flat") + '">' +
-            (net > 0 ? "+" : "") + net + "</td></tr>";
-      }).join("") + "</tbody></table></div>" +
-      '<p class="dim-note" style="margin-top:8px"><b>순증감</b>이 마이너스면 그 업종이 이 범위에서 빠져나가는 중입니다.</p>';
+      '<h4 class="tr-h4">업종별 점포 수 상위 <span class="h4-sub">막대 오른쪽이 그 분기의 개업·폐업과 순증감</span></h4>' +
+      '<div class="ib-list">' + rows + "</div>" +
+      '<p class="dim-note" style="margin-top:10px"><b>순증감</b>이 마이너스면 그 업종이 이 범위에서 ' +
+      "빠져나가는 중입니다. 괄호 안 %는 그 업종 점포 수 대비이며, <b>점포 30개 미만</b>은 " +
+      "숫자가 크게 흔들려 생략했습니다.</p>" +
+      stCatHtml(t);
+  }
+
+  /* 대분류 구성 — 상위 업종만으로는 전체의 3분의 2밖에 못 덮어 따로 굽는다 */
+  function stCatHtml(t) {
+    if (!t.st.cat || !CATS.length) return "";
+    var tot = t.st.cat.reduce(function (a, v) { return a + v[0]; }, 0);
+    if (!tot) return "";
+    var idx = CATS.map(function (c, i) { return i; })
+      .filter(function (i) { return t.st.cat[i][0]; })
+      .sort(function (a, b) { return t.st.cat[b][0] - t.st.cat[a][0]; });
+    return '<h4 class="tr-h4">업종 구성 <span class="h4-sub">100개 업종을 8칸으로 묶은 것 · 전체 기준</span></h4>' +
+      '<div class="cat-wrap">' +
+        '<div class="cat-chart"><canvas id="stCat"></canvas>' +
+          '<div class="cat-center"><b>' + comma(tot) + "</b><span>개</span></div></div>" +
+        '<div class="cat-legend">' + idx.map(function (i) {
+          var v = t.st.cat[i], net = v[1] - v[2];
+          return '<div class="cat-item"><i style="background:' + CAT_COLOR[i % CAT_COLOR.length] + '"></i>' +
+            '<span class="cat-n">' + esc(CATS[i]) + "</span>" +
+            '<span class="cat-p">' + pct(v[0], tot) + "%</span>" +
+            '<span class="cat-c">' + comma(v[0]) + "개</span>" +
+            '<span class="' + (net > 0 ? "ib-up" : net < 0 ? "ib-dn" : "ib-fl") + '">' +
+              (net > 0 ? "+" : net < 0 ? "−" : "±") + Math.abs(net) + "</span></div>";
+        }).join("") + "</div>" +
+      "</div>";
   }
 
   function drawSt(t) {
-    var s = t.st;
-    bar("stTop", s.top.map(function (r) { return r.n; }), s.top.map(function (r) { return r.c; }),
-      "#4f7fe6", true, function (v) { return comma(v) + "개"; });
+    if (!t.st.cat || !CATS.length) return;
+    var idx = CATS.map(function (c, i) { return i; }).filter(function (i) { return t.st.cat[i][0]; })
+      .sort(function (a, b) { return t.st.cat[b][0] - t.st.cat[a][0]; });
+    var el = document.getElementById("stCat");
+    if (!el) return;
+    if (charts.stCat) charts.stCat.destroy();
+    charts.stCat = new Chart(el, {
+      type: "doughnut",
+      data: {
+        labels: idx.map(function (i) { return CATS[i]; }),
+        datasets: [{
+          data: idx.map(function (i) { return t.st.cat[i][0]; }),
+          backgroundColor: idx.map(function (i) { return CAT_COLOR[i % CAT_COLOR.length]; }),
+          borderWidth: 0,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: "66%",
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: function (x) { return x.label + " " + comma(x.parsed) + "개"; } } },
+        },
+      },
+    });
   }
 
   /* ── 매출 ── */
@@ -790,11 +873,10 @@
         (s.cnt ? comma(s.amt / s.cnt * 10000) + "원" : "-") + "</b></div>" +
       '<div class="mini"><span>평일 : 주말</span><b>' + pct(s.mdwk, s.amt) + " : " + pct(s.wkend, s.amt) + "</b></div>" +
       "</div>" +
-      '<div class="tr-charts">' +
-        '<div class="tr-chart"><h4>업종별 월매출 <span class="h4-sub">억원</span></h4><div class="chart-box" style="height:' +
-          Math.max(220, s.top.length * 24 + 40) + 'px"><canvas id="slTop"></canvas></div></div>' +
-        '<div class="tr-chart"><h4>시간대별 월매출 <span class="h4-sub">시간당 환산</span></h4><div class="chart-box" style="height:220px"><canvas id="slTm"></canvas></div></div>' +
-      "</div>" +
+      '<h4 class="tr-h4">업종별 월매출 <span class="h4-sub">막대 오른쪽이 그 업종의 점포 수와 점포당 월매출</span></h4>' +
+      '<div class="ib-list">' + slRows(t) + "</div>" +
+      '<h4 class="tr-h4">시간대별 월매출 <span class="h4-sub">시간당 환산</span></h4>' +
+      '<div class="chart-box" style="height:220px"><canvas id="slTm"></canvas></div>' +
       '<div class="read-guide" style="margin-top:16px"><h4>금집부쌤이 보는 매출</h4><ol>' +
         "<li>추정 월매출 <b>" + money(Math.round(s.amt / 3)) + "</b>" +
         (perStore ? ", 점포 하나당 <b>" + money(perStore) + "</b> 꼴입니다. " : ". ") +
@@ -806,11 +888,28 @@
       "</ol></div>";
   }
 
+  /* 업종별 매출도 막대 오른쪽에 숫자를 같이 적는다.
+     점포 수를 붙여야 "매출이 큰 게 아니라 점포가 많은 것"을 구분할 수 있다. */
+  function slRows(t) {
+    var s = t.sl;
+    var stMap = {};
+    if (t.st) t.st.top.forEach(function (r) { stMap[r.n] = r.c; });
+    var max = s.top.length ? s.top[0].a : 1;
+    return s.top.map(function (r) {
+      var cnt = stMap[r.n] || 0;
+      var per = cnt ? Math.round(r.a / 3 / cnt) : 0;
+      return '<div class="ib-row">' +
+        '<span class="ib-name" title="' + esc(r.n) + '">' + esc(r.n) + "</span>" +
+        '<span class="ib-track"><i class="ib-sl" style="width:' + Math.max(2, r.a / max * 100) + '%"></i></span>' +
+        '<span class="ib-num"><b>' + money(Math.round(r.a / 3)) + "</b>" +
+          (cnt ? '<em>' + comma(cnt) + "개</em>" : "<em>점포 -</em>") +
+          (per ? '<em class="ib-per">점포당 ' + money(per) + "</em>" : "") +
+        "</span></div>";
+    }).join("");
+  }
+
   function drawSl(t) {
     var s = t.sl;
-    bar("slTop", s.top.map(function (r) { return r.n; }),
-      s.top.map(function (r) { return Math.round(r.a / 3 / 10000); }), "#4fada8", true,
-      function (v) { return comma(v) + "억원"; });
     // 매출도 칸 길이가 달라 시간당으로 편다 — 안 그러면 00~06이 과장된다
     bar("slTm", TM_LABEL, s.tm.map(function (v, i) { return Math.round(v / 3 / TM_HOURS[i] / 10000 * 10) / 10; }),
       "#cf9a45", false, function (v) { return v + "억원"; });
@@ -918,6 +1017,7 @@
     if (!el || typeof L === "undefined") return;
     if (map) { map.remove(); map = null; }
     map = L.map(el, { scrollWheelZoom: false }).setView([t.lat, t.lng], 14);
+    map.attributionControl.setPrefix("");
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19, attribution: "&copy; OpenStreetMap contributors",
     }).addTo(map);
@@ -934,11 +1034,13 @@
       show = near.slice(0, 60);
     }
 
+    // 원 크기를 유동인구에 비례시킨다 — 목록을 안 봐도 큰 상권이 어디인지 보인다
+    var mx = Math.max.apply(null, show.map(function (x) { return val(x.t, "fp") || 0; })) || 1;
     var pts = [];
     show.forEach(function (x) {
       var me = single && x.t.c === state.code;
       L.circleMarker([x.t.lat, x.t.lng], {
-        radius: me ? 14 : 8,
+        radius: me ? 14 : Math.max(5, Math.min(17, 5 + Math.sqrt(val(x.t, "fp") / mx) * 12)),
         color: me ? "#232a38" : "#fff", weight: me ? 3.5 : 2,
         fillColor: TYPE_COLOR[x.t.t] || "#8a93a3", fillOpacity: me ? 1 : 0.85,
       }).addTo(layer)
@@ -973,6 +1075,175 @@
     document.querySelectorAll("#nearList .tr-row").forEach(function (r) {
       r.addEventListener("click", function () { gotoTrade(r.dataset.c); });
     });
+  }
+
+  /* ── 지도 옆칸 — 업종 구성 ── */
+  function drawMapSide(t) {
+    var host = document.getElementById("mapSide");
+    if (!host) return;
+    if (!t.st || !t.st.cat || !CATS.length) { host.innerHTML = ""; return; }
+    var tot = t.st.cat.reduce(function (a, v) { return a + v[0]; }, 0);
+    if (!tot) { host.innerHTML = ""; return; }
+    var idx = CATS.map(function (c, i) { return i; }).filter(function (i) { return t.st.cat[i][0]; })
+      .sort(function (a, b) { return t.st.cat[b][0] - t.st.cat[a][0]; });
+
+    host.innerHTML =
+      '<h4 class="tr-h4" style="margin-top:0">업종 분포</h4>' +
+      '<div class="cat-chart cat-chart-sm"><canvas id="mapCat"></canvas>' +
+        '<div class="cat-center"><b>' + comma(tot) + '</b><span>개</span></div></div>' +
+      '<div class="cat-legend cat-legend-sm">' + idx.map(function (i) {
+        return '<div class="cat-item"><i style="background:' + CAT_COLOR[i % CAT_COLOR.length] + '"></i>' +
+          '<span class="cat-n">' + esc(CATS[i]) + '</span>' +
+          '<span class="cat-p">' + pct(t.st.cat[i][0], tot) + '%</span>' +
+          '<span class="cat-c">' + comma(t.st.cat[i][0]) + '</span></div>';
+      }).join("") + '</div>' +
+      (t.st.top.length
+        ? '<h4 class="tr-h4">주요 업종</h4><div class="cat-legend cat-legend-sm">' +
+          t.st.top.slice(0, 5).map(function (r) {
+            return '<div class="cat-item"><span class="cat-n">' + esc(r.n) + '</span>' +
+              '<span class="cat-c">' + comma(r.c) + '개</span></div>';
+          }).join("") + '</div>'
+        : "");
+
+    var el = document.getElementById("mapCat");
+    if (!el) return;
+    if (charts.mapCat) charts.mapCat.destroy();
+    charts.mapCat = new Chart(el, {
+      type: "doughnut",
+      data: {
+        labels: idx.map(function (i) { return CATS[i]; }),
+        datasets: [{
+          data: idx.map(function (i) { return t.st.cat[i][0]; }),
+          backgroundColor: idx.map(function (i) { return CAT_COLOR[i % CAT_COLOR.length]; }),
+          borderWidth: 0,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: "68%",
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: function (x) { return x.label + " " + comma(x.parsed) + "개"; } } },
+        },
+      },
+    });
+  }
+
+  /* ── 업종별 세부분석 ──
+     "여기서 카페 하면 되겠냐"는 물음에 상권 전체 숫자로는 답이 안 된다.
+     그 업종만 떼어 내 점포 수·개폐업·점포당 매출을 보고 서울 같은 업종과 견준다. */
+  var _indBase = null;
+  function industryBase() {
+    if (_indBase) return _indBase;
+    _indBase = {};
+    TRADES.forEach(function (t) {
+      if (!t.st) return;
+      var sl = {};
+      if (t.sl) t.sl.top.forEach(function (r) { sl[r.n] = r; });
+      t.st.top.forEach(function (r) {
+        var e = _indBase[r.n] || (_indBase[r.n] = { c: 0, o: 0, x: 0, amt: 0, amtC: 0, n: 0 });
+        e.c += r.c; e.o += r.o; e.x += r.x; e.n += 1;
+        if (sl[r.n]) { e.amt += sl[r.n].a; e.amtC += r.c; }
+      });
+    });
+    return _indBase;
+  }
+
+  function initIndustry(t, list) {
+    var sel = document.getElementById("indPick");
+    if (!sel) return;
+    var host = document.getElementById("indBody");
+    if (!t.st || !t.st.top.length) {
+      if (host) host.innerHTML = '<p class="placeholder">업종 자료가 없습니다.</p>';
+      return;
+    }
+    sel.innerHTML = t.st.top.map(function (r) {
+      return '<option value="' + esc(r.n) + '">' + esc(r.n) + " — " + comma(r.c) + "개</option>";
+    }).join("");
+    sel.onchange = function () { renderIndustry(t, list, sel.value); };
+    renderIndustry(t, list, t.st.top[0].n);
+  }
+
+  function renderIndustry(t, list, name) {
+    var host = document.getElementById("indBody");
+    if (!host) return;
+    var r = t.st.top.filter(function (x) { return x.n === name; })[0];
+    if (!r) { host.innerHTML = '<p class="placeholder">고른 업종 자료가 없습니다.</p>'; return; }
+    var sr = (t.sl && t.sl.top.filter(function (x) { return x.n === name; })[0]) || null;
+    var net = r.o - r.x;
+    var per = (sr && r.c) ? Math.round(sr.a / 3 / r.c) : 0;
+
+    var B = industryBase()[name];
+    var bPer = (B && B.amtC) ? Math.round(B.amt / 3 / B.amtC) : 0;
+    var gap = (per && bPer) ? Math.round(per / bPer * 100) : 0;
+
+    var byTrade = list.map(function (x) {
+      var q = x.st && x.st.top.filter(function (y) { return y.n === name; })[0];
+      return q ? { t: x, c: q.c, o: q.o, cl: q.x } : null;
+    }).filter(Boolean).sort(function (a, b) { return b.c - a.c; }).slice(0, 8);
+
+    host.innerHTML =
+      '<div class="mini-row" style="margin-top:14px">' +
+        '<div class="mini"><span>' + esc(name) + ' 점포</span><b>' + comma(r.c) + '개</b>' +
+          '<span class="mini-foot">이 범위 점포의 ' + pct(r.c, t.st.tot) + '%</span></div>' +
+        '<div class="mini"><span>개업 / 폐업</span><b>' + comma(r.o) + ' / ' + comma(r.x) + '</b>' +
+          '<span class="mini-foot ' + (net > 0 ? "ib-up" : net < 0 ? "ib-dn" : "ib-fl") + '">순증감 ' +
+          (net > 0 ? "+" : net < 0 ? "−" : "±") + Math.abs(net) + '개</span></div>' +
+        '<div class="mini"><span>프랜차이즈</span><b>' + comma(r.f) + '개</b>' +
+          '<span class="mini-foot">' + pct(r.f, r.c) + '%</span></div>' +
+        (per ? '<div class="mini"><span>점포당 월매출</span><b>' + money(per) + '</b>' +
+          (gap ? '<span class="mini-foot ' + (gap >= 100 ? "ib-up" : "ib-dn") + '">서울 같은 업종의 ' +
+            gap + '%</span>' : "") + '</div>' : "") +
+      '</div>' +
+      (byTrade.length > 1
+        ? '<h4 class="tr-h4">' + esc(name) + ' 점포가 많은 상권</h4>' +
+          '<div class="ib-list">' + (function () {
+            var mx = byTrade[0].c || 1;
+            return byTrade.map(function (b) {
+              var n2 = b.o - b.cl;
+              return '<div class="ib-row ib-row-click" data-c="' + esc(b.t.c) + '">' +
+                '<span class="ib-name" title="' + esc(b.t.n) + '">' + esc(b.t.n) + '</span>' +
+                '<span class="ib-track"><i style="width:' + Math.max(2, b.c / mx * 100) + '%"></i></span>' +
+                '<span class="ib-num"><b>' + comma(b.c) + '개</b>' +
+                  '<em class="ib-o">개업 ' + comma(b.o) + '</em>' +
+                  '<em class="ib-x">폐업 ' + comma(b.cl) + '</em>' +
+                  '<em class="' + (n2 > 0 ? "ib-up" : n2 < 0 ? "ib-dn" : "ib-fl") + '">' +
+                    (n2 > 0 ? "+" : n2 < 0 ? "−" : "±") + Math.abs(n2) + '</em></span></div>';
+            }).join("");
+          })() + '</div>'
+        : "") +
+      indBrief(name, r, net, per, bPer, gap, t);
+
+    host.querySelectorAll(".ib-row-click").forEach(function (el) {
+      el.addEventListener("click", function () { gotoTrade(el.dataset.c); });
+    });
+  }
+
+  function indBrief(name, r, net, per, bPer, gap, t) {
+    var lines = [];
+    var share = pct(r.c, t.st.tot);
+    lines.push("이 범위에 <b>" + esc(name) + "</b>" + josa(name, "이", "가") + " <b>" + comma(r.c) + "개</b> 있고, " +
+      "전체 점포의 <b>" + share + "%</b>를 차지합니다." +
+      (share >= 15 ? " <b>이미 포화에 가깝습니다.</b>" : share <= 2 ? " 아직 드문 업종입니다." : ""));
+    if (r.c >= 20) {
+      lines.push(net > 0
+        ? "그 분기에 <b>" + comma(r.o) + "곳이 열고 " + comma(r.x) + "곳이 닫아 " + net +
+          "곳 늘었습니다.</b> 들어오는 업종입니다."
+        : net < 0
+          ? "그 분기에 <b>" + comma(r.o) + "곳이 열고 " + comma(r.x) + "곳이 닫아 " + (-net) +
+            "곳 줄었습니다.</b> <b>빠져나가는 중이니 이유를 꼭 확인하세요.</b>"
+          : "그 분기에 <b>연 곳과 닫은 곳이 같습니다.</b> 자리는 유지되고 있습니다.");
+    } else {
+      lines.push("<b>점포가 " + comma(r.c) + "개뿐이라</b> 개업·폐업 숫자를 흐름으로 읽으시면 안 됩니다.");
+    }
+    if (per && bPer) {
+      lines.push("점포당 월매출은 <b>" + money(per) + "</b>으로 서울 같은 업종(" + money(bPer) +
+        ")의 <b>" + gap + "%</b>입니다." +
+        (gap >= 130 ? " <b>잘되는 자리입니다.</b>" : gap <= 70 ? " <b>기대보다 낮습니다.</b>" : ""));
+    }
+    lines.push("<b>임대료를 반드시 같이 보세요.</b> 매출이 높아도 임대료가 더 오르면 남는 게 없습니다. " +
+      "위 <b>수익률 계산</b>에 실제 조건을 넣어 확인하시면 됩니다.");
+    return '<div class="read-guide" style="margin-top:16px"><h4>금집부쌤이 보는 ' + esc(name) +
+      '</h4><ol>' + lines.map(function (x) { return "<li>" + x + "</li>"; }).join("") + '</ol></div>';
   }
 
   /* ── 비교 ── */

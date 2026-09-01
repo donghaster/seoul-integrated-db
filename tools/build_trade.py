@@ -21,7 +21,46 @@ CACHE_DIR = os.path.join(BASE_DIR, ".cache")
 OUT_DIR = os.path.join(BASE_DIR, "docs", "data")
 CACHE_VER = "v1"
 
-TOP_INDUSTRY = 12          # 상권당 남길 업종 수
+TOP_INDUSTRY = 16          # 상권당 남길 업종 수
+
+# 서울시 상권분석서비스의 업종 100종을 8칸으로 묶는다.
+# 상권당 상위 업종만 담으면 전체의 64%밖에 안 덮여 도넛으로 못 쓴다.
+# 대분류는 모든 업종을 담아 100%를 덮는다. 빠진 이름이 생기면 '기타'로 간다.
+CATEGORY = {
+    "음식": [
+        "한식음식점", "중식음식점", "일식음식점", "양식음식점", "분식전문점",
+        "패스트푸드점", "치킨전문점", "제과점", "커피-음료", "호프-간이주점",
+    ],
+    "소매": [
+        "일반의류", "유아의류", "한복점", "신발", "가방", "시계및귀금속", "안경",
+        "화장품", "미용재료", "의약품", "의료기기", "문구", "서적", "완구", "악기",
+        "운동/경기용품", "예술품", "화초", "애완동물", "가구", "중고가구", "가전제품",
+        "컴퓨터및주변장치판매", "핸드폰", "조명용품", "철물점", "인테리어", "섬유제품",
+        "자동차부품", "모터사이클및부품", "중고차판매", "자전거 및 기타운송장비",
+        "재생용품 판매점", "주류도매", "전자상거래업",
+    ],
+    "식료품": [
+        "편의점", "슈퍼마켓", "청과상", "육류판매", "수산물판매", "반찬가게", "미곡판매",
+    ],
+    "생활서비스": [
+        "미용실", "네일숍", "피부관리실", "세탁소", "사진관", "건축물청소", "여행사",
+        "가정용품임대", "의류임대", "비디오/서적임대", "자동차미용", "자동차수리",
+        "가전제품수리", "통신기기수리", "모터사이클수리", "주유소", "복권방", "통번역서비스",
+    ],
+    "의료": ["일반의원", "치과의원", "한의원", "동물병원"],
+    "교육": ["일반교습학원", "외국어학원", "예술학원", "컴퓨터학원", "스포츠 강습", "독서실"],
+    "부동산·전문": [
+        "부동산중개업", "변호사사무소", "법무사사무소", "세무사사무소", "회계사사무소",
+        "변리사사무소", "기타법무서비스",
+    ],
+    "여가·숙박": [
+        "노래방", "PC방", "DVD방", "당구장", "볼링장", "골프연습장", "스포츠클럽",
+        "전자게임장", "기타오락장", "녹음실", "여관", "게스트하우스", "고시원",
+    ],
+}
+CAT_OF = {n: c for c, names in CATEGORY.items() for n in names}
+CAT_ORDER = list(CATEGORY) + ["기타"]
+
 
 
 # ---------------------------------------------------------------- 좌표
@@ -144,6 +183,14 @@ def build() -> dict:
         opn = sum(i(r.get("OPBIZ_STOR_CO")) for r in rows)
         cls = sum(i(r.get("CLSBIZ_STOR_CO")) for r in rows)
         rows.sort(key=lambda r: i(r.get("STOR_CO")), reverse=True)
+        # 대분류 — 상위 업종만으로는 도넛이 전체를 못 덮어 따로 굽는다
+        cats: dict[str, list[int]] = {}
+        for r in rows:
+            c = CAT_OF.get((r.get("SVC_INDUTY_CD_NM") or "").strip(), "기타")
+            e = cats.setdefault(c, [0, 0, 0])
+            e[0] += i(r.get("STOR_CO"))
+            e[1] += i(r.get("OPBIZ_STOR_CO"))
+            e[2] += i(r.get("CLSBIZ_STOR_CO"))
         trades[code]["st"] = {
             "tot": tot, "frc": frc, "opn": opn, "cls": cls,
             # 개업률·폐업률은 상권 전체 점포 대비로 다시 계산한다.
@@ -157,6 +204,8 @@ def build() -> dict:
                 "o": i(r.get("OPBIZ_STOR_CO")),
                 "x": i(r.get("CLSBIZ_STOR_CO")),
             } for r in rows[:TOP_INDUSTRY] if i(r.get("STOR_CO"))],
+            # [점포, 개업, 폐업] — 순서는 CAT_ORDER를 따른다
+            "cat": [cats.get(c, [0, 0, 0]) for c in CAT_ORDER],
         }
 
     # ── 매출 ── 금액은 원 단위라 만원으로 줄여 담는다
@@ -175,6 +224,10 @@ def build() -> dict:
         tot = sum(num(r.get("THSMON_SELNG_AMT")) for r in rows)
         cnt = sum(num(r.get("THSMON_SELNG_CO")) for r in rows)
         rows.sort(key=lambda r: num(r.get("THSMON_SELNG_AMT")), reverse=True)
+        scat: dict[str, int] = {}
+        for r in rows:
+            c = CAT_OF.get((r.get("SVC_INDUTY_CD_NM") or "").strip(), "기타")
+            scat[c] = scat.get(c, 0) + man(r.get("THSMON_SELNG_AMT"))
         dow_keys = ("MON", "TUES", "WED", "THUR", "FRI", "SAT", "SUN")
         tm_keys = ("00_06", "06_11", "11_14", "14_17", "17_21", "21_24")
         trades[code]["sl"] = {
@@ -188,6 +241,7 @@ def build() -> dict:
                 "a": man(r.get("THSMON_SELNG_AMT")),
                 "c": int(round(num(r.get("THSMON_SELNG_CO")))),
             } for r in rows[:TOP_INDUSTRY] if num(r.get("THSMON_SELNG_AMT"))],
+            "cat": [scat.get(c, 0) for c in CAT_ORDER],
         }
 
     # 유동인구가 없는 상권은 화면에서 쓸 게 거의 없다 — 목록에는 두되 표시로 남긴다
@@ -196,6 +250,7 @@ def build() -> dict:
 
     gus = sorted({t["gu"] for t in out if t["gu"]})
     return {
+        "cats": CAT_ORDER,
         "quarter": {"flpop": fq, "store": sq, "selng": eq},
         "gus": gus,
         "trades": out,

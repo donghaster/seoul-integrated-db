@@ -1148,3 +1148,87 @@ html[data-theme="dark"] .mini-btn.is-on,
 html[data-theme="dark"] .policy-card .date-chip,
 html[data-theme="dark"] .theme-toggle button.is-on,
 html[data-theme="dark"] .top-tab.is-on { background: #3a63bd; }
+
+/* ════════════════ 업종 막대 — 막대 오른쪽에 숫자를 같이 적는다 ════════════════
+   캔버스 막대 + 아래 표로 두 번 보여 주던 것을 하나로 합쳤다.
+   세로 길이가 절반으로 줄고, 눈이 한 번만 움직인다. */
+.ib-list { display: flex; flex-direction: column; gap: 5px; }
+.ib-row {
+  display: grid; grid-template-columns: 116px 1fr auto;
+  align-items: center; gap: 10px;
+  padding: 4px 6px; border-radius: 7px;
+}
+.ib-row-click { cursor: pointer; }
+.ib-row-click:hover { background: var(--accent-pale); }
+.ib-name {
+  font-size: 12px; font-weight: 700; color: var(--txt);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ib-track { height: 15px; background: var(--card-2); border-radius: 4px; overflow: hidden; }
+.ib-track > i {
+  display: block; height: 100%; border-radius: 4px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+}
+.ib-num {
+  display: flex; align-items: baseline; gap: 9px;
+  font-size: 11px; font-weight: 700; white-space: nowrap;
+}
+.ib-num > b { font-size: 12.5px; color: var(--txt); min-width: 52px; text-align: right; }
+.ib-num em { font-style: normal; color: var(--txt-mute); }
+.ib-o { color: var(--txt-mute); }
+.ib-x { color: var(--txt-mute); }
+.ib-up { color: var(--up); }
+.ib-dn { color: var(--down); }
+.ib-fl { color: var(--txt-mute); }
+.mini-foot { display: block; font-size: 10.5px; font-weight: 700; color: var(--txt-mute); margin-top: 2px; }
+
+/* ════════════════ 업종 구성 도넛 ════════════════ */
+.cat-wrap {
+  display: grid; grid-template-columns: 210px 1fr;
+  gap: 20px; align-items: center; margin-top: 4px;
+}
+.cat-chart { position: relative; height: 200px; }
+.cat-chart-sm { height: 168px; margin-bottom: 12px; }
+.cat-center {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; pointer-events: none;
+}
+.cat-center > b { font-size: 19px; font-weight: 800; color: var(--txt); letter-spacing: -.03em; }
+.cat-center > span { font-size: 11px; font-weight: 700; color: var(--txt-mute); }
+.cat-legend { display: flex; flex-direction: column; gap: 3px; }
+.cat-item {
+  display: grid; grid-template-columns: 11px 1fr auto auto auto;
+  align-items: center; gap: 9px;
+  font-size: 12px; font-weight: 700; padding: 3px 4px; border-radius: 6px;
+}
+.cat-legend-sm .cat-item { grid-template-columns: 11px 1fr auto auto; font-size: 11.5px; }
+.cat-item > i { width: 11px; height: 11px; border-radius: 3px; }
+.cat-n { color: var(--txt); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cat-p { color: var(--txt-mute); min-width: 34px; text-align: right; }
+.cat-c { color: var(--txt-dim); min-width: 52px; text-align: right; }
+
+/* ════════════════ 지도 + 옆칸 ════════════════ */
+.map-wrap { display: grid; grid-template-columns: 1fr 288px; gap: 18px; align-items: start; }
+.map-box {
+  height: 430px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+}
+.map-box > div { height: 100%; }
+#mapSide { min-width: 0; }
+
+.ind-sel {
+  border: 1px solid var(--line); border-radius: 9px; padding: 8px 12px;
+  background: var(--card); color: var(--txt); font: inherit;
+  font-size: 13px; font-weight: 700; min-width: 240px;
+}
+
+@media (max-width: 900px) {
+  .cat-wrap, .map-wrap { grid-template-columns: 1fr; }
+  .ib-row { grid-template-columns: 92px 1fr; }
+  .ib-num { grid-column: 1 / -1; justify-content: flex-end; }
+}
+@media print {
+  .map-wrap, .cat-wrap { grid-template-columns: 1fr 1fr; }
+  .ib-row, .cat-item { break-inside: avoid; }
+}
+.ib-track > i.ib-sl { background: linear-gradient(90deg, var(--jeonse), #3f938e); }
+.ib-per { color: var(--txt-dim) !important; font-weight: 800; }
