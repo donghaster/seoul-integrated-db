@@ -973,17 +973,28 @@
     return stem;
   }
 
+  /* 법정동이 '가'로 쪼개진 곳은 묶는다.
+     을지로1~7가를 따로 두면 을지로동을 골랐을 때 한 '가'만 잡혀
+     863건짜리 을지로6가를 통째로 놓친다. 서울에서 이런 법정동이
+     110개, 거래 2,362건이다. 고객께도 "을지로"라고 말하지
+     "을지로6가"라고 하지 않는다. 세부는 아래 거래 표에 그대로 남는다. */
+  function beopGroup(n) { return String(n || "").replace(/[0-9]+가$/, ""); }
+
   /* 이 자치구에 거래가 있는 법정동을 건수 순으로 준다 */
   function beopList() {
     if (!SG || !SG.deals || state.gu === ALL) return [];
-    var D = SG.deals, cnt = {};
+    var D = SG.deals, cnt = {}, parts = {};
     D.rows.forEach(function (r) {
-      var k = D.dongs[r[0]] || "";
-      var p = k.split("|");
-      if (p[0] === state.gu) cnt[p[1]] = (cnt[p[1]] || 0) + 1;
+      var p = (D.dongs[r[0]] || "").split("|");
+      if (p[0] !== state.gu) return;
+      var g = beopGroup(p[1]);
+      cnt[g] = (cnt[g] || 0) + 1;
+      (parts[g] = parts[g] || {})[p[1]] = 1;
     });
-    return Object.keys(cnt).map(function (n) { return { n: n, c: cnt[n] }; })
-      .sort(function (a, b) { return b.c - a.c; });
+    return Object.keys(cnt).map(function (n) {
+      var ps = Object.keys(parts[n] || {});
+      return { n: n, c: cnt[n], parts: ps.length > 1 ? ps.sort() : null };
+    }).sort(function (a, b) { return b.c - a.c; });
   }
 
   /* 고른 행정동에 맞는 법정동을 고른다.
@@ -994,7 +1005,7 @@
     if (!list.length) return { pick: "", guessed: false };
     if (state.dong !== ALL) {
       var map = (SG && SG.hjMap) || {};
-      var m = map[state.gu + "|" + state.dong];
+      var m = beopGroup(map[state.gu + "|" + state.dong]);
       if (m && list.some(function (x) { return x.n === m; })) {
         return { pick: m, guessed: true };
       }
@@ -1015,7 +1026,7 @@
       var k = D.dongs[r[0]] || "";
       var p = k.split("|");
       if (p[0] !== gu) return false;
-      return nrgMode === "gu" ? true : p[1] === nrgBeop;
+      return nrgMode === "gu" ? true : beopGroup(p[1]) === nrgBeop;
     });
     return {
       rows: rows,
@@ -1044,7 +1055,8 @@
         (nrgMode === "gu" ? " disabled" : "") + ">" +
         list.map(function (x) {
           return '<option value="' + esc(x.n) + '"' + (x.n === nrgBeop ? " selected" : "") + ">" +
-            esc(x.n) + " (" + comma(x.c) + "건)</option>";
+            esc(x.n) + " (" + comma(x.c) + "건" + (x.parts ? " · " + x.parts.length + "개 가" : "") +
+            ")</option>";
         }).join("") + "</select>" +
       (state.dong !== ALL && !g.guessed && nrgMode === "dong"
         ? '<span class="dim-note" style="margin-left:8px">행정동 <b>' + esc(state.dong) +
