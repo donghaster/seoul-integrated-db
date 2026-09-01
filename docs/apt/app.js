@@ -29,7 +29,6 @@
     dealType: "sale",
     cmpOn: { sale: true, jeonse: true, wolse: true },
     volRank: "gu",
-    pyBase: "net",                 // 평당가 기준: net 전용 | supply 분양
   };
 
   /* ════════════════ 원본 실거래 풀기 ════════════════
@@ -323,30 +322,34 @@
   var SUPPLY_RATIO = 0.74;
   function supplyArea(a) { return a / SUPPLY_RATIO; }
 
-  /* ── 평당가 기준 ──
+  /* ── 평당가 ──
      안에서 계산하는 평당가는 늘 전용 기준이다(거래금액 ÷ 전용면적 ÷ 3.3058).
-     화면에 내보낼 때만 기준을 갈아 끼운다. 분양 기준은 전용값 × 0.74다.
 
-     반드시 이 함수를 거쳐야 한다. 한 곳이라도 빠뜨리면 한 화면에 두 기준이
-     섞여, 토글이 없느니만 못한 상태가 된다. */
-  function pyConv(v) {
-    if (!v) return 0;
-    return state.pyBase === "supply" ? Math.round(v * SUPPLY_RATIO) : Math.round(v);
-  }
-  function pyNum(v) { return pyConv(v).toLocaleString(); }
-  function pyBaseLabel() { return state.pyBase === "supply" ? "분양 기준" : "전용 기준"; }
-  function pyBaseWord() { return state.pyBase === "supply" ? "분양" : "전용"; }
+     기준을 토글로 갈아 끼우다가, 표에서는 두 값을 위아래로 같이 적는 쪽으로
+     바꿨다. 고객과 화면을 같이 보면서 "분양 기준으로는 이만큼, 전용으로는
+     이만큼"이라고 한 번에 말할 수 있어야 상담이 끊기지 않는다.
 
-  /* 분양 칸 — ㎡와 평을 같이. 평은 분양 기준이라야 고객 말과 맞는다. */
-  function supplyText(a) {
+     표와 요약 카드는 아래 areaBoth·pyBoth를 쓰고, 문장·차트는 전용 기준
+     하나로 말하되 '전용 기준'이라고 밝힌다. */
+  function pyNum(v) { return Math.round(v || 0).toLocaleString(); }
+  function pyBaseLabel() { return "전용 기준"; }
+  function pyBaseWord() { return "전용"; }
+
+  /* 분양면적 ㎡(평)을 크게, 전용 ㎡를 그 아래 옅게 */
+  function areaBoth(a) {
     if (!a) return "-";
     var sa = supplyArea(a);
-    return sa.toFixed(1) + "㎡ <span class=\"rt-sub-inline\">(" +
-      (sa / PYEONG).toFixed(1) + "평)</span>";
+    return sa.toFixed(1) + "㎡ (" + (sa / PYEONG).toFixed(1) + "평)" +
+      '<div class="rt-sub">전용 ' + a.toFixed(2) + "㎡</div>";
   }
 
-  /* 전용 칸 — ㎡만. 평을 또 적으면 분양 평과 헷갈린다. */
-  function netText(a) { return a ? a.toFixed(2) + "㎡" : "-"; }
+  /* 공급 기준 평당가를 크게, 전용 기준을 그 아래 옅게 */
+  function pyBoth(row, type) {
+    if (!row.a) return "-";
+    var net = Math.round(convValue(row, type) / (row.a / PYEONG));
+    return Math.round(net * SUPPLY_RATIO).toLocaleString() + "만원" +
+      '<div class="rt-sub">전용 ' + net.toLocaleString() + "만원</div>";
+  }
 
   function pyText(row, type) {
     if (!row.a) return "-";
@@ -865,7 +868,7 @@
 
   function dealRowsHtml(rows, type, clickable) {
     if (!rows.length) {
-      return '<tr class="empty-row"><td colspan="8">해당 기간 · 지역에 ' + TYPE_LABEL[type] + " 실거래 신고가 없습니다.</td></tr>";
+      return '<tr class="empty-row"><td colspan="7">해당 기간 · 지역에 ' + TYPE_LABEL[type] + " 실거래 신고가 없습니다.</td></tr>";
     }
     return rows.map(function (r, i) {
       var rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
@@ -877,11 +880,10 @@
       return "<tr>" +
         '<td><span class="rank-chip ' + rc + '">' + (i + 1) + "</span></td>" +
         "<td>" + name + where + "</td>" +
-        "<td>" + supplyText(r.a) + "</td>" +
-        "<td>" + netText(r.a) + "</td>" +
+        "<td>" + areaBoth(r.a) + "</td>" +
         "<td>" + (r.f ? r.f + "층" : "-") + "</td>" +
         '<td class="rt-price">' + priceText(r, type) + "</td>" +
-        "<td>" + pyText(r, type) + "</td>" +
+        '<td class="rt-price">' + pyBoth(r, type) + "</td>" +
         '<td class="rt-sub">' + dateText(r.d) + "</td>" +
         "</tr>";
     }).join("");
@@ -905,9 +907,9 @@
       .map(function (t) {
         return '<h3 style="margin:18px 0 8px; font-size:15px;">' + regionLabel() + " · " + TYPE_LABEL[t] + " 실거래가 TOP 10</h3>" +
           '<table class="rank-table"><thead><tr><th>순위</th><th>단지명</th>' +
-          '<th>분양<span class="th-sub">㎡ (평)</span></th><th>전용<span class="th-sub">㎡</span></th>' +
-          '<th>층</th><th>' +
-          (t === "wolse" ? "보증금 / 월세" : "거래가") + "</th><th>평당가</th><th>거래일</th></tr></thead><tbody>" +
+          '<th>분양면적<span class="th-sub">㎡ (평) · 전용</span></th><th>층</th><th>' +
+          (t === "wolse" ? "보증금 / 월세" : "거래가") +
+          '</th><th>평당가<span class="th-sub">공급 · 전용</span></th><th>거래일</th></tr></thead><tbody>' +
           dealRowsHtml(r.top[t] || [], t, false) + "</tbody></table>";
       }).join("");
 
@@ -1171,18 +1173,6 @@
     }).join("") : '<tr class="empty-row"><td colspan="7">표시할 지역이 없습니다.</td></tr>';
     if (window.wireScrollBoxes) window.wireScrollBoxes();
   }
-
-  /* 평당가 기준 토글 — 화면 전체가 같은 기준으로 말하게 다시 그린다.
-     한 화면에 전용 기준과 분양 기준이 섞이면 토글이 없느니만 못하다. */
-  document.querySelectorAll("#pyBaseTabs button").forEach(function (b) {
-    b.addEventListener("click", function () {
-      if (state.pyBase === b.dataset.b) return;
-      document.querySelectorAll("#pyBaseTabs button").forEach(function (x) { x.classList.remove("active"); });
-      b.classList.add("active");
-      state.pyBase = b.dataset.b;
-      renderAll();
-    });
-  });
 
   document.querySelectorAll("#volRankTabs button").forEach(function (b) {
     b.addEventListener("click", function () {
@@ -2848,7 +2838,7 @@
 
   function pyRowsHtml(rows, type) {
     if (!rows || !rows.length) {
-      return '<tr class="empty-row"><td colspan="8">해당 기간 · 지역에 ' + TYPE_LABEL[type] + " 실거래가 없습니다.</td></tr>";
+      return '<tr class="empty-row"><td colspan="7">해당 기간 · 지역에 ' + TYPE_LABEL[type] + " 실거래가 없습니다.</td></tr>";
     }
     return rows.map(function (r, i) {
       var rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
@@ -2857,11 +2847,11 @@
       return "<tr>" +
         '<td><span class="rank-chip ' + rc + '">' + (i + 1) + "</span></td>" +
         '<td><div class="rt-name">' + esc(r.n) + "</div>" + where + "</td>" +
-        "<td>" + supplyText(r.a) + "</td>" +
-        "<td>" + netText(r.a) + "</td>" +
+        "<td>" + areaBoth(r.a) + "</td>" +
         "<td>" + (r.f ? r.f + "층" : "-") + "</td>" +
         '<td class="rt-price">' + priceText(r, type) + "</td>" +
-        '<td class="rt-price">' + pyNum(r.py) + "만원</td>" +
+        '<td class="rt-price">' + Math.round((r.py || 0) * SUPPLY_RATIO).toLocaleString() + "만원" +
+          '<div class="rt-sub">전용 ' + pyNum(r.py) + "만원</div></td>" +
         '<td class="rt-sub">' + dateText(r.d) + "</td>" +
         "</tr>";
     }).join("");
@@ -2876,8 +2866,8 @@
       .map(function (t) {
         return '<h3 style="margin:18px 0 8px; font-size:15px;">' + regionLabel() + " · " + TYPE_LABEL[t] + " 평당가격 TOP 10</h3>" +
           '<table class="rank-table"><thead><tr><th>순위</th><th>단지명</th>' +
-          '<th>분양<span class="th-sub">㎡ (평)</span></th><th>전용<span class="th-sub">㎡</span></th>' +
-          '<th>층</th><th>거래가</th><th>평당가<span class="th-sub">' + pyBaseLabel() + '</span></th><th>거래일</th></tr></thead><tbody>' +
+          '<th>분양면적<span class="th-sub">㎡ (평) · 전용</span></th>' +
+          '<th>층</th><th>거래가</th><th>평당가<span class="th-sub">공급 · 전용</span></th><th>거래일</th></tr></thead><tbody>' +
           pyRowsHtml(tops[t], t) + "</tbody></table>";
       }).join("");
   }
@@ -3272,16 +3262,7 @@
       briefConcl(mo) + out.map(function (t) { return "<li>" + t + "</li>"; }).join("");
   }
 
-  /* 머리글의 '전용 기준 / 분양 기준' 글자도 토글을 따라간다 */
-  function syncPyHeads() {
-    ["dealPyHead", "pyPyHead"].forEach(function (id) {
-      var el = document.getElementById(id);
-      if (el) el.textContent = pyBaseLabel();
-    });
-  }
-
   function renderAll() {
-    syncPyHeads();
     renderKpi();
     renderIndex();
     renderBrief();

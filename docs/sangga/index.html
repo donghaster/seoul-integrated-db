@@ -59,13 +59,6 @@
       <label>조회 기간</label>
       <div class="tab-row" id="windowTabs" style="margin-bottom:0;"></div>
     </div>
-    <div class="ctl">
-      <label>오피스텔 평당가</label>
-      <div class="tab-row seg-sm" id="pyBaseTabs" style="margin-bottom:0;">
-        <button class="active" data-b="net">전용</button>
-        <button data-b="supply">공급</button>
-      </div>
-    </div>
     <div class="filter-note" id="periodNote"></div>
   </section>
 
@@ -202,8 +195,8 @@
     <div class="read-guide">
       <h4>이 표를 읽는 법 — 세 가지만 기억하세요</h4>
       <ol>
-        <li><b>평당가 기준을 위에서 바꾸실 수 있습니다.</b> 네이버·KB 시세는 <b>공급(분양)면적</b> 기준이라
-          전용 기준 그대로 대면 두 배 가까이 비싸 보입니다. 그 시세와 비교하실 때는 <b>공급</b>으로 바꾸세요.
+        <li><b>면적과 평당가는 위에 공급(분양) 기준, 아래 옅은 글씨로 전용 기준</b>을 같이 적었습니다.
+          네이버·KB 시세는 공급면적 기준이니 <b>위 숫자</b>로 견주시면 됩니다.
           오피스텔 <b>전용률은 50% 안팎</b>으로 잡았습니다 &mdash; 소형 원룸은 40%대, 아파텔은 60%대라
           건물마다 다르니 정확한 값은 <b>분양 카탈로그·등기부</b>로 확인하세요.</li>
         <li><b>월세는 환산보증금(보증금 + 월세×100)</b> 순으로 줄을 세웁니다.
@@ -219,7 +212,7 @@
     </div>
     <div class="deal-scroll" style="--tbl-h:560px">
       <table class="rank-table rank-neutral deal-table">
-        <thead><tr><th>순위</th><th>건물명</th><th>전용면적</th><th>층</th><th id="offiPriceHead">거래가</th><th>평당가 <span class="th-sub" id="offiPyHead">전용 기준</span></th><th>거래일</th></tr></thead>
+        <thead><tr><th>순위</th><th>건물명</th><th>분양면적 <span class="th-sub">㎡ (평) · 아래 전용</span></th><th>층</th><th id="offiPriceHead">거래가</th><th>평당가 <span class="th-sub">공급 기준 · 아래 전용</span></th><th>거래일</th></tr></thead>
         <tbody id="offiBody"></tbody>
       </table>
     </div>
@@ -281,6 +274,6 @@
 <script src="../data/sangga.js?v=729b370ce8"></script>
 <script src="../data/geo.js?v=8d3cebfaf1"></script>
 <script src="../shared/brand.js?v=e35116c24e"></script>
-<script src="app.js?v=6ef638af12"></script>
+<script src="app.js?v=f5b2c56f1d"></script>
 </body>
 </html>

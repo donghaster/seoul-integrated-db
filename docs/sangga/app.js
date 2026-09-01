@@ -25,7 +25,6 @@
   var OFFI_COLOR = { sale: "#4f7fe6", jeonse: "#4fada8", wolse: "#cf9a45" };
 
   var state = { gu: ALL, dong: ALL, win: D.defaultWindow, nrgGroup: "shop", offiType: "sale",
-    pyBase: "net",              // 오피스텔 평당가 기준: net 전용 | supply 공급
   };
 
   function win() { return D.windows[state.win]; }
@@ -78,35 +77,28 @@
      화면에 가정값임을 밝힌다. */
   var OFFI_SUPPLY_RATIO = 0.50;
 
-  function pyConv(v) {
-    if (!v) return 0;
-    return state.pyBase === "supply" ? Math.round(v * OFFI_SUPPLY_RATIO) : Math.round(v);
-  }
-  function pyBaseWord() { return state.pyBase === "supply" ? "공급" : "전용"; }
-  function pyBaseLabel() { return pyBaseWord() + " 기준"; }
+  /* 기준을 토글로 갈아 끼우다가, 두 값을 위아래로 같이 적는 쪽으로 바꿨다.
+     고객과 화면을 같이 보면서 "공급 기준으로는 이만큼, 전용으로는 이만큼"이라고
+     한 번에 말할 수 있어야 상담이 끊기지 않는다. */
+  function pyConv(v) { return Math.round(v || 0); }
+  function pyBaseWord() { return "전용"; }
+  function pyBaseLabel() { return "전용 기준"; }
 
-  /* 오피스텔 평당가 — 고른 기준 하나만 크게 적고, 다른 기준은 작게 곁들인다 */
+  /* 분양(공급)면적 ㎡(평)을 크게, 전용 ㎡를 그 아래 옅게 */
+  function areaBoth(a) {
+    if (!a) return "-";
+    var sa = a / OFFI_SUPPLY_RATIO;
+    return sa.toFixed(1) + "㎡ (" + (sa / PYEONG).toFixed(1) + "평)" +
+      '<div class="rt-sub">전용 ' + a.toFixed(2) + "㎡</div>";
+  }
+
+  /* 공급 기준 평당가를 크게, 전용 기준을 그 아래 옅게 */
   function pyTextBoth(value, area) {
     if (!area) return "-";
     var net = Math.round(value / (area / PYEONG));
-    var sup = Math.round(net * OFFI_SUPPLY_RATIO);
-    var main = state.pyBase === "supply" ? sup : net;
-    var sub = state.pyBase === "supply" ? "전용 " + net.toLocaleString() : "공급 " + sup.toLocaleString();
-    return main.toLocaleString() + "만원" + '<div class="rt-sub">' + sub + "만원</div>";
+    return Math.round(net * OFFI_SUPPLY_RATIO).toLocaleString() + "만원" +
+      '<div class="rt-sub">전용 ' + net.toLocaleString() + "만원</div>";
   }
-
-  /* 오피스텔 평당가 기준 토글 — 화면 전체가 같은 기준으로 다시 그려진다 */
-  document.querySelectorAll("#pyBaseTabs button").forEach(function (b) {
-    b.addEventListener("click", function () {
-      if (state.pyBase === b.dataset.b) return;
-      document.querySelectorAll("#pyBaseTabs button").forEach(function (x) { x.classList.remove("active"); });
-      b.classList.add("active");
-      state.pyBase = b.dataset.b;
-      var h = document.getElementById("offiPyHead");
-      if (h) h.textContent = pyBaseLabel();
-      renderAll();
-    });
-  });
 
   /* 선택한 지역을 섹션 제목에 반영한다 */
   function scopeLabel() {
@@ -395,10 +387,10 @@
       return "<tr>" +
         '<td><span class="rank-chip ' + rc + '">' + (i + 1) + "</span></td>" +
         "<td>" + name + where + "</td>" +
-        "<td>" + areaText(r.a) + "</td>" +
+        "<td>" + areaBoth(r.a) + "</td>" +
         "<td>" + (r.f ? r.f + "층" : "-") + "</td>" +
         '<td class="rt-price">' + offiPriceText(r, type) + "</td>" +
-        "<td>" + pyTextBoth(convValue(r, type), r.a) + "</td>" +
+        '<td class="rt-price">' + pyTextBoth(convValue(r, type), r.a) + "</td>" +
         '<td class="rt-sub">' + dateText(r.d) + "</td>" +
         "</tr>";
     }).join("");
