@@ -316,6 +316,23 @@
     return a.toFixed(2) + "㎡ (" + (a / PYEONG).toFixed(1) + "평)";
   }
 
+  /* 분양(공급)면적은 실거래 자료에 없다 — 국토교통부는 전용면적만 준다.
+     그런데 고객이 말하는 "34평"은 분양 평수다. 전용률 74%로 되돌려 적되,
+     화면에 '환산'이라고 밝힌다. 뉴타운 대시보드의 공급 환산과 같은 계수다. */
+  var SUPPLY_RATIO = 0.74;
+  function supplyArea(a) { return a / SUPPLY_RATIO; }
+
+  /* 분양 칸 — ㎡와 평을 같이. 평은 분양 기준이라야 고객 말과 맞는다. */
+  function supplyText(a) {
+    if (!a) return "-";
+    var sa = supplyArea(a);
+    return sa.toFixed(1) + "㎡ <span class=\"rt-sub-inline\">(" +
+      (sa / PYEONG).toFixed(1) + "평)</span>";
+  }
+
+  /* 전용 칸 — ㎡만. 평을 또 적으면 분양 평과 헷갈린다. */
+  function netText(a) { return a ? a.toFixed(2) + "㎡" : "-"; }
+
   function pyText(row, type) {
     if (!row.a) return "-";
     return Math.round(convValue(row, type) / (row.a / PYEONG)).toLocaleString() + "만원";
@@ -832,7 +849,7 @@
 
   function dealRowsHtml(rows, type, clickable) {
     if (!rows.length) {
-      return '<tr class="empty-row"><td colspan="7">해당 기간 · 지역에 ' + TYPE_LABEL[type] + " 실거래 신고가 없습니다.</td></tr>";
+      return '<tr class="empty-row"><td colspan="8">해당 기간 · 지역에 ' + TYPE_LABEL[type] + " 실거래 신고가 없습니다.</td></tr>";
     }
     return rows.map(function (r, i) {
       var rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
@@ -844,7 +861,8 @@
       return "<tr>" +
         '<td><span class="rank-chip ' + rc + '">' + (i + 1) + "</span></td>" +
         "<td>" + name + where + "</td>" +
-        "<td>" + areaText(r.a) + "</td>" +
+        "<td>" + supplyText(r.a) + "</td>" +
+        "<td>" + netText(r.a) + "</td>" +
         "<td>" + (r.f ? r.f + "층" : "-") + "</td>" +
         '<td class="rt-price">' + priceText(r, type) + "</td>" +
         "<td>" + pyText(r, type) + "</td>" +
@@ -870,7 +888,9 @@
     document.getElementById("dealPrintAll").innerHTML = TYPES.filter(function (t) { return t !== type; })
       .map(function (t) {
         return '<h3 style="margin:18px 0 8px; font-size:15px;">' + regionLabel() + " · " + TYPE_LABEL[t] + " 실거래가 TOP 10</h3>" +
-          '<table class="rank-table"><thead><tr><th>순위</th><th>단지명</th><th>전용면적</th><th>층</th><th>' +
+          '<table class="rank-table"><thead><tr><th>순위</th><th>단지명</th>' +
+          '<th>분양<span class="th-sub">㎡ (평)</span></th><th>전용<span class="th-sub">㎡</span></th>' +
+          '<th>층</th><th>' +
           (t === "wolse" ? "보증금 / 월세" : "거래가") + "</th><th>평당가</th><th>거래일</th></tr></thead><tbody>" +
           dealRowsHtml(r.top[t] || [], t, false) + "</tbody></table>";
       }).join("");

@@ -104,7 +104,12 @@ a { color: var(--accent-2); }
   background: var(--accent-light); padding: 3px 10px; border-radius: 100px;
   vertical-align: middle; margin-left: 6px; white-space: nowrap;
 }
-.topbar-right { display: flex; align-items: center; gap: 12px; margin-left: auto; flex: 1 1 300px; justify-content: flex-end; }
+/* 줄바꿈을 허용해야 한다. 휴대폰(375px)에서 테마토글·대시보드모음·인쇄·조회시각이
+   한 줄에 다 들어가려다 화면 밖 509px까지 밀려 나갔다. */
+.topbar-right {
+  display: flex; align-items: center; gap: 12px; margin-left: auto;
+  flex: 1 1 300px; justify-content: flex-end; flex-wrap: wrap; min-width: 0;
+}
 .fetched { color: var(--txt-mute); font-size: 12px; text-align: right; line-height: 1.5; }
 
 .print-btn {
@@ -1320,3 +1325,22 @@ html[data-theme="dark"] .find-go:hover { background: #4a76d4; }
 }
 .expand-btn:hover { border-color: var(--accent); color: var(--accent); }
 @media print { .expand-btn { display: none !important; } }
+
+
+/* ════════════════ 휴대폰에서 상단바 ════════════════
+   고객 앞에서 휴대폰으로 여실 때가 많다. 좁은 화면에서는 상단바를
+   한 줄에 욱여넣지 않고 접어서 쌓는다. */
+@media (max-width: 560px) {
+  .topbar { padding: 12px 14px; gap: 8px 12px; }
+  .topbar-right { justify-content: flex-start; gap: 8px; flex-basis: 100%; }
+  .fetched { text-align: left; flex-basis: 100%; font-size: 11px; }
+  .print-btn { padding: 7px 12px; font-size: 12px; }
+  .home-link { font-size: 12px; }
+  .theme-toggle button { padding: 5px 9px; font-size: 11px; }
+  .brand { flex-basis: 100%; gap: 10px; }
+  .brand-plate { display: none; }        /* 상호 명판은 인쇄 워터마크에 남는다 */
+  .brand-sep { display: none; }
+  .wrap { padding-left: 12px; padding-right: 12px; }
+}
+/* 표 안에서 괄호 부분만 살짝 죽인다 — 분양 ㎡ 옆의 (평) */
+.rt-sub-inline { color: var(--txt-mute); font-weight: 600; font-size: 11.5px; }

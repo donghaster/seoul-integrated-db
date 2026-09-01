@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>금집부쌤의 서울시 통합 부동산 대시보드 — 아파트</title>
-  <link rel="stylesheet" href="../shared/app.css?v=0ec2753f18" />
+  <link rel="stylesheet" href="../shared/app.css?v=de7ae27a56" />
   <link rel="stylesheet" href="../vendor/leaflet/leaflet.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🏘️</text></svg>" />
 </head>
@@ -276,7 +276,8 @@
       <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 아파트 실거래가 TOP 30</h2>
       <button class="sec-print-btn" onclick="printSection('sec-top10')">이 섹션 인쇄</button>
     </div>
-    <p class="sec-desc">선택 지역의 실거래 중 <b>금액 상위 30건</b>입니다. 표에는 <b>10건만 보이고</b>, 아래 <b>펼치기</b>를 누르시면 30위까지 나옵니다. 월세는 <b>환산보증금(보증금 + 월세×100)</b> 기준으로 줄을 세웁니다. 단지명을 클릭하면 위 지도에 위치가 표시됩니다.</p>
+    <p class="sec-desc">선택 지역의 실거래 중 <b>금액 상위 30건</b>입니다. 표에는 <b>10건만 보이고</b>, 아래 <b>펼치기</b>를 누르시면 30위까지 나옵니다.<br />
+      <b>분양면적은 실거래 자료에 없어</b> 전용률 74%로 환산한 값입니다 — 고객이 말씀하시는 <b>“34평”은 분양 평수</b>라 그 기준으로 적었습니다. 단지마다 전용률이 달라 실제와 1~2평 차이 날 수 있습니다. 월세는 <b>환산보증금(보증금 + 월세×100)</b> 기준으로 줄을 세웁니다. 단지명을 클릭하면 위 지도에 위치가 표시됩니다.</p>
     <div class="tab-row" id="dealTypeTabs">
       <button class="active" data-t="sale">매매</button>
       <button data-t="jeonse">전세</button>
@@ -284,7 +285,7 @@
     </div>
     <div class="deal-scroll" style="--tbl-h:560px">
       <table class="rank-table deal-table">
-        <thead><tr><th>순위</th><th>단지명</th><th>전용면적</th><th>층</th><th id="dealPriceHead">거래가</th><th>평당가</th><th>거래일</th></tr></thead>
+        <thead><tr><th>순위</th><th>단지명</th><th>분양 <span class="th-sub">㎡ (평)</span></th><th>전용 <span class="th-sub">㎡</span></th><th>층</th><th id="dealPriceHead">거래가</th><th>평당가 <span class="th-sub">전용 기준</span></th><th>거래일</th></tr></thead>
         <tbody id="dealBody"></tbody>
       </table>
     </div>
@@ -428,6 +429,6 @@
 <script src="../data/locinfo.js?v=e97bc091b7"></script>
 <script src="../data/newtown.js?v=8ba14b3baf"></script>
 <script src="../shared/brand.js?v=e35116c24e"></script>
-<script src="app.js?v=4783e6a79f"></script>
+<script src="app.js?v=62bd39f540"></script>
 </body>
 </html>
