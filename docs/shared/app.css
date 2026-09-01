@@ -1300,7 +1300,10 @@ html[data-theme="dark"] .find-go:hover { background: #4a76d4; }
 @media (max-width: 760px) {
   .scope-sel { max-width: 100%; flex: 1 1 130px; }
   .scope-now { margin-left: 0; width: 100%; }
-  .deal-scroll { max-height: 340px; }
+  /* 좁은 화면에서는 조금 낮춘다. 다만 --tbl-h(10행 높이)를 계산해 둔 표는
+     그것을 넘지 않게만 하고, 값 자체를 덮어쓰지 않는다 — 덮어쓰면 10행이
+     5행으로 줄어 "10행 보임"이 무너진다. */
+  .deal-scroll { max-height: min(var(--tbl-h, 400px), 340px); }
 }
 @media print {
   .deal-scroll { max-height: none; overflow: visible; }
