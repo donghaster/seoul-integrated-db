@@ -89,7 +89,7 @@
     <button data-target="sec-map">실거래 지도</button>
     <button data-target="sec-index">가격지수</button>
     <button data-target="sec-brief">월별 브리핑</button>
-    <button data-target="sec-top10">실거래가 TOP10</button>
+    <button data-target="sec-top10">실거래가 TOP30</button>
     <button data-target="sec-compare">매매·전세·월세 비교</button>
     <button data-target="sec-volume">실거래량</button>
     <button data-target="sec-location">입지분석</button>
@@ -254,36 +254,36 @@
        (@media print의 `section[data-tabpanel] { display:block !important }`) -->
   <nav class="top-tabs" id="topTabs" role="tablist" aria-label="TOP 10 보기 전환">
     <button type="button" class="top-tab is-on" role="tab" data-tab="deal">
-      <b>💰 아파트 실거래가 TOP 10</b><em>매매·전세·월세 금액 상위 10건</em>
+      <b>💰 아파트 실거래가 TOP 30</b><em>금액 상위 30건 · 10건씩 보기</em>
     </button>
     <button type="button" class="top-tab" role="tab" data-tab="price">
       <b>📊 매매·전세·월세 가격비교</b><em>TOP10 기준 세 가지 가격을 한 축에서</em>
     </button>
     <button type="button" class="top-tab" role="tab" data-tab="vol">
-      <b>📈 아파트 실거래량 TOP 10</b><em>월별 추이 + 구·동 거래량 순위</em>
+      <b>📈 아파트 실거래량 TOP 30</b><em>월별 추이 + 구·동 거래량 순위</em>
     </button>
     <button type="button" class="top-tab" role="tab" data-tab="py">
-      <b>📐 아파트 평당가격 TOP 10</b><em>단위면적 가격 상위 10건</em>
+      <b>📐 아파트 평당가격 TOP 30</b><em>단위면적 가격 상위 30건</em>
     </button>
     <button type="button" class="top-tab" role="tab" data-tab="rise">
-      <b>🚀 평당가 상승률 TOP 10</b><em>전반부 → 후반부 변동률</em>
+      <b>🚀 평당가 상승률 TOP 30</b><em>전반부 → 후반부 변동률</em>
     </button>
   </nav>
 
   <!-- ─────────────── ① 실거래가 TOP 10 ─────────────── -->
   <section class="card-section" id="sec-top10" data-tabpanel="deal">
     <div class="sec-head">
-      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 아파트 실거래가 TOP 10</h2>
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 아파트 실거래가 TOP 30</h2>
       <button class="sec-print-btn" onclick="printSection('sec-top10')">이 섹션 인쇄</button>
     </div>
-    <p class="sec-desc">선택 지역의 실거래 중 <b>금액 상위 10건</b>입니다. 월세는 <b>환산보증금(보증금 + 월세×100)</b> 기준으로 줄을 세웁니다. 단지명을 클릭하면 위 지도에 위치가 표시됩니다.</p>
+    <p class="sec-desc">선택 지역의 실거래 중 <b>금액 상위 30건</b>입니다. 표에는 <b>10건만 보이고</b>, 아래 <b>펼치기</b>를 누르시면 30위까지 나옵니다. 월세는 <b>환산보증금(보증금 + 월세×100)</b> 기준으로 줄을 세웁니다. 단지명을 클릭하면 위 지도에 위치가 표시됩니다.</p>
     <div class="tab-row" id="dealTypeTabs">
       <button class="active" data-t="sale">매매</button>
       <button data-t="jeonse">전세</button>
       <button data-t="wolse">월세</button>
     </div>
-    <div class="table-wrap">
-      <table class="rank-table">
+    <div class="deal-scroll" style="--tbl-h:560px">
+      <table class="rank-table deal-table">
         <thead><tr><th>순위</th><th>단지명</th><th>전용면적</th><th>층</th><th id="dealPriceHead">거래가</th><th>평당가</th><th>거래일</th></tr></thead>
         <tbody id="dealBody"></tbody>
       </table>
@@ -316,7 +316,7 @@
   <!-- ─────────────── ③ 실거래량 ─────────────── -->
   <section class="card-section" id="sec-volume" data-tabpanel="vol">
     <div class="sec-head">
-      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 아파트 실거래량 TOP 10</h2>
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 아파트 실거래량 TOP 30</h2>
       <button class="sec-print-btn" onclick="printSection('sec-volume')">이 섹션 인쇄</button>
     </div>
     <p class="sec-desc">선택 지역의 <b>월별 거래건수 추이</b>와, 서울 <b>자치구별 / 법정동별 거래량 순위</b>입니다. 실거래 신고는 계약일로부터 30일 이내라 <b>마지막 달은 계속 늘어납니다</b>.</p>
@@ -325,33 +325,33 @@
       <div class="chart-box"><canvas id="volDonutChart"></canvas></div>
     </div>
     <div class="tab-row" id="volRankTabs" style="margin-top:22px;">
-      <button class="active" data-r="gu">자치구별 거래량 TOP 10</button>
-      <button data-r="dong">법정동별 거래량 TOP 10</button>
+      <button class="active" data-r="gu">자치구별 거래량 TOP 30</button>
+      <button data-r="dong">법정동별 거래량 TOP 30</button>
     </div>
     <div class="chart-box" style="height:320px;"><canvas id="volRankChart"></canvas></div>
-    <div class="table-wrap" style="margin-top:18px;">
-      <table class="rank-table">
+    <div class="deal-scroll" style="--tbl-h:560px" style="margin-top:18px;">
+      <table class="rank-table deal-table">
         <thead><tr><th>순위</th><th id="volRankHead">자치구</th><th>총 거래</th><th>매매</th><th>전세</th><th>월세</th><th>중위 평당가</th></tr></thead>
         <tbody id="volRankBody"></tbody>
       </table>
     </div>
   </section>
 
-  <!-- ─────────────── ④ 평당가격 TOP 10 ─────────────── -->
+  <!-- ─────────────── ④ 평당가격 TOP 30 ─────────────── -->
   <section class="card-section" id="sec-py" data-tabpanel="py">
     <div class="sec-head">
-      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 아파트 평당가격 TOP 10</h2>
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 아파트 평당가격 TOP 30</h2>
       <button class="sec-print-btn" onclick="printSection('sec-py')">이 섹션 인쇄</button>
     </div>
-    <p class="sec-desc">금액이 아니라 <b>평당가(거래금액 ÷ 전용면적 ÷ 3.3058)</b> 상위 10건입니다.
-      큰 평형이 밀리고 <b>작지만 비싼 단지</b>가 드러나므로, 금액 TOP10과 함께 보시면 좋습니다.</p>
+    <p class="sec-desc">금액이 아니라 <b>평당가(거래금액 ÷ 전용면적 ÷ 3.3058)</b> 상위 30건입니다.
+      큰 평형이 밀리고 <b>작지만 비싼 단지</b>가 드러나므로, 금액 순위와 함께 보시면 좋습니다.</p>
     <div class="tab-row" id="pyTypeTabs">
       <button class="active" data-t="sale">매매</button>
       <button data-t="jeonse">전세</button>
       <button data-t="wolse">월세</button>
     </div>
-    <div class="table-wrap">
-      <table class="rank-table">
+    <div class="deal-scroll" style="--tbl-h:560px">
+      <table class="rank-table deal-table">
         <thead><tr><th>순위</th><th>단지명</th><th>전용면적</th><th>층</th><th>거래가</th><th>평당가 <span class="th-sub">전용 기준</span></th><th>거래일</th></tr></thead>
         <tbody id="pyBody"></tbody>
       </table>
@@ -359,10 +359,10 @@
     <div id="pyPrintAll" class="print-only"></div>
   </section>
 
-  <!-- ─────────────── ⑤ 평당가 상승률 TOP 10 ─────────────── -->
+  <!-- ─────────────── ⑤ 평당가 상승률 TOP 30 ─────────────── -->
   <section class="card-section" id="sec-rise" data-tabpanel="rise">
     <div class="sec-head">
-      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 평당가 상승률 TOP 10</h2>
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 평당가 상승률 TOP 30</h2>
       <button class="sec-print-btn" onclick="printSection('sec-rise')">이 섹션 인쇄</button>
     </div>
     <p class="sec-desc" id="riseDesc"></p>
@@ -382,8 +382,8 @@
       <button data-t="jeonse">전세</button>
       <button data-t="wolse">월세</button>
     </div>
-    <div class="table-wrap">
-      <table class="rank-table rank-neutral">
+    <div class="deal-scroll" style="--tbl-h:560px">
+      <table class="rank-table rank-neutral deal-table">
         <thead><tr><th>순위</th><th>단지명</th><th>전반부 평당가</th><th>후반부 평당가</th><th>변동률</th><th>거래 <span class="th-sub">건</span></th></tr></thead>
         <tbody id="riseBody"></tbody>
       </table>
@@ -422,12 +422,12 @@
 
 <script src="../vendor/leaflet/leaflet.js"></script>
 <script src="../vendor/chart.umd.min.js"></script>
-<script src="../data/apt.js?v=2a8eb76ff2"></script>
+<script src="../data/apt.js?v=5d7a5f8186"></script>
 <script src="../data/geo.js?v=8d3cebfaf1"></script>
 <!-- 입지분석: 지하철·학교·공원·상권·인구(locinfo) + 개발 호재는 뉴타운 자료를 재사용 -->
 <script src="../data/locinfo.js?v=e97bc091b7"></script>
 <script src="../data/newtown.js?v=8ba14b3baf"></script>
-<script src="../shared/brand.js?v=b72d47474c"></script>
-<script src="app.js?v=b520602309"></script>
+<script src="../shared/brand.js?v=e35116c24e"></script>
+<script src="app.js?v=4783e6a79f"></script>
 </body>
 </html>

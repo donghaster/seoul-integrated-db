@@ -258,6 +258,7 @@
   function renderNrg() {
     var r = region();
     document.getElementById("nrgBody").innerHTML = nrgRowsHtml(r.nrgTop[state.nrgGroup] || [], state.nrgGroup);
+    if (window.wireScrollBoxes) window.wireScrollBoxes();
 
     document.getElementById("nrgPrintAll").innerHTML = NRG_GROUPS
       .filter(function (g) { return g !== state.nrgGroup; })
@@ -372,6 +373,7 @@
     var type = state.offiType;
     document.getElementById("offiPriceHead").textContent = type === "wolse" ? "보증금 / 월세" : "거래가";
     document.getElementById("offiBody").innerHTML = offiRowsHtml(r.offiTop[type] || [], type, true);
+    if (window.wireScrollBoxes) window.wireScrollBoxes();
 
     // 전세만 비어 있으면 "없습니다"로 끝내지 말고 계산 범위를 짚어 준다
     var empty = !(r.offiTop[type] || []).length;
@@ -418,7 +420,7 @@
       data: {
         labels: labels,
         datasets: OFFI_TYPES.map(function (t) {
-          var rows = r.offiTop[t] || [];
+          var rows = (r.offiTop[t] || []).slice(0, 10);   // 차트는 TOP10만
           return {
             label: OFFI_LABEL[t],
             _type: t,
@@ -535,7 +537,8 @@
       },
     });
 
-    document.getElementById("volGuBody").innerHTML = D.rankGu[state.win].slice(0, 10).map(function (x, i) {
+    // 25개 자치구를 다 담는다 — 표는 10행만 보이고 나머지는 펼쳐서 본다
+    document.getElementById("volGuBody").innerHTML = D.rankGu[state.win].map(function (x, i) {
       var reg = regionOf(x.k);
       var rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
       return "<tr>" +
@@ -548,6 +551,7 @@
         "<td>" + eokman(reg.med.offiSale) + "</td>" +
         "</tr>";
     }).join("");
+    if (window.wireScrollBoxes) window.wireScrollBoxes();
   }
 
   /* ════════════════ 지도 ════════════════ */
@@ -566,7 +570,7 @@
     if (!map) return;
     markerLayer.clearLayers();
     markers = {};
-    var rows = region().offiTop[state.offiType] || [];
+    var rows = (region().offiTop[state.offiType] || []).slice(0, 10);   // 지도는 TOP10만
     var pts = [], miss = 0;
 
     // 같은 건물이 호실만 달리해 여러 번 오르면 좌표가 똑같아 마커가 겹친다.

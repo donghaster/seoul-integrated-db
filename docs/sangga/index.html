@@ -66,8 +66,8 @@
     <button data-target="sec-kpi">핵심 요약</button>
     <button data-target="sec-map">실거래 지도</button>
     <button data-target="sec-brief">월별 브리핑</button>
-    <button data-target="sec-nrg">상가·업무용 TOP10</button>
-    <button data-target="sec-offi">오피스텔 TOP10</button>
+    <button data-target="sec-nrg">상가·업무용 TOP30</button>
+    <button data-target="sec-offi">오피스텔 TOP30</button>
     <button data-target="sec-volume">거래량 비교</button>
     <button data-target="sec-location">수익형 입지분석</button>
     <button data-target="sec-policy">상가·오피스텔 정책</button>
@@ -154,7 +154,7 @@
   <!-- ─────────────── 상가·업무용 TOP10 ─────────────── -->
   <section class="card-section" id="sec-nrg">
     <div class="sec-head">
-      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> <span id="nrgSecTitle">상가·업무용</span> 실거래가 TOP 10</h2>
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> <span id="nrgSecTitle">상가·업무용</span> 실거래가 TOP 30</h2>
       <button class="sec-print-btn" onclick="printSection('sec-nrg')">이 섹션 인쇄</button>
     </div>
     <p class="sec-desc">국토교통부 <b>상업·업무용 부동산 매매</b> 실거래입니다.</p>
@@ -175,8 +175,8 @@
       <button data-g="office">업무용 (사무실 등)</button>
       <button data-g="etc">기타 상업·업무용</button>
     </div>
-    <div class="table-wrap">
-      <table class="rank-table">
+    <div class="deal-scroll" style="--tbl-h:560px">
+      <table class="rank-table deal-table">
         <thead><tr><th>순위</th><th>용도</th><th>소재지</th><th>연면적 <span class="th-sub">대지면적</span></th><th>층</th><th>거래가</th><th>평당가 <span class="th-sub">연면적 기준</span></th><th>거래일</th></tr></thead>
         <tbody id="nrgBody"></tbody>
       </table>
@@ -187,10 +187,10 @@
   <!-- ─────────────── 오피스텔 TOP10 ─────────────── -->
   <section class="card-section" id="sec-offi">
     <div class="sec-head">
-      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> <span id="offiSecTitle">오피스텔</span> 실거래가 TOP 10</h2>
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> <span id="offiSecTitle">오피스텔</span> 실거래가 TOP 30</h2>
       <button class="sec-print-btn" onclick="printSection('sec-offi')">이 섹션 인쇄</button>
     </div>
-    <p class="sec-desc">오피스텔 <b>매매·전세·월세</b> 상위 10건입니다. 건물명을 클릭하면 위 지도에 위치가 표시됩니다.</p>
+    <p class="sec-desc">오피스텔 <b>매매·전세·월세</b> 상위 30건입니다. 표에는 <b>10건만 보이고</b>, <b>펼치기</b>로 30위까지 봅니다. 건물명을 클릭하면 위 지도에 위치가 표시됩니다.</p>
 
     <div class="read-guide">
       <h4>이 표를 읽는 법 — 세 가지만 기억하세요</h4>
@@ -208,8 +208,8 @@
       <button data-t="jeonse">전세</button>
       <button data-t="wolse">월세</button>
     </div>
-    <div class="table-wrap">
-      <table class="rank-table rank-neutral">
+    <div class="deal-scroll" style="--tbl-h:560px">
+      <table class="rank-table rank-neutral deal-table">
         <thead><tr><th>순위</th><th>건물명</th><th>전용면적</th><th>층</th><th id="offiPriceHead">거래가</th><th>평당가 <span class="th-sub">전용 / 공급환산</span></th><th>거래일</th></tr></thead>
         <tbody id="offiBody"></tbody>
       </table>
@@ -231,8 +231,8 @@
       <div class="chart-box"><canvas id="volDonutChart"></canvas></div>
     </div>
     <div class="chart-box" style="height:340px; margin-top:22px;"><canvas id="volGuChart"></canvas></div>
-    <div class="table-wrap" style="margin-top:18px;">
-      <table class="rank-table">
+    <div class="deal-scroll" style="--tbl-h:560px" style="margin-top:18px;">
+      <table class="rank-table deal-table">
         <thead><tr><th>순위</th><th>자치구</th><th>상가·업무용 <span class="th-sub">건</span></th><th>오피스텔 매매 <span class="th-sub">건</span></th><th>오피스텔 전월세 <span class="th-sub">건</span></th><th>상가 중위가</th><th>오피스텔 중위 매매가</th></tr></thead>
         <tbody id="volGuBody"></tbody>
       </table>
@@ -269,9 +269,9 @@
 
 <script src="../vendor/leaflet/leaflet.js"></script>
 <script src="../vendor/chart.umd.min.js"></script>
-<script src="../data/sangga.js?v=85b75cfb6e"></script>
+<script src="../data/sangga.js?v=729b370ce8"></script>
 <script src="../data/geo.js?v=8d3cebfaf1"></script>
-<script src="../shared/brand.js?v=b72d47474c"></script>
-<script src="app.js?v=5afe80d648"></script>
+<script src="../shared/brand.js?v=e35116c24e"></script>
+<script src="app.js?v=eeab619ed2"></script>
 </body>
 </html>

@@ -84,29 +84,65 @@
      표를 다시 그리면 요소가 새로 생기므로 표시가 자연히 초기화된다. */
   window.wireScrollBoxes = function () {
     document.querySelectorAll(".deal-scroll").forEach(function (box) {
-      if (box.dataset.wired) return;
-      // 다 보이면 단추가 필요 없다. 다만 여기서 표시를 남기면 안 된다 —
-      // 표가 아직 비어 있을 때 한 번 불리면 그대로 잠겨, 나중에 행이
-      // 채워져도 단추가 안 붙는다. 실제로 붙일 때만 표시한다.
-      if (box.scrollHeight <= box.clientHeight + 4) return;
-      box.dataset.wired = "1";
-      var n = box.querySelectorAll("tbody tr").length;
-      var shut = "▾ 전체 " + n.toLocaleString() + "행 펼치기";
-      var btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "expand-btn";
-      btn.innerHTML = shut;
-      btn.addEventListener("click", function () {
-        var open = box.classList.toggle("is-open");
-        btn.innerHTML = open ? "▴ 접기" : shut;
-        if (!open) {
-          box.scrollTop = 0;
-          box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      // 숨은 탭 안에 있으면 높이가 0이라 아무것도 잴 수 없다. 그냥 두었다가
+      // 그 탭이 켜질 때 다시 온다(top10tabchange, load).
+      if (!box.offsetParent && box.offsetHeight === 0) return;
+
+      // 행 높이가 표마다 다르다(36·44·54px). 픽셀을 손으로 정하면 어떤 표는
+      // 7행, 어떤 표는 11행이 보인다. 실제로 재서 10행에 맞춘다.
+      var head = box.querySelector("thead tr");
+      var one = box.querySelector("tbody tr");
+      if (head && one) {
+        var want = parseInt(box.dataset.rows || "10", 10);
+        var rowH = one.getBoundingClientRect().height;
+        if (rowH > 0) {
+          box.style.setProperty("--tbl-h",
+            Math.round(head.getBoundingClientRect().height + rowH * want) + "px");
         }
-      });
-      box.parentNode.insertBefore(btn, box.nextSibling);
+      }
+
+      var next = box.nextElementSibling;
+      var btn = (next && next.classList.contains("expand-btn")) ? next : null;
+      var open = box.classList.contains("is-open");
+      var n = box.querySelectorAll("tbody tr").length;
+
+      // 펼쳐 둔 상태면 max-height가 풀려 clientHeight가 곧 전체 높이가 된다.
+      // 그래서 "접었을 때 높이"를 기준으로 넘치는지 본다 — 펼친 채 범위를
+      // 좁혀 두 줄만 남았는데 접기 단추가 남아 있는 일을 막는다.
+      var limit = parseFloat(box.style.getPropertyValue("--tbl-h")) || box.clientHeight;
+      var overflows = box.scrollHeight > limit + 4;
+      if (!overflows) {
+        // 필터를 좁혀 행이 줄면 단추가 남아 "전체 27행"처럼 낡은 숫자를 말한다
+        if (btn) btn.remove();
+        box.classList.remove("is-open");
+        return;
+      }
+
+      var shut = "▾ 전체 " + n.toLocaleString() + "행 펼치기";
+      if (!btn) {
+        btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "expand-btn";
+        btn.addEventListener("click", function () {
+          var nowOpen = box.classList.toggle("is-open");
+          btn.innerHTML = nowOpen ? "▴ 접기" : btn.dataset.shut;
+          if (!nowOpen) {
+            box.scrollTop = 0;
+            box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          }
+        });
+        box.parentNode.insertBefore(btn, box.nextSibling);
+      }
+      btn.dataset.shut = shut;                 // 행 수가 바뀌면 문구도 따라간다
+      btn.innerHTML = open ? "▴ 접기" : shut;
     });
   };
+
+  /* 처음 그릴 때는 아직 자리가 안 잡혀 높이를 못 재는 표가 있다.
+     탭 안에 든 표, 늦게 켜지는 섹션이 그렇다. 한 박자 뒤 한 번 더 훑는다. */
+  window.addEventListener("load", function () {
+    requestAnimationFrame(function () { window.wireScrollBoxes(); });
+  });
 
   /* ── 조회시각 ── */
   var fetched = document.getElementById("fetchedAt");
@@ -189,6 +225,8 @@
         });
       }
       document.dispatchEvent(new CustomEvent("top10tabchange", { detail: { tab: key } }));
+      // 숨어 있던 표는 높이를 못 재 단추가 안 붙었다. 켜진 지금 다시 본다.
+      if (window.wireScrollBoxes) window.wireScrollBoxes();
     };
     tabs.forEach(function (t) { t.addEventListener("click", function () { show(t.dataset.tab); }); });
     show((tabs.find(function (t) { return t.classList.contains("is-on"); }) || tabs[0]).dataset.tab);

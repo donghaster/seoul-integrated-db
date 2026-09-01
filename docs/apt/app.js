@@ -418,6 +418,9 @@
      30만 건을 통째로 정렬하면 조작할 때마다 몇 초씩 걸리므로,
      한 번만 훑으면서 상위 후보 CAND개만 들고 간다(전체 정렬 없이). */
   var CAND = 200;
+  /* 표에 담는 순위 수. 화면에는 10행만 보이고 나머지는 펼쳐서 본다.
+     차트는 여전히 10위까지만 쓴다 — 막대 30개는 읽을 수 없다. */
+  var TOP_N = 30;
 
   function pickTop(rows, score) {
     var best = [];                 // 점수 내림차순으로 유지되는 짧은 배열
@@ -436,7 +439,7 @@
       floor = best[best.length - 1].s;
     }
     var picked = [], seen = {};
-    for (var j = 0; j < best.length && picked.length < 10; j++) {
+    for (var j = 0; j < best.length && picked.length < TOP_N; j++) {
       var r = best[j].r, k = r.n + "|" + Math.round(r.a);
       seen[k] = (seen[k] || 0) + 1;
       if (seen[k] > 3) continue;
@@ -540,7 +543,7 @@
                  cnt: early[n].length + late[n].length });
     });
     out.sort(function (x, y) { return y.rate - x.rate; });
-    return out.slice(0, 10);
+    return out.slice(0, TOP_N);
   }
 
   /* 구간별 중위 평당가 시계열 — 가격지수용.
@@ -861,6 +864,7 @@
     var type = state.dealType;
     document.getElementById("dealPriceHead").textContent = type === "wolse" ? "보증금 / 월세" : "거래가";
     document.getElementById("dealBody").innerHTML = dealRowsHtml(r.top[type] || [], type, true);
+    if (window.wireScrollBoxes) window.wireScrollBoxes();
 
     // 인쇄용 — 화면에 보이는 표 말고 나머지 두 유형도 함께 출력
     document.getElementById("dealPrintAll").innerHTML = TYPES.filter(function (t) { return t !== type; })
@@ -943,7 +947,7 @@
     var months = bucketList();
     var monthLabels = bucketLabels();
     var monthSets = TYPES.map(function (t) {
-      var rows = r.top[t] || [];
+      var rows = (r.top[t] || []).slice(0, 10);   // 차트는 TOP10만
       var bucket = {};
       rows.forEach(function (row) {
         var ym = bucketKey(row.d);
@@ -1075,11 +1079,12 @@
       x.c = c.sale + c.jeonse + c.wolse;
     });
     keys.sort(function (a2, b2) { return b2.c - a2.c; });
-    return keys.slice(0, 10);
+    return keys.slice(0, TOP_N);
   }
 
   function renderVolRank() {
     var list = volRankList();
+    var chartList = list.slice(0, 10);           // 막대는 10개까지만
     var isGu = state.volRank === "gu";
     document.getElementById("volRankHead").textContent = isGu ? "자치구" : "법정동";
 
@@ -1087,11 +1092,11 @@
     volRankChart = new Chart(document.getElementById("volRankChart"), {
       type: "bar",
       data: {
-        labels: list.map(function (x) { return isGu ? x.label : (x.gu ? x.gu + " " + x.label : x.label); }),
+        labels: chartList.map(function (x) { return isGu ? x.label : (x.gu ? x.gu + " " + x.label : x.label); }),
         datasets: TYPES.map(function (t) {
           return {
             label: TYPE_LABEL[t] === "월세(환산)" ? "월세" : TYPE_LABEL[t],
-            data: list.map(function (x) { return regionOf(x.k).cnt[t] || 0; }),
+            data: chartList.map(function (x) { return regionOf(x.k).cnt[t] || 0; }),
             backgroundColor: TYPE_COLOR[t],
             borderWidth: 0,
           };
@@ -1128,6 +1133,7 @@
         "<td>" + (reg.med.pyeong || 0).toLocaleString() + "만원</td>" +
         "</tr>";
     }).join("") : '<tr class="empty-row"><td colspan="7">표시할 지역이 없습니다.</td></tr>';
+    if (window.wireScrollBoxes) window.wireScrollBoxes();
   }
 
   document.querySelectorAll("#volRankTabs button").forEach(function (b) {
@@ -1194,7 +1200,7 @@
     markers = {};
     selectedKey = null;
 
-    var rows = region().top[state.dealType] || [];
+    var rows = (region().top[state.dealType] || []).slice(0, 10);   // 지도는 TOP10만
     var pts = [], miss = 0;
 
     // 같은 단지가 평형·층만 달리해 여러 번 오르면 좌표가 똑같아 마커가 겹친다.
@@ -2811,6 +2817,7 @@
   function renderPy() {
     var tops = computeRegion(regionKey()).topPy;
     document.getElementById("pyBody").innerHTML = pyRowsHtml(tops[pyState.type], pyState.type);
+    if (window.wireScrollBoxes) window.wireScrollBoxes();
     document.getElementById("pyPrintAll").innerHTML = TYPES
       .filter(function (t) { return t !== pyState.type; })
       .map(function (t) {
@@ -2856,6 +2863,7 @@
 
   function renderRise() {
     document.getElementById("riseBody").innerHTML = riseRowsHtml(riseOf(regionKey(), riseState.type));
+    if (window.wireScrollBoxes) window.wireScrollBoxes();
 
     document.getElementById("riseDesc").innerHTML =
       "조회 기간 <b>" + win().label + "</b>을 <b>정확히 반으로 나눠</b> " +

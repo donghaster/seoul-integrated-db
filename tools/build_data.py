@@ -29,6 +29,10 @@ OUT_DIR = os.path.join(BASE_DIR, "docs", "data")
 
 PYEONG = 3.3058          # 1평 = 3.3058㎡
 TOP_N = 10
+# 화면 표는 10행만 보이고 스크롤로 더 볼 수 있게 바뀌었다. 10위에서 끊으면
+# 펼쳐도 더 나올 게 없으므로 상가·오피스텔은 30위까지 담는다.
+# (아파트는 원본 실거래를 통째로 싣고 화면에서 직접 뽑으므로 여기서 안 다룬다.)
+TABLE_N = 30
 ALL = "all"
 
 # 화면에서 고를 수 있는 조회 기간(개월). 전부 "오늘이 속한 달"에서 거꾸로 센다.
@@ -499,7 +503,7 @@ def build_sangga(yms: list[str]) -> dict:
 
         def nrg_slim(rows):
             """상업용은 단지명이 없어 용도·지번으로 표시한다."""
-            ranked = sorted(rows, key=lambda r: r["amount"], reverse=True)[:TOP_N]
+            ranked = sorted(rows, key=lambda r: r["amount"], reverse=True)[:TABLE_N]
             return [{
                 "n": r.get("use") or "상업·업무용",
                 "bt": r.get("btype") or "",
@@ -522,7 +526,7 @@ def build_sangga(yms: list[str]) -> dict:
             flat = [r for g in ("shop", "office", "etc") for r in sub_nrg[g]]
             per_window[str(w)] = {
                 "nrgTop": {g: nrg_slim(sub_nrg[g]) for g in ("shop", "office", "etc")},
-                "offiTop": {t: top_rows(sub_offi[t]) for t in ("sale", "jeonse", "wolse")},
+                "offiTop": {t: top_rows(sub_offi[t], TABLE_N) for t in ("sale", "jeonse", "wolse")},
                 "nrgCnt": {g: len(sub_nrg[g]) for g in ("shop", "office", "etc")},
                 "offiCnt": {t: len(sub_offi[t]) for t in ("sale", "jeonse", "wolse")},
                 "med": {
