@@ -2,6 +2,81 @@
 (function () {
   "use strict";
 
+  /* ── 라이트·다크 ──
+     고른 값은 이 기기에 남는다. 안 골랐으면 기기 설정을 따라가고,
+     설정이 바뀌면 같이 따라간다. 인쇄는 CSS에서 늘 밝은 색으로 돌린다. */
+  var THEME_KEY = "geumjib-theme";
+
+  function applyTheme(mode) {
+    var root = document.documentElement;
+    if (mode === "dark" || mode === "light") root.setAttribute("data-theme", mode);
+    else root.removeAttribute("data-theme");           // auto — 기기 설정을 따른다
+    document.querySelectorAll(".theme-toggle button").forEach(function (b) {
+      b.classList.toggle("is-on", b.dataset.theme === (mode || "auto"));
+    });
+  }
+
+  function savedTheme() {
+    try { return localStorage.getItem(THEME_KEY) || "auto"; } catch (e) { return "auto"; }
+  }
+
+  (function initTheme() {
+    var host = document.getElementById("themeToggle");
+    if (host) {
+      host.className = "theme-toggle";
+      host.innerHTML =
+        '<button type="button" data-theme="light" title="밝게">☀️ 라이트</button>' +
+        '<button type="button" data-theme="dark" title="어둡게">🌙 다크</button>' +
+        '<button type="button" data-theme="auto" title="기기 설정 따라가기">자동</button>';
+      host.addEventListener("click", function (e) {
+        var b = e.target.closest("button[data-theme]");
+        if (!b) return;
+        var m = b.dataset.theme;
+        try { localStorage.setItem(THEME_KEY, m); } catch (err) { /* 저장 못 해도 화면은 바뀐다 */ }
+        applyTheme(m === "auto" ? "" : m);
+        document.querySelectorAll(".theme-toggle button").forEach(function (x) {
+          x.classList.toggle("is-on", x.dataset.theme === m);
+        });
+        window.dispatchEvent(new Event("themechange"));
+      });
+    }
+    var mode = savedTheme();
+    applyTheme(mode === "auto" ? "" : mode);
+    // 자동일 때만 기기 설정 변화를 따라간다
+    if (window.matchMedia) {
+      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
+        if (savedTheme() === "auto") { applyTheme(""); window.dispatchEvent(new Event("themechange")); }
+      });
+    }
+  })();
+
+  /* Chart.js 기본 눈금색은 회색 고정이라 다크에서 흐릿해진다.
+     테마 변수에서 색을 읽어 기본값으로 깔고, 테마가 바뀌면 살아 있는
+     차트를 전부 다시 그린다. 차트를 만들 때 색을 직접 준 대시보드는
+     그쪽 값이 이긴다 — 여기서는 기본값만 손댄다. */
+  function syncChartTheme() {
+    if (typeof Chart === "undefined") return;
+    var cs = getComputedStyle(document.documentElement);
+    Chart.defaults.color = cs.getPropertyValue("--txt-dim").trim() || "#667085";
+    Chart.defaults.borderColor = cs.getPropertyValue("--line-soft").trim() || "#e7eaf1";
+    document.querySelectorAll("canvas").forEach(function (cv) {
+      var c = Chart.getChart(cv);
+      if (!c) return;
+      // 만들 때 색을 못 박아 둔 축은 그대로 두고, 안 준 축만 따라오게 한다
+      ["x", "y"].forEach(function (ax) {
+        var sc = c.options.scales && c.options.scales[ax];
+        if (!sc) return;
+        if (sc.ticks && sc.ticks.color) sc.ticks.color = Chart.defaults.color;
+        if (sc.grid && sc.grid.color) sc.grid.color = Chart.defaults.borderColor;
+      });
+      var lg = c.options.plugins && c.options.plugins.legend;
+      if (lg && lg.labels && lg.labels.color) lg.labels.color = Chart.defaults.color;
+      c.update("none");
+    });
+  }
+  syncChartTheme();
+  window.addEventListener("themechange", syncChartTheme);
+
   /* ── 조회시각 ── */
   var fetched = document.getElementById("fetchedAt");
   if (fetched) {
