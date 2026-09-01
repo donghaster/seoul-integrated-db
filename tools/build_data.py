@@ -567,7 +567,48 @@ def build_sangga(yms: list[str]) -> dict:
         "groupLabel": NRG_GROUP_LABEL,
         "jeonseRatio": offi_jeonse_ratio(offi_sale, offi_rent),
         "total": len(nrg) + len(offi_sale) + len(offi_rent),
+        "deals": pack_nrg_deals(nrg),
     }
+
+
+def pack_nrg_deals(rows: list[dict]) -> dict:
+    """상업업무용 매매 원본을 화면이 표로 그릴 수 있게 눌러 담는다.
+
+    12개월치가 1만 2천 건뿐이라 통째로 실어도 부담이 없다. 같은 문자열이
+    수없이 반복되므로(자치구·법정동·용도) 사전을 따로 두고 번호만 담는다.
+    """
+    dongs: list[str] = []
+    uses: list[str] = []
+    di: dict[str, int] = {}
+    ui: dict[str, int] = {}
+
+    def idx(v: str, arr: list, m: dict) -> int:
+        if v not in m:
+            m[v] = len(arr)
+            arr.append(v)
+        return m[v]
+
+    out = []
+    for r in sorted(rows, key=lambda x: x["date"], reverse=True):
+        gu = r.get("gu") or ""
+        dong = r.get("dong") or ""
+        area = float(r.get("area") or 0)
+        amt = float(r.get("amount") or 0)          # 만원
+        py = round(amt / (area / 3.3058)) if area else 0   # 연면적 기준 평당가
+        out.append([
+            idx(gu + "|" + dong, dongs, di),
+            r.get("date") or "",
+            idx(r.get("use") or r.get("name") or "-", uses, ui),
+            idx(r.get("btype") or "-", uses, ui),
+            round(area, 1),
+            (r.get("floor") or "").strip(),
+            round(amt),
+            py,
+            (r.get("jibun") or "").strip(),
+            int(r.get("build") or 0),
+        ])
+    return {"dongs": dongs, "uses": uses, "rows": out,
+            "cols": ["dong", "date", "use", "btype", "area", "floor", "amount", "py", "jibun", "build"]}
 
 
 # ---------------------------------------------------------------- 출력

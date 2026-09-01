@@ -1147,7 +1147,9 @@ html[data-theme="dark"] .school-chip.is-on,
 html[data-theme="dark"] .mini-btn.is-on,
 html[data-theme="dark"] .policy-card .date-chip,
 html[data-theme="dark"] .theme-toggle button.is-on,
+html[data-theme="dark"] .find-go,
 html[data-theme="dark"] .top-tab.is-on { background: #3a63bd; }
+html[data-theme="dark"] .find-go:hover { background: #4a76d4; }
 
 /* ════════════════ 업종 막대 — 막대 오른쪽에 숫자를 같이 적는다 ════════════════
    캔버스 막대 + 아래 표로 두 번 보여 주던 것을 하나로 합쳤다.
@@ -1232,3 +1234,65 @@ html[data-theme="dark"] .top-tab.is-on { background: #3a63bd; }
 }
 .ib-track > i.ib-sl { background: linear-gradient(90deg, var(--jeonse), #3f938e); }
 .ib-per { color: var(--txt-dim) !important; font-weight: 800; }
+
+/* ════════════════ 상권 찾기 — 한 줄 검색 + 범위 셀렉트 ════════════════
+   자치구 26 + 동 16 + 상권 58개를 칩으로 깔면 화면 위쪽을 다 먹는다.
+   고객은 이미 동네를 알고 오시므로 주소 한 줄로 바로 들어가게 한다. */
+.find-main { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+.find-input { position: relative; flex: 1 1 380px; min-width: 0; }
+.find-input input {
+  width: 100%; box-sizing: border-box;
+  border: 1.5px solid var(--line); border-radius: 11px;
+  padding: 12px 15px; background: var(--card); color: var(--txt);
+  font: inherit; font-size: 14.5px; font-weight: 600;
+}
+.find-input input:focus { outline: none; border-color: var(--accent); }
+.find-go {
+  border: 0; background: var(--accent); color: #fff; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 800;
+  padding: 12px 24px; border-radius: 11px; white-space: nowrap;
+}
+.find-go:hover { background: var(--accent-2); }
+
+.scope-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 11px 14px; background: var(--card-2);
+  border: 1px solid var(--line); border-radius: 12px;
+}
+.scope-label { font-size: 11.5px; font-weight: 800; color: var(--txt-mute); }
+.scope-sel {
+  border: 1px solid var(--line); border-radius: 9px; padding: 7px 11px;
+  background: var(--card); color: var(--txt); font: inherit;
+  font-size: 12.5px; font-weight: 700; max-width: 240px;
+}
+.scope-sel:disabled { opacity: .45; }
+.scope-now { font-size: 12.5px; font-weight: 700; color: var(--txt-dim); margin-left: auto; }
+.scope-now b { color: var(--txt); }
+
+/* ════════════════ 실거래 표 — 안에서 스크롤 ════════════════ */
+.deal-scroll {
+  max-height: 420px; overflow-y: auto; overflow-x: auto;
+  border: 1px solid var(--line); border-radius: 11px;
+}
+.deal-scroll .deal-table { font-size: 12.5px; }
+.deal-scroll .deal-table th {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--card-2); border-bottom: 2px solid var(--line);
+  padding: 9px 10px; white-space: nowrap;
+}
+.deal-scroll .deal-table td { padding: 8px 10px; white-space: nowrap; }
+.deal-scroll .dt-where { font-weight: 700; color: var(--txt); }
+
+/* ════════════════ 지도 반경 ════════════════ */
+.radius-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.radius-bar > span:first-child { font-size: 11.5px; font-weight: 800; color: var(--txt-mute); margin-right: 2px; }
+.radius-note { font-size: 11.5px; font-weight: 700; color: var(--txt-mute); margin-left: 6px; }
+
+@media (max-width: 760px) {
+  .scope-sel { max-width: 100%; flex: 1 1 130px; }
+  .scope-now { margin-left: 0; width: 100%; }
+  .deal-scroll { max-height: 340px; }
+}
+@media print {
+  .deal-scroll { max-height: none; overflow: visible; }
+}

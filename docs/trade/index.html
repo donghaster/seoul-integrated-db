@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>금집부쌤의 서울시 통합 부동산 대시보드 — 상권분석</title>
-  <link rel="stylesheet" href="../shared/app.css?v=1c861b5871" />
+  <link rel="stylesheet" href="../shared/app.css?v=89e12a1ce8" />
   <link rel="stylesheet" href="../vendor/leaflet/leaflet.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>📊</text></svg>" />
 </head>
@@ -52,41 +52,29 @@
       <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 상권 찾기</h2>
     </div>
     <p class="sec-desc">
-      <b>자치구 &rarr; 행정동 &rarr; 상권</b> 순으로 좁혀 보시거나, 상권 이름·상가 주소로 바로 찾으실 수 있습니다.
-      고르신 범위에 맞춰 <b>아래 분석이 모두 바뀝니다</b>.
+      상가 <b>주소</b>나 <b>상권 이름</b>을 넣으시면 바로 그 자리부터 봅니다.
+      좁히거나 넓히실 때는 아래 <b>자치구 · 행정동 · 상권</b>을 바꾸시면 됩니다.
       자료는 서울시 상권분석서비스 <b id="qNote">최신 분기</b> 기준입니다.
     </p>
 
-    <div class="finder-bar">
-      <label for="trSearch">상권 이름</label>
-      <div class="finder-input">
-        <input type="text" id="trSearch" placeholder="예: 강남역, 서래마을, 노량진" autocomplete="off" />
+    <div class="find-main">
+      <div class="find-input">
+        <input type="text" id="trSearch"
+               placeholder="예: 서울 서초구 반포대로 58   ·   강남역   ·   서래마을" autocomplete="off" />
         <div class="finder-drop" id="trDrop" hidden></div>
       </div>
-      <label for="trAddr" style="margin-left:6px">주소</label>
-      <div class="finder-input">
-        <input type="text" id="trAddr" placeholder="예: 서울 동작구 노량진동" autocomplete="off" />
-      </div>
-      <button type="button" class="mini-btn" id="trAddrBtn">주소로 찾기</button>
+      <button type="button" class="find-go" id="trGo">찾기</button>
+      <button type="button" class="mini-btn" id="trSample">예시로 보기</button>
     </div>
-    <p class="dim-note" id="trAddrNote" style="margin:-6px 0 14px"></p>
+    <p class="dim-note" id="trAddrNote"></p>
 
-    <div class="pick">
-      <div class="pick-row">
-        <span class="pick-label">자치구</span>
-        <div class="tab-row seg-sm chip-wrap" id="pickGu"></div>
-      </div>
-      <div class="pick-row" id="pickDongRow" hidden>
-        <span class="pick-label">행정동</span>
-        <div class="tab-row seg-sm chip-wrap" id="pickDong"></div>
-      </div>
-      <div class="pick-row" id="pickTradeRow" hidden>
-        <span class="pick-label">상권</span>
-        <div class="tab-row seg-sm chip-wrap" id="pickTrade"></div>
-      </div>
+    <div class="scope-bar">
+      <span class="scope-label">보는 범위</span>
+      <select id="selGu" class="scope-sel"></select>
+      <select id="selDong" class="scope-sel"></select>
+      <select id="selTrade" class="scope-sel"></select>
+      <span class="scope-now" id="pickNote"></span>
     </div>
-
-    <p class="dim-note" id="pickNote"></p>
   </section>
 
   <div id="trResult"></div>
@@ -101,8 +89,9 @@
 <script src="../vendor/leaflet/leaflet.js"></script>
 <script src="../vendor/chart.umd.min.js"></script>
 <script src="../data/trade.js?v=d3f7101d43"></script>
-<script src="../data/sangga.js?v=cc73894439"></script>
+<script src="../data/sangga.js?v=97f5fc98d2"></script>
+<script src="../data/rent.js?v=4c7e01d298"></script>
 <script src="../shared/brand.js?v=1a0010fea9"></script>
-<script src="app.js?v=e46ae04815"></script>
+<script src="app.js?v=e024d66539"></script>
 </body>
 </html>

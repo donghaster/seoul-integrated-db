@@ -46,6 +46,9 @@
     return (L + 0.05) / 0.05 > 4.5 ? "#16191f" : "#ffffff";
   }
 
+  var RN = window.RENT_DATA || null;      // 한국부동산원 임대동향(KOSIS 경유)
+  var RADII = [200, 300, 500];            // 지도 반경(m)
+  var radius = 300;
   var CATS = T.cats || [];
   var CAT_COLOR = ["#4f7fe6", "#e0708f", "#4fada8", "#cf9a45", "#9b59d0",
                    "#5aa469", "#d4713f", "#6d7fb3", "#8a93a3"];
@@ -83,7 +86,9 @@
   function money(man) {
     if (!man) return "-";
     if (man >= 100000000) return (man / 100000000).toFixed(1) + "조원";
-    if (man >= 10000) return comma(man / 10000) + "억원";
+    // 100억 밑에서는 소수 한 자리를 살린다 — 6.2억을 6억으로 뭉개면 상담이 안 된다
+    if (man >= 1000000) return comma(man / 10000) + "억원";
+    if (man >= 10000) return (man / 10000).toFixed(1) + "억원";
     return comma(man) + "만원";
   }
 
@@ -285,90 +290,85 @@
     return Math.round(Math.sqrt(dx * dx + dy * dy));
   }
 
-  /* ════════════════ 지역 고르기 ════════════════ */
+  /* 상권은 점이 아니라 면이다. 중심점끼리만 재면 큰 상권일수록 "500m 안에
+     아무것도 없다"고 나온다 — 실제로는 걸어서 1분이어도 그렇다.
+     면적을 원으로 보고 가장자리끼리의 거리를 쓴다. */
+  function radiusOf(t) { return Math.sqrt((t.ar || 0) / Math.PI); }
 
-  var pickGu = document.getElementById("pickGu");
-  var pickDong = document.getElementById("pickDong");
-  var pickTrade = document.getElementById("pickTrade");
-
-  function chipHtml(v, label, on, sub) {
-    return '<button data-v="' + esc(v) + '"' + (on ? ' class="active"' : "") + ">" +
-      esc(label) + (sub ? '<span class="chip-sub">' + esc(sub) + "</span>" : "") + "</button>";
+  function edgeM(a, b) {
+    var d = distM(a.lat, a.lng, b.lat, b.lng);
+    return Math.max(0, Math.round(d - radiusOf(a) - radiusOf(b)));
   }
 
-  function fillGu() {
-    pickGu.innerHTML = chipHtml(ALL, "서울 전체", state.gu === ALL, comma(TRADES.length) + "곳") +
+  /* ════════════════ 지역 고르기 ════════════════
+     칩을 세 줄로 깔면 자치구 26개 + 동 16개 + 상권 58개가 화면 위쪽을 다 먹는다.
+     고객은 이미 어느 동네인지 알고 오시므로, 주소 한 줄로 바로 들어가고
+     좁히거나 넓히는 것만 셀렉트로 둔다. */
+
+  var selGu = document.getElementById("selGu");
+  var selDong = document.getElementById("selDong");
+  var selTrade = document.getElementById("selTrade");
+
+  function opt(v, label, on) {
+    return '<option value="' + esc(v) + '"' + (on ? " selected" : "") + ">" + esc(label) + "</option>";
+  }
+
+  function fillScope() {
+    selGu.innerHTML = opt(ALL, "서울 전체 (" + comma(TRADES.length) + "곳)", state.gu === ALL) +
       T.gus.map(function (g) {
         var n = TRADES.filter(function (t) { return t.gu === g; }).length;
-        return chipHtml(g, g, state.gu === g, n + "곳");
+        return opt(g, g + " (" + n + ")", state.gu === g);
       }).join("");
+
+    if (state.gu === ALL) {
+      selDong.innerHTML = opt(ALL, "행정동 —", true);
+      selDong.disabled = true;
+    } else {
+      selDong.disabled = false;
+      var dongs = {};
+      TRADES.forEach(function (t) {
+        if (t.gu === state.gu && t.dong) dongs[t.dong] = (dongs[t.dong] || 0) + 1;
+      });
+      var keys = Object.keys(dongs).sort();
+      selDong.innerHTML = opt(ALL, "구 전체 (" + keys.length + "개 동)", state.dong === ALL) +
+        keys.map(function (d) { return opt(d, d + " (" + dongs[d] + ")", state.dong === d); }).join("");
+    }
+
+    var list = state.gu === ALL ? [] : TRADES.filter(function (t) {
+      return t.gu === state.gu && (state.dong === ALL || t.dong === state.dong);
+    }).sort(function (x, y) { return val(y, "fp") - val(x, "fp"); });
+
+    if (!list.length) {
+      selTrade.innerHTML = opt(ALL, "상권 —", true);
+      selTrade.disabled = true;
+    } else {
+      selTrade.disabled = false;
+      selTrade.innerHTML = opt(ALL, (state.dong === ALL ? "구" : "동") + " 전체 합산 (" + list.length + "곳)", state.code === ALL) +
+        list.map(function (t) {
+          return opt(t.c, t.n + " · " + comma(perDay(val(t, "fp"))) + "명", state.code === t.c);
+        }).join("");
+    }
   }
 
-  function fillDong() {
-    var row = document.getElementById("pickDongRow");
-    if (state.gu === ALL) { row.hidden = true; return; }
-    row.hidden = false;
-    var dongs = {};
-    TRADES.forEach(function (t) {
-      if (t.gu === state.gu && t.dong) dongs[t.dong] = (dongs[t.dong] || 0) + 1;
-    });
-    var keys = Object.keys(dongs).sort();
-    pickDong.innerHTML = chipHtml(ALL, "구 전체", state.dong === ALL, comma(
-      TRADES.filter(function (t) { return t.gu === state.gu; }).length) + "곳") +
-      keys.map(function (d) { return chipHtml(d, d, state.dong === d, dongs[d] + "곳"); }).join("");
-  }
-
-  function fillTrade() {
-    var row = document.getElementById("pickTradeRow");
-    if (state.gu === ALL) { row.hidden = true; return; }
-    var list = scopeTradesForPick();
-    if (list.length < 2) { row.hidden = true; return; }
-    row.hidden = false;
-    // 유동인구 많은 순 — 고를 만한 곳이 앞에 온다
-    list = list.slice().sort(function (a, b) { return val(b, "fp") - val(a, "fp"); });
-    pickTrade.innerHTML = chipHtml(ALL, state.dong === ALL ? "구 전체 합산" : "동 전체 합산", state.code === ALL, list.length + "곳 합산") +
-      list.map(function (t) {
-        return chipHtml(t.c, t.n, state.code === t.c, comma(perDay(val(t, "fp"))) + "명");
-      }).join("");
-  }
-
-  function scopeTradesForPick() {
-    return TRADES.filter(function (t) {
-      if (t.gu !== state.gu) return false;
-      if (state.dong !== ALL && t.dong !== state.dong) return false;
-      return true;
-    });
-  }
-
-  pickGu.addEventListener("click", function (e) {
-    var b = e.target.closest("button[data-v]");
-    if (!b) return;
-    state.gu = b.dataset.v; state.dong = ALL; state.code = ALL;
-    refresh();
+  selGu.addEventListener("change", function () {
+    state.gu = selGu.value; state.dong = ALL; state.code = ALL; refresh();
   });
-  pickDong.addEventListener("click", function (e) {
-    var b = e.target.closest("button[data-v]");
-    if (!b) return;
-    state.dong = b.dataset.v; state.code = ALL;
-    refresh();
+  selDong.addEventListener("change", function () {
+    state.dong = selDong.value; state.code = ALL; refresh();
   });
-  pickTrade.addEventListener("click", function (e) {
-    var b = e.target.closest("button[data-v]");
-    if (!b) return;
-    state.code = b.dataset.v;
-    refresh();
+  selTrade.addEventListener("change", function () {
+    state.code = selTrade.value; refresh();
   });
 
   function refresh() {
-    fillGu(); fillDong(); fillTrade();
+    fillScope();
     var list = scopeTrades();
     document.getElementById("pickNote").innerHTML =
-      "<b>" + esc(scopeName()) + "</b> — 상권 " + comma(list.length) + "곳" +
-      (state.code === ALL && list.length > 1 ? " <b>합산</b> 기준으로 아래를 계산했습니다." : " 기준입니다.");
+      "<b>" + esc(scopeName()) + "</b> · 상권 " + comma(list.length) + "곳" +
+      (state.code === ALL && list.length > 1 ? " 합산" : "");
     render(aggregate(list), list);
   }
 
-  /* 검색·주소로 상권을 직접 고르면 상태도 같이 맞춘다 */
   function gotoTrade(code) {
     var t = BY_CODE[code];
     if (!t) return;
@@ -377,16 +377,19 @@
     document.getElementById("sec-sum").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  /* ════════════════ 검색창 ════════════════ */
+  /* ════════════════ 한 줄 검색 ════════════════
+     주소든 상권 이름이든 같은 칸에 넣는다. 무엇을 넣었는지는 글자로 가린다. */
 
   (function initSearch() {
     document.getElementById("qNote").textContent = qLabel(T.quarter.flpop);
 
     var input = document.getElementById("trSearch");
     var drop = document.getElementById("trDrop");
+    var note = document.getElementById("trAddrNote");
     var hits = [], cursor = -1;
 
     function close() { drop.hidden = true; cursor = -1; }
+
     function paint() {
       if (!hits.length) { close(); return; }
       drop.innerHTML = hits.map(function (t, i) {
@@ -398,73 +401,89 @@
       }).join("");
       drop.hidden = false;
     }
-    function run() { hits = searchTrade(input.value, 12); cursor = -1; paint(); }
+
+    /* 주소처럼 보이면(구 이름이 들어 있고 상권 이름과 안 맞으면) 주소로 처리한다 */
+    function looksLikeAddress(q) {
+      if (!/[가-힣0-9]+(구|동|로|길)/.test(q)) return false;
+      return !searchTrade(q, 1).length;
+    }
+
+    function run() {
+      var q = input.value.trim();
+      if (!q) { close(); note.textContent = ""; return; }
+      hits = searchTrade(q, 12); cursor = -1; paint();
+    }
+
+    function go() {
+      var q = input.value.trim();
+      if (!q) return;
+      if (!looksLikeAddress(q) && hits.length) { gotoTrade(hits[cursor < 0 ? 0 : cursor].c); close(); return; }
+      byAddress(q, note);
+      close();
+    }
 
     input.addEventListener("input", run);
     input.addEventListener("focus", function () { if (input.value) run(); });
     input.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { go(); e.preventDefault(); return; }
       if (drop.hidden || !hits.length) return;
       if (e.key === "ArrowDown") { cursor = Math.min(cursor + 1, hits.length - 1); paint(); e.preventDefault(); }
       else if (e.key === "ArrowUp") { cursor = Math.max(cursor - 1, 0); paint(); e.preventDefault(); }
-      else if (e.key === "Enter") { gotoTrade(hits[cursor < 0 ? 0 : cursor].c); close(); e.preventDefault(); }
       else if (e.key === "Escape") close();
     });
     drop.addEventListener("click", function (e) {
       var b = e.target.closest("button[data-c]");
       if (!b) return;
-      gotoTrade(b.dataset.c);
-      close();
+      gotoTrade(b.dataset.c); close();
+      note.textContent = "";
     });
     document.addEventListener("click", function (e) {
-      if (!e.target.closest(".finder-input")) close();
+      if (!e.target.closest(".find-input")) close();
     });
+    document.getElementById("trGo").addEventListener("click", go);
 
-    document.getElementById("trAddrBtn").addEventListener("click", findByAddr);
-    document.getElementById("trAddr").addEventListener("keydown", function (e) {
-      if (e.key === "Enter") { findByAddr(); e.preventDefault(); }
+    document.getElementById("trSample").addEventListener("click", function () {
+      var ex = ["강남역", "서래마을카페거리(서래마을)", "홍대입구역(홍대)", "노량진역"];
+      for (var i = 0; i < ex.length; i++) {
+        var hit = searchTrade(ex[i], 1)[0];
+        if (hit) { input.value = hit.n; note.innerHTML = "예시로 <b>" + esc(hit.n) + "</b>을(를) 열었습니다."; gotoTrade(hit.c); return; }
+      }
     });
   })();
 
   /* 주소는 카카오 키를 브라우저에 노출하지 않으려고 지오코딩을 쓰지 않는다.
-     자치구·동 이름을 뽑아 그 범위로 좁혀 준다. */
-  function findByAddr() {
-    var q = (document.getElementById("trAddr").value || "").trim();
-    var note = document.getElementById("trAddrNote");
-    if (!q) { note.textContent = ""; return; }
-
+     자치구·행정동 이름을 뽑아 그 범위로 좁혀 준다. */
+  function byAddress(q, note) {
     var gu = (q.match(/([가-힣]+구)/) || [])[1] || "";
     if (!gu || T.gus.indexOf(gu) === -1) {
-      note.innerHTML = "서울 자치구를 못 찾았습니다. <b>'서울 동작구 노량진동'</b>처럼 넣어 주세요.";
+      note.innerHTML = "서울 자치구를 못 찾았습니다. <b>'서울 동작구 노량진동'</b>처럼 넣으시거나, " +
+        "<b>상권 이름</b>을 바로 넣어 보세요.";
       return;
     }
     state.gu = gu; state.dong = ALL; state.code = ALL;
 
     var dongRaw = (q.match(/([가-힣0-9]+동)/) || [])[1] || "";
     if (dongRaw) {
-      // 먼저 행정동 이름이 그대로 있는지 본다 — '상도1동'을 넣었으면 그 동만 잡아야 한다.
-      // 없으면 법정동을 넣은 것으로 보고('노량진동') 앞부분이 같은 행정동을 모은다.
+      // 행정동 이름이 그대로 있으면 그것만, 없으면 법정동으로 보고 앞부분이 같은 것을 모은다
       var exact = TRADES.filter(function (t) { return t.gu === gu && t.dong === dongRaw; });
       var stem = dongRaw.replace(/[0-9]+동$/, "").replace(/동$/, "");
       var cands = exact.length ? exact : TRADES.filter(function (t) {
         return t.gu === gu && stem && t.dong.indexOf(stem) === 0;
       });
       var dongs = {};
-      cands.forEach(function (t) { dongs[t.dong] = (dongs[t.dong] || 0) + 1; });
+      cands.forEach(function (t) { dongs[t.dong] = 1; });
       var keys = Object.keys(dongs).sort();
-      // 법정동 하나가 행정동 여럿으로 갈리는 경우가 있다(노량진동 -> 노량진1동·2동).
-      // 그럴 때 하나를 멋대로 고르면 안 되고, 안내와 실제 범위가 어긋나도 안 된다.
       if (keys.length === 1) {
         state.dong = keys[0];
         note.innerHTML = "<b>" + esc(gu) + " " + esc(keys[0]) + "</b> 범위로 잡았습니다.";
       } else if (keys.length > 1) {
         note.innerHTML = "<b>" + esc(dongRaw) + "</b>은 행정동이 <b>" + esc(keys.join(" · ")) +
-          "</b>으로 나뉘어 있어 <b>" + esc(gu) + " 전체</b>로 두었습니다. " +
-          "아래 <b>행정동</b>에서 골라 좁히세요.";
+          "</b>으로 나뉘어 있어 <b>" + esc(gu) + " 전체</b>로 두었습니다. 위 <b>행정동</b>에서 골라 좁히세요.";
       } else {
-        note.innerHTML = "<b>" + esc(gu) + "</b>로 잡았습니다. 행정동은 아래에서 고르세요.";
+        note.innerHTML = "<b>" + esc(gu) + "</b>로 잡았습니다. 행정동은 위에서 고르세요.";
       }
     } else {
-      note.innerHTML = "<b>" + esc(gu) + "</b>로 잡았습니다. 행정동·상권은 아래에서 좁히세요.";
+      note.innerHTML = "<b>" + esc(gu) + "</b>로 잡았습니다. 행정동·상권은 위에서 좁히세요.";
     }
     refresh();
     document.getElementById("sec-sum").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -628,7 +647,7 @@
       return;
     }
     var single = list.length === 1;
-    var nrg = nrgOf(state.gu);
+
 
     host.innerHTML =
       section("sec-sum", "📊", scopeName() + (single ? "" : " 합산"), "",
@@ -639,13 +658,27 @@
         stHtml(t)) : "") +
       (t.sl ? section("sec-sl", "💳", "추정 매출", "서울시가 카드 결제 등으로 <b>추정</b>한 값입니다.",
         slHtml(t)) : "") +
-      section("sec-nrg", "🏢", (state.gu === ALL ? "서울" : state.gu) + " 상업업무용 실거래", "", nrgHtml(nrg)) +
+      section("sec-nrg", "🏢", "실거래 비교",
+        "국토교통부 <b>상업업무용 매매</b> 신고 자료입니다. 최근 12개월치를 그대로 보여드립니다.",
+        nrgHtml()) +
+      section("sec-rent", "🔑", "임대시세 · 공실률",
+        "한국부동산원 <b>상업용부동산 임대동향조사</b>입니다. 분기마다 나오고, " +
+        "<b>상권 구분이 저희와 다릅니다</b> — 아래에 어디를 보고 있는지 밝혀 두었습니다.",
+        rentHtml()) +
       section("sec-yield", "🧮", "수익률 계산",
         "매물 조건을 넣으면 즉시 계산됩니다. <b>취득세 등 4.6%</b>를 투입금에 넣을지 고르실 수 있습니다.",
         yieldFormHtml() + '<div id="yieldOut"></div>') +
       section("sec-map", "🗺️", single ? "위치 · 인근 상권" : "상권 분포 · 업종 지도",
         single ? "가까운 상권을 함께 표시합니다. 원을 누르면 그 상권으로 넘어갑니다."
                : "원 크기는 유동인구, 색은 상권 유형입니다. 원을 누르면 그 상권만 따로 봅니다.",
+        '<div class="radius-bar"><span>반경</span>' +
+          RADII.map(function (r) {
+            return '<button type="button" class="mini-btn' + (r === radius ? " is-on" : "") +
+              '" data-r="' + r + '">' + r + "m</button>";
+          }).join("") +
+          '<button type="button" class="mini-btn' + (radius === 0 ? " is-on" : "") +
+          '" data-r="0">범위 전체</button>' +
+          '<span class="radius-note" id="radiusNote"></span></div>' +
         '<div class="map-wrap">' +
           '<div class="map-box"><div id="trMap"></div></div>' +
           '<div id="mapSide"></div>' +
@@ -664,9 +697,12 @@
     if (t.fp) drawFp(t);
     if (t.st) drawSt(t);
     if (t.sl) drawSl(t);
+    initRadius(t, list, single);
+    initNrg();
+    initRent();
     initYield();
     drawMap(t, list, single);
-    drawMapSide(t);
+    drawMapSide(inRadius(t, list, single));
     initIndustry(t, list);
     initCompare(list);
 
@@ -915,35 +951,327 @@
       "#cf9a45", false, function (v) { return v + "억원"; });
   }
 
-  /* ── 실거래 ── */
-  function nrgOf(gu) {
-    if (!SG || !SG.regions || gu === ALL) return null;
-    var reg = SG.regions[gu];
-    if (!reg || !reg.w) return null;
-    var w = reg.w[SG.defaultWindow] || reg.w["12"];
-    if (!w) return null;
+  /* ── 실거래 비교 ──
+     상권 단위 실거래는 세상에 없다. 대신 그 상권이 속한 법정동과 자치구의
+     상업업무용 매매를 원본 그대로 보여 준다. 집계만 보면 "왜 그 값이 나왔는지"를
+     못 밝히므로, 거래 한 건 한 건을 스크롤로 훑을 수 있게 둔다. */
+
+  var nrgMode = "dong";                   // dong | gu
+
+  function nrgDeals() {
+    if (!SG || !SG.deals) return { rows: [], label: "", note: "자료 없음" };
+    var D = SG.deals;
+    var gu = state.gu;
+    if (gu === ALL) return { rows: [], label: "", note: "자치구를 고르시면 그 구의 실거래를 보여드립니다." };
+
+    // 고른 범위에 걸린 법정동을 모은다. 상권의 dong은 행정동이라 그대로는 안 맞아,
+    // 자치구 안에서 이름 앞부분이 겹치는 법정동을 잡는다.
+    var want = null;
+    if (nrgMode === "dong" && state.dong !== ALL) {
+      var stem = state.dong.replace(/[0-9]+동$/, "").replace(/동$/, "");
+      want = {};
+      D.dongs.forEach(function (k, i) {
+        var p = k.split("|");
+        if (p[0] === gu && stem && p[1].indexOf(stem) === 0) want[i] = 1;
+      });
+      if (!Object.keys(want).length) want = null;
+    }
+
+    var rows = D.rows.filter(function (r) {
+      var k = D.dongs[r[0]] || "";
+      if (k.split("|")[0] !== gu) return false;
+      return want ? want[r[0]] : true;
+    });
     return {
-      gu: gu, cnt: w.nrgCnt, med: w.med,
-      label: (SG.windows && SG.windows[SG.defaultWindow] && SG.windows[SG.defaultWindow].label) || "최근 12개월",
+      rows: rows,
+      label: want ? gu + " " + state.dong + " 일대" : gu + " 전체",
+      note: want ? "" : (nrgMode === "dong" && state.dong === ALL
+        ? "행정동을 고르시면 그 동만 따로 볼 수 있습니다." : ""),
     };
   }
 
-  function nrgHtml(nrg) {
-    if (!nrg) {
-      return '<p class="placeholder">자치구를 고르시면 그 구의 상업업무용 실거래를 함께 보여드립니다.</p>';
+  function nrgHtml() {
+    return '<div class="tab-row seg-sm" id="nrgTabs">' +
+      '<button data-m="dong"' + (nrgMode === "dong" ? ' class="active"' : "") + ">같은 동</button>" +
+      '<button data-m="gu"' + (nrgMode === "gu" ? ' class="active"' : "") + ">구 전체</button>" +
+      "</div><div id=\"nrgBody\"></div>";
+  }
+
+  function initNrg() {
+    var tabs = document.getElementById("nrgTabs");
+    if (tabs) {
+      tabs.addEventListener("click", function (e) {
+        var b = e.target.closest("button[data-m]");
+        if (!b) return;
+        nrgMode = b.dataset.m;
+        tabs.querySelectorAll("button").forEach(function (x) {
+          x.classList.toggle("active", x.dataset.m === nrgMode);
+        });
+        renderNrg();
+      });
     }
-    var tot = (nrg.cnt.shop || 0) + (nrg.cnt.office || 0) + (nrg.cnt.etc || 0);
-    return '<p class="sec-desc">' + esc(nrg.label) + " · 국토교통부 상업업무용 매매 신고 기준입니다. " +
-      "<b>상권 단위 실거래는 없어</b> 자치구 전체로 보여드립니다.</p>" +
+    renderNrg();
+  }
+
+  function renderNrg() {
+    var host = document.getElementById("nrgBody");
+    if (!host) return;
+    var D = SG && SG.deals;
+    var q = nrgDeals();
+    if (!q.rows.length) {
+      host.innerHTML = '<p class="placeholder">' + esc(q.note || "이 범위에 신고된 상업업무용 매매가 없습니다.") + "</p>";
+      return;
+    }
+
+    // 월별 건수 — 신고 기한 30일이라 마지막 달은 아직 덜 찼다
+    var months = (SG.months || []).slice();
+    var cnt = {}, py = {};
+    q.rows.forEach(function (r) {
+      var ym = (r[1] || "").slice(0, 7).replace("-", "");
+      cnt[ym] = (cnt[ym] || 0) + 1;
+      (py[ym] = py[ym] || []).push(r[7]);
+    });
+    var pend = months[months.length - 1];
+
+    var amounts = q.rows.map(function (r) { return r[6]; }).sort(function (a, b) { return a - b; });
+    var pys = q.rows.map(function (r) { return r[7]; }).filter(Boolean).sort(function (a, b) { return a - b; });
+    var med = function (a) { return a.length ? a[a.length >> 1] : 0; };
+
+    host.innerHTML =
       '<div class="mini-row">' +
-        '<div class="mini"><span>상업업무용 매매</span><b>' + comma(tot) + "건</b></div>" +
-        '<div class="mini"><span>일반상가</span><b>' + comma(nrg.cnt.shop || 0) + "건</b></div>" +
-        '<div class="mini"><span>중위 거래가</span><b>' + (nrg.med.nrg ? money(nrg.med.nrg) : "-") + "</b></div>" +
-        '<div class="mini"><span>중위 평당가</span><b>' +
-          (nrg.med.nrgPy ? comma(nrg.med.nrgPy) + "만원" : "-") + "</b></div>" +
+        '<div class="mini"><span>' + esc(q.label) + " 거래</span><b>" + comma(q.rows.length) + "건</b>" +
+          '<span class="mini-foot">최근 12개월</span></div>' +
+        '<div class="mini"><span>중위 거래가</span><b>' + money(med(amounts)) + "</b></div>" +
+        '<div class="mini"><span>중위 평당가</span><b>' + comma(med(pys)) + "만원</b>" +
+          '<span class="mini-foot">연면적 기준</span></div>' +
+        '<div class="mini"><span>가장 비싼 거래</span><b>' + money(amounts[amounts.length - 1]) + "</b></div>" +
       "</div>" +
-      '<p class="dim-note" style="margin-top:10px">상가 평당가는 <b>연면적 기준</b>이라 아파트 전용면적 평당가와 ' +
-      "직접 비교하시면 안 됩니다. 자세한 내용은 <a href='../sangga/index.html'>상가·오피스텔 대시보드</a>에서 보세요.</p>";
+      '<h4 class="tr-h4">월별 거래 건수 <span class="h4-sub">' + esc(q.label) + "</span></h4>" +
+      '<div class="chart-box" style="height:200px"><canvas id="nrgChart"></canvas></div>' +
+      '<h4 class="tr-h4">거래 내역 <span class="h4-sub">' + comma(q.rows.length) +
+        "건 · 최근 순 · 표 안에서 스크롤하세요</span></h4>" +
+      '<div class="deal-scroll"><table class="rank-table deal-table"><thead><tr>' +
+        "<th>거래일</th><th>소재지</th><th>용도</th><th>유형</th>" +
+        "<th>면적(㎡)</th><th>층</th><th>거래금액</th><th>평당가</th><th>준공</th>" +
+      "</tr></thead><tbody>" +
+      q.rows.map(function (r) {
+        var k = (D.dongs[r[0]] || "").split("|");
+        return "<tr><td>" + esc(r[1]) + "</td>" +
+          '<td class="dt-where">' + esc(k[1] || "") + " " + esc(r[8] || "") + "</td>" +
+          "<td>" + esc(D.uses[r[2]] || "-") + "</td>" +
+          "<td>" + esc(D.uses[r[3]] || "-") + "</td>" +
+          "<td>" + comma(r[4]) + "</td>" +
+          "<td>" + esc(r[5] || "-") + "</td>" +
+          '<td class="rt-price">' + money(r[6]) + "</td>" +
+          "<td>" + (r[7] ? comma(r[7]) + "만" : "-") + "</td>" +
+          "<td>" + (r[9] ? r[9] : "-") + "</td></tr>";
+      }).join("") + "</tbody></table></div>" +
+      '<p class="dim-note" style="margin-top:8px">평당가는 <b>연면적 기준</b>이라 아파트 전용면적 ' +
+      "평당가와 직접 비교하시면 안 됩니다. 마지막 달은 <b>신고 기한(계약 후 30일)</b> 때문에 " +
+      "아직 덜 찬 숫자입니다. 더 자세한 내용은 <a href='../sangga/index.html'>상가·오피스텔 대시보드</a>에 있습니다.</p>";
+
+    var labels = months.map(function (m) { return m.slice(2, 4) + "." + m.slice(4); });
+    var data = months.map(function (m) { return cnt[m] || 0; });
+    var colors = months.map(function (m) { return m === pend ? "#9aa3b2" : "#4f7fe6"; });
+    if (charts.nrgChart) charts.nrgChart.destroy();
+    var el = document.getElementById("nrgChart");
+    if (!el) return;
+    var c = themeColors();
+    charts.nrgChart = new Chart(el, {
+      type: "bar",
+      data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderRadius: 4 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: function (x) {
+            return comma(x.parsed.y) + "건" + (months[x.dataIndex] === pend ? " (집계중)" : "");
+          } } },
+        },
+        scales: {
+          x: { ticks: { color: c.txt, font: { size: 10.5 } }, grid: { display: false } },
+          y: { beginAtZero: true, ticks: { color: c.txt, font: { size: 10.5 }, precision: 0 },
+               grid: { color: c.grid } },
+        },
+      },
+    });
+  }
+
+  /* ── 임대시세 · 공실률 ──
+     부동산원 상권은 서울 68곳뿐이라 저희 1,650곳과 1:1로 안 맞는다.
+     자치구로 이어 붙이고, 어디를 보고 있는지 화면에 밝힌다. */
+
+  var rentSize = "sm";                    // sm 소규모 | md 중대형
+  var rentPick = "";
+
+  function rentCandidates() {
+    if (!RN) return [];
+    var gu = state.gu;
+    return Object.keys(RN.areas).filter(function (n) {
+      return gu === ALL ? true : (RN.areas[n].gu || []).indexOf(gu) !== -1;
+    }).sort();
+  }
+
+  function rentHtml() {
+    if (!RN) return '<p class="placeholder">임대시세 자료가 없습니다. <code>py tools/fetch_rent.py</code>를 실행하세요.</p>';
+    var cands = rentCandidates();
+    if (!cands.length) {
+      return '<p class="placeholder">' + (state.gu === ALL
+        ? "자치구를 고르시면 그 구의 임대시세를 보여드립니다."
+        : "<b>" + esc(state.gu) + "</b>에는 부동산원 조사 상권이 없어 서울 평균으로 보여드립니다.") + "</p>" +
+        '<div id="rentBody"></div>';
+    }
+    // 상권마다 조사 대상이 다르다. 쌍문역은 중대형만, 어떤 곳은 소규모만 있다.
+    // 지금 고른 규모에 자료가 있는 상권을 먼저 잡고, 하나도 없으면 규모를 바꾼다.
+    function has(n, p) {
+      var a = RN.areas[n];
+      return a && (lastOf(a[p + "Vac"]) || lastOf(a[p + "Rent"]));
+    }
+    if (!rentPick || cands.indexOf(rentPick) === -1 || !has(rentPick, rentSize)) {
+      var fit = cands.filter(function (n) { return has(n, rentSize); });
+      if (!fit.length) {
+        rentSize = rentSize === "sm" ? "md" : "sm";
+        fit = cands.filter(function (n) { return has(n, rentSize); });
+      }
+      rentPick = fit.length ? fit[0] : cands[0];
+    }
+    return '<div class="finder-bar">' +
+      '<div class="tab-row seg-sm" id="rentTabs" style="margin:0">' +
+        '<button data-s="sm"' + (rentSize === "sm" ? ' class="active"' : "") + ">소규모 상가</button>" +
+        '<button data-s="md"' + (rentSize === "md" ? ' class="active"' : "") + ">중대형 상가</button>" +
+      "</div>" +
+      '<label for="rentPick" style="margin-left:10px">조사 상권</label>' +
+      '<select id="rentPick" class="ind-sel">' + cands.map(function (n) {
+        return '<option value="' + esc(n) + '"' + (n === rentPick ? " selected" : "") + ">" +
+          esc(n) + (has(n, rentSize) ? "" : " (조사 없음)") + "</option>";
+      }).join("") + "</select></div><div id=\"rentBody\"></div>";
+  }
+
+  function initRent() {
+    var tabs = document.getElementById("rentTabs");
+    if (tabs) tabs.addEventListener("click", function (e) {
+      var b = e.target.closest("button[data-s]");
+      if (!b) return;
+      rentSize = b.dataset.s;
+      tabs.querySelectorAll("button").forEach(function (x) {
+        x.classList.toggle("active", x.dataset.s === rentSize);
+      });
+      renderRent();
+    });
+    var sel = document.getElementById("rentPick");
+    if (sel) sel.addEventListener("change", function () { rentPick = sel.value; renderRent(); });
+    renderRent();
+  }
+
+  function qName(code) {
+    return code ? code.slice(0, 4) + "년 " + code.slice(5) + "분기" : "-";
+  }
+
+  function lastOf(arr) {
+    if (!arr) return null;
+    for (var i = arr.length - 1; i >= 0; i--) if (arr[i] != null) return { v: arr[i], i: i };
+    return null;
+  }
+
+  function renderRent() {
+    var host = document.getElementById("rentBody");
+    if (!host || !RN) return;
+    var P = rentSize;
+    var A = rentPick && RN.areas[rentPick];
+    var src = A || RN.seoul;
+    var where = A ? rentPick : "서울 전체";
+    var grp = A ? A.g : "";
+
+    var vac = lastOf(src[P + "Vac"]);
+    var rent = lastOf(src[P + "Rent"]);
+    var idx = src[P + "Idx"] || [];
+    var yld = lastOf(src[P + "Yld"]);
+    var sVac = lastOf(RN.seoul[P + "Vac"]);
+    var sRent = lastOf(RN.seoul[P + "Rent"]);
+
+    if (!vac && !rent) {
+      host.innerHTML = '<p class="placeholder"><b>' + esc(where) + "</b>은 " +
+        (P === "sm" ? "소규모" : "중대형") + " 상가 조사 대상이 아닙니다. 다른 규모를 눌러 보세요.</p>";
+      return;
+    }
+
+    var q = vac ? RN.quarters[vac.i] : RN.quarters[RN.quarters.length - 1];
+    // 임대료는 천원/㎡ — 평당 만원으로 바꿔야 감이 온다
+    var perPy = rent ? Math.round(rent.v * 3.3058 / 10 * 10) / 10 : 0;
+    var sPerPy = sRent ? Math.round(sRent.v * 3.3058 / 10 * 10) / 10 : 0;
+
+    host.innerHTML =
+      '<div class="mini-row">' +
+        '<div class="mini"><span>공실률</span><b class="' +
+          (vac && sVac && vac.v > sVac.v ? "down" : "up") + '">' + (vac ? vac.v.toFixed(1) + "%" : "-") + "</b>" +
+          '<span class="mini-foot">서울 ' + (sVac ? sVac.v.toFixed(1) : "-") + "%</span></div>" +
+        '<div class="mini"><span>임대료</span><b>' + (perPy ? perPy.toFixed(1) + "만원" : "-") + "</b>" +
+          '<span class="mini-foot">평당 월 · 서울 ' + (sPerPy ? sPerPy.toFixed(1) : "-") + "만원</span></div>" +
+        '<div class="mini"><span>투자수익률</span><b>' + (yld ? yld.v.toFixed(2) + "%" : "-") + "</b>" +
+          '<span class="mini-foot">분기 · 연 환산 아님</span></div>' +
+        '<div class="mini"><span>조사 시점</span><b>' + qName(q) + "</b>" +
+          '<span class="mini-foot">' + esc(where) + (grp ? " · " + esc(grp) : "") + "</span></div>" +
+      "</div>" +
+      '<h4 class="tr-h4">임대가격지수 흐름 <span class="h4-sub">' + esc(where) + " · 2024년 2분기=100</span></h4>" +
+      '<div class="chart-box" style="height:210px"><canvas id="rentChart"></canvas></div>' +
+      rentBrief(where, vac, sVac, perPy, sPerPy, idx, P);
+
+    var c = themeColors();
+    if (charts.rentChart) charts.rentChart.destroy();
+    var el = document.getElementById("rentChart");
+    if (!el) return;
+    charts.rentChart = new Chart(el, {
+      type: "line",
+      data: {
+        labels: RN.quarters.map(qName),
+        datasets: [
+          { label: where, data: idx, borderColor: "#4f7fe6", backgroundColor: "#4f7fe6",
+            tension: .25, pointRadius: 3, spanGaps: true },
+          { label: "서울", data: RN.seoul[P + "Idx"] || [], borderColor: "#8a93a3",
+            backgroundColor: "#8a93a3", borderDash: [5, 4], tension: .25, pointRadius: 0, spanGaps: true },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: c.txt, boxWidth: 12, font: { size: 11 } } } },
+        scales: {
+          x: { ticks: { color: c.txt, font: { size: 10 } }, grid: { display: false } },
+          y: { ticks: { color: c.txt, font: { size: 10.5 } }, grid: { color: c.grid } },
+        },
+      },
+    });
+  }
+
+  function rentBrief(where, vac, sVac, perPy, sPerPy, idx, P) {
+    var lines = [];
+    var size = P === "sm" ? "소규모" : "중대형";
+    if (vac && sVac) {
+      var gap = vac.v - sVac.v;
+      lines.push("<b>" + esc(where) + "</b>의 " + size + " 상가 공실률은 <b>" + vac.v.toFixed(1) +
+        "%</b>로 서울 평균(" + sVac.v.toFixed(1) + "%)보다 <b>" +
+        (Math.abs(gap) < 0.3 ? "비슷합니다" : gap > 0 ? gap.toFixed(1) + "%p 높습니다" : (-gap).toFixed(1) + "%p 낮습니다") + "</b>." +
+        (vac.v >= 12 ? " <b>열 곳 중 한 곳 넘게 비어 있다는 뜻입니다.</b>" :
+         vac.v <= 2 ? " <b>빈 자리를 찾기 어려운 상권입니다.</b>" : ""));
+    }
+    if (perPy) {
+      lines.push("임대료는 평당 월 <b>" + perPy.toFixed(1) + "만원</b>" +
+        (sPerPy ? "으로 서울 평균(" + sPerPy.toFixed(1) + "만원)의 <b>" +
+          Math.round(perPy / sPerPy * 100) + "%</b>" : "") + "입니다. " +
+        "<b>전용이 아니라 임대면적 기준</b>이니 실제 계약과는 차이가 납니다.");
+    }
+    var a = null, b = null;
+    for (var i = 0; i < idx.length; i++) if (idx[i] != null) { if (a === null) a = idx[i]; b = idx[i]; }
+    if (a && b && a !== b) {
+      var d = (b / a - 1) * 100;
+      lines.push("임대가격지수는 조사 기간 동안 <b>" + (d > 0 ? "+" : "") + d.toFixed(1) + "%</b> " +
+        (d > 0.3 ? "올랐습니다" : d < -0.3 ? "내렸습니다" : "거의 그대로입니다") +
+        ". 공실률과 <b>같이</b> 보셔야 합니다 — 임대료가 버티는데 공실이 늘면 " +
+        "<b>호가만 남고 계약은 안 되는 상태</b>일 수 있습니다.");
+    }
+    lines.push("이 자료의 상권 구분은 <b>부동산원 기준</b>이라 저희 상권과 경계가 다릅니다. " +
+      "고객께는 <b>\"이 일대 평균\"</b> 정도로 말씀하시는 것이 정확합니다.");
+    return '<div class="read-guide" style="margin-top:16px"><h4>금집부쌤이 보는 ' + esc(where) +
+      " 임대시세</h4><ol>" + lines.map(function (x) { return "<li>" + x + "</li>"; }).join("") + "</ol></div>";
   }
 
   /* ── 수익률 ── */
@@ -1025,13 +1353,18 @@
 
     var show, near;
     if (single) {
-      near = TRADES.map(function (x) { return { t: x, d: distM(t.lat, t.lng, x.lat, x.lng) }; })
-        .sort(function (a, b) { return a.d - b.d; }).slice(0, 8);
+      near = TRADES.map(function (x) { return { t: x, d: edgeM(t, x) }; })
+        .sort(function (a, b) { return a.d - b.d; }).slice(0, 24);
       show = near;
     } else {
-      near = list.map(function (x) { return { t: x, d: distM(t.lat, t.lng, x.lat, x.lng) }; })
+      near = list.map(function (x) { return { t: x, d: edgeM(t, x) }; })
         .sort(function (a, b) { return val(b.t, "fp") - val(a.t, "fp"); });
       show = near.slice(0, 60);
+    }
+    // 반경을 고르셨으면 그 안에 든 상권만 남긴다
+    if (radius) {
+      var inR = near.filter(function (x) { return x.d <= radius; });
+      if (inR.length) { near = inR; show = inR; }
     }
 
     // 원 크기를 유동인구에 비례시킨다 — 목록을 안 봐도 큰 상권이 어디인지 보인다
@@ -1088,7 +1421,8 @@
       .sort(function (a, b) { return t.st.cat[b][0] - t.st.cat[a][0]; });
 
     host.innerHTML =
-      '<h4 class="tr-h4" style="margin-top:0">업종 분포</h4>' +
+      '<h4 class="tr-h4" style="margin-top:0">업종 분포' +
+        (radius ? ' <span class="h4-sub">경계 ' + radius + 'm 안 합산</span>' : "") + "</h4>" +
       '<div class="cat-chart cat-chart-sm"><canvas id="mapCat"></canvas>' +
         '<div class="cat-center"><b>' + comma(tot) + '</b><span>개</span></div></div>' +
       '<div class="cat-legend cat-legend-sm">' + idx.map(function (i) {
@@ -1244,6 +1578,54 @@
       "위 <b>수익률 계산</b>에 실제 조건을 넣어 확인하시면 됩니다.");
     return '<div class="read-guide" style="margin-top:16px"><h4>금집부쌤이 보는 ' + esc(name) +
       '</h4><ol>' + lines.map(function (x) { return "<li>" + x + "</li>"; }).join("") + '</ol></div>';
+  }
+
+  /* ── 지도 반경 ──
+     상권은 점이 아니라 면인데 좌표는 중심점 하나뿐이다. 그래서 반경은
+     "중심점이 그 안에 드는 상권"을 고르는 것이고, 화면에도 그렇게 밝힌다. */
+  function initRadius(t, list, single) {
+    var bar = document.querySelector(".radius-bar");
+    if (!bar) return;
+    bar.addEventListener("click", function (e) {
+      var b = e.target.closest("button[data-r]");
+      if (!b) return;
+      radius = parseInt(b.dataset.r, 10) || 0;
+      bar.querySelectorAll("button").forEach(function (x) {
+        x.classList.toggle("is-on", parseInt(x.dataset.r, 10) === radius);
+      });
+      drawMap(t, list, single);
+      drawMapSide(inRadius(t, list, single));
+      radiusNote(t, list, single);
+    });
+    radiusNote(t, list, single);
+  }
+
+  /* 반경을 고르면 그 안 상권만 합쳐 업종 도넛을 다시 낸다 */
+  function inRadius(t, list, single) {
+    if (!radius) return t;
+    var pool = (single ? TRADES : list).filter(function (x) { return edgeM(t, x) <= radius; });
+    if (!pool.length) return t;
+    if (pool.length === 1) return pool[0];
+    var save = { gu: state.gu, dong: state.dong, code: state.code };
+    state.code = ALL;                       // aggregate()가 이름을 지을 때 쓴다
+    var agg = aggregate(pool);
+    state.gu = save.gu; state.dong = save.dong; state.code = save.code;
+    return agg || t;
+  }
+
+  function radiusNote(t, list, single) {
+    var el = document.getElementById("radiusNote");
+    if (!el) return;
+    if (!radius) {
+      el.innerHTML = single
+        ? "가까운 상권 24곳을 함께 봅니다. 업종 구성은 <b>이 상권만</b>입니다."
+        : "고르신 범위의 상권 " + comma(list.length) + "곳을 모두 봅니다.";
+      return;
+    }
+    var pool = single ? TRADES : list;
+    var n = pool.filter(function (x) { return edgeM(t, x) <= radius; }).length;
+    el.innerHTML = "경계에서 <b>" + radius + "m</b> 안에 상권 <b>" + comma(n) + "곳</b>" +
+      (n <= 1 ? " — 이 반경에는 이웃 상권이 없습니다. 넓혀 보세요." : "");
   }
 
   /* ── 비교 ── */
