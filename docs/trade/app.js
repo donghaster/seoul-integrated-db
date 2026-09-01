@@ -361,6 +361,7 @@
   });
 
   function refresh() {
+    nrgBeop = "";                 // 범위가 바뀌면 법정동을 다시 짐작한다
     fillScope();
     var list = scopeTrades();
     document.getElementById("pickNote").innerHTML =
@@ -958,6 +959,51 @@
      못 밝히므로, 거래 한 건 한 건을 스크롤로 훑을 수 있게 둔다. */
 
   var nrgMode = "dong";                   // dong | gu
+  var nrgBeop = "";                       // 고른 법정동
+
+  /* 행정동 이름에서 법정동 이름을 어림잡는다.
+     반포1동·반포4동·반포본동은 모두 법정동 반포동이다. 숫자만 떼면
+     '반포본'이 남아 '반포동'과 안 맞아, 거래를 못 찾고도 말없이
+     구 전체를 보여 주고 있었다 — 두 탭이 똑같아 보인 이유다.
+     다만 동작구 '본동'처럼 본 자체가 이름인 곳이 있어, 떼고 나서
+     남는 게 없으면 그대로 둔다. */
+  function dongStem(dong) {
+    var stem = String(dong || "").replace(/동$/, "").replace(/[0-9]+$/, "");
+    if (stem.length > 1 && /본$/.test(stem)) stem = stem.replace(/본$/, "");
+    return stem;
+  }
+
+  /* 이 자치구에 거래가 있는 법정동을 건수 순으로 준다 */
+  function beopList() {
+    if (!SG || !SG.deals || state.gu === ALL) return [];
+    var D = SG.deals, cnt = {};
+    D.rows.forEach(function (r) {
+      var k = D.dongs[r[0]] || "";
+      var p = k.split("|");
+      if (p[0] === state.gu) cnt[p[1]] = (cnt[p[1]] || 0) + 1;
+    });
+    return Object.keys(cnt).map(function (n) { return { n: n, c: cnt[n] }; })
+      .sort(function (a, b) { return b.c - a.c; });
+  }
+
+  /* 고른 행정동에 맞는 법정동을 고른다.
+     빌드 때 만들어 둔 표(hjMap)를 먼저 본다 — 이름이 아예 다른 58곳은
+     좌표로 이어 둔 것이라 규칙으로는 못 맞춘다(관악구 대학동 -> 신림동).
+     표에 없으면 이름 규칙으로, 그것도 안 되면 거래가 가장 많은 곳으로 둔다. */
+  function guessBeop(list) {
+    if (!list.length) return { pick: "", guessed: false };
+    if (state.dong !== ALL) {
+      var map = (SG && SG.hjMap) || {};
+      var m = map[state.gu + "|" + state.dong];
+      if (m && list.some(function (x) { return x.n === m; })) {
+        return { pick: m, guessed: true };
+      }
+      var stem = dongStem(state.dong);
+      var hit = list.filter(function (x) { return stem && x.n.indexOf(stem) === 0; });
+      if (hit.length) return { pick: hit[0].n, guessed: true };
+    }
+    return { pick: list[0].n, guessed: false };
+  }
 
   function nrgDeals() {
     if (!SG || !SG.deals) return { rows: [], label: "", note: "자료 없음" };
@@ -965,41 +1011,51 @@
     var gu = state.gu;
     if (gu === ALL) return { rows: [], label: "", note: "자치구를 고르시면 그 구의 실거래를 보여드립니다." };
 
-    // 고른 범위에 걸린 법정동을 모은다. 상권의 dong은 행정동이라 그대로는 안 맞아,
-    // 자치구 안에서 이름 앞부분이 겹치는 법정동을 잡는다.
-    var want = null;
-    if (nrgMode === "dong" && state.dong !== ALL) {
-      var stem = state.dong.replace(/[0-9]+동$/, "").replace(/동$/, "");
-      want = {};
-      D.dongs.forEach(function (k, i) {
-        var p = k.split("|");
-        if (p[0] === gu && stem && p[1].indexOf(stem) === 0) want[i] = 1;
-      });
-      if (!Object.keys(want).length) want = null;
-    }
-
     var rows = D.rows.filter(function (r) {
       var k = D.dongs[r[0]] || "";
-      if (k.split("|")[0] !== gu) return false;
-      return want ? want[r[0]] : true;
+      var p = k.split("|");
+      if (p[0] !== gu) return false;
+      return nrgMode === "gu" ? true : p[1] === nrgBeop;
     });
     return {
       rows: rows,
-      label: want ? gu + " " + state.dong + " 일대" : gu + " 전체",
-      note: want ? "" : (nrgMode === "dong" && state.dong === ALL
-        ? "행정동을 고르시면 그 동만 따로 볼 수 있습니다." : ""),
+      label: nrgMode === "gu" ? gu + " 전체" : gu + " " + nrgBeop,
     };
   }
 
   function nrgHtml() {
-    return '<div class="tab-row seg-sm" id="nrgTabs">' +
-      '<button data-m="dong"' + (nrgMode === "dong" ? ' class="active"' : "") + ">같은 동</button>" +
-      '<button data-m="gu"' + (nrgMode === "gu" ? ' class="active"' : "") + ">구 전체</button>" +
+    if (state.gu === ALL) {
+      return '<p class="placeholder">자치구를 고르시면 그 구의 실거래를 보여드립니다.</p>';
+    }
+    var list = beopList();
+    if (!list.length) {
+      return '<p class="placeholder">이 자치구에 신고된 상업업무용 매매가 없습니다.</p>';
+    }
+    var g = guessBeop(list);
+    var known = list.some(function (x) { return x.n === nrgBeop; });
+    if (!known) nrgBeop = g.pick;
+
+    return '<div class="finder-bar">' +
+      '<div class="tab-row seg-sm" id="nrgTabs" style="margin:0">' +
+        '<button data-m="dong"' + (nrgMode === "dong" ? ' class="active"' : "") + ">법정동</button>" +
+        '<button data-m="gu"' + (nrgMode === "gu" ? ' class="active"' : "") + ">구 전체</button>" +
+      "</div>" +
+      '<select id="nrgBeop" class="ind-sel" style="margin-left:8px"' +
+        (nrgMode === "gu" ? " disabled" : "") + ">" +
+        list.map(function (x) {
+          return '<option value="' + esc(x.n) + '"' + (x.n === nrgBeop ? " selected" : "") + ">" +
+            esc(x.n) + " (" + comma(x.c) + "건)</option>";
+        }).join("") + "</select>" +
+      (state.dong !== ALL && !g.guessed && nrgMode === "dong"
+        ? '<span class="dim-note" style="margin-left:8px">행정동 <b>' + esc(state.dong) +
+          "</b>과 이름이 맞는 법정동이 없어 <b>거래가 가장 많은 곳</b>을 골라 뒀습니다.</span>"
+        : "") +
       "</div><div id=\"nrgBody\"></div>";
   }
 
   function initNrg() {
     var tabs = document.getElementById("nrgTabs");
+    var sel = document.getElementById("nrgBeop");
     if (tabs) {
       tabs.addEventListener("click", function (e) {
         var b = e.target.closest("button[data-m]");
@@ -1008,9 +1064,20 @@
         tabs.querySelectorAll("button").forEach(function (x) {
           x.classList.toggle("active", x.dataset.m === nrgMode);
         });
+        if (sel) sel.disabled = nrgMode === "gu";
         renderNrg();
       });
     }
+    if (sel) sel.addEventListener("change", function () {
+      nrgBeop = sel.value;
+      if (nrgMode !== "dong") {
+        nrgMode = "dong";
+        tabs.querySelectorAll("button").forEach(function (x) {
+          x.classList.toggle("active", x.dataset.m === "dong");
+        });
+      }
+      renderNrg();
+    });
     renderNrg();
   }
 

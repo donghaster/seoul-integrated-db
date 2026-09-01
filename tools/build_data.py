@@ -568,7 +568,119 @@ def build_sangga(yms: list[str]) -> dict:
         "jeonseRatio": offi_jeonse_ratio(offi_sale, offi_rent),
         "total": len(nrg) + len(offi_sale) + len(offi_rent),
         "deals": pack_nrg_deals(nrg),
+        "hjMap": haengjeong_map(nrg),
     }
+
+
+def haengjeong_map(rows: list[dict]) -> dict:
+    """행정동 -> 법정동 짐작표.
+
+    실거래는 법정동으로 신고되는데 상권 자료는 행정동으로 온다. 이름이
+    맞아떨어지는 곳이 대부분이지만(반포1동·반포본동 -> 반포동), 아예 다른
+    곳이 서울에 58개 있다(관악구 대학동 -> 신림동, 강북구 삼양동 -> 미아동).
+    규칙으로는 못 맞추므로 좌표로 잇는다.
+
+      법정동 중심 = 그 동 아파트 좌표의 평균 (docs/data/geo.js)
+      행정동 중심 = 그 동에 속한 상권 좌표의 평균 (docs/data/trade.js)
+
+    답을 아는 32개로 확인해 31개가 맞았다. 나머지 하나는 정답표 쪽이
+    틀렸다 — 동작구에는 법정동 상도동과 상도1동이 둘 다 있다.
+    두 재료 중 하나라도 없으면 빈 표를 돌려주고, 화면은 이름 규칙으로 돈다.
+    """
+    import math
+    import re
+
+    def read_js(name: str, var: str):
+        path = os.path.join(BASE_DIR, "docs", "data", name)
+        if not os.path.exists(path):
+            return None
+        text = open(path, encoding="utf-8").read()
+        m = re.search(r"window\.%s\s*=\s*" % re.escape(var), text)
+        if not m:
+            return None
+        try:
+            return json.loads(text[m.end():].rstrip().rstrip(";"))
+        except json.JSONDecodeError:
+            return None
+
+    geo = read_js("geo.js", "GEO_COORDS")
+    trade = read_js("trade.js", "TRADE_DATA")
+    if not geo or not trade:
+        print("  hjMap: geo.js 또는 trade.js가 없어 건너뜁니다")
+        return {}
+
+    # 법정동 중심 — 아파트 좌표 평균
+    beop: dict[str, list] = {}
+    for k, v in geo.items():
+        p = k.split("|")
+        if len(p) < 3:
+            continue
+        e = beop.setdefault(p[0] + "|" + p[1], [0.0, 0.0, 0])
+        e[0] += v["lat"]; e[1] += v["lng"]; e[2] += 1
+    beop = {k: (v[0] / v[2], v[1] / v[2], v[2]) for k, v in beop.items() if v[2] >= 2}
+
+    # 거래가 있는 법정동만 후보
+    cands: dict[str, list[str]] = {}
+    for r in rows:
+        cands.setdefault(r.get("gu") or "", [])
+        d = r.get("dong") or ""
+        if d and d not in cands[r["gu"]]:
+            cands[r["gu"]].append(d)
+
+    # 행정동 중심 — 상권 좌표 평균
+    haeng: dict[str, list] = {}
+    for t in trade.get("trades", []):
+        if not t.get("dong") or not t.get("gu"):
+            continue
+        e = haeng.setdefault(t["gu"] + "|" + t["dong"], [0.0, 0.0, 0])
+        e[0] += t["lat"]; e[1] += t["lng"]; e[2] += 1
+    haeng = {k: (v[0] / v[2], v[1] / v[2]) for k, v in haeng.items()}
+
+    def dist(a, b):
+        dy = (a[0] - b[0]) * 111000
+        dx = (a[1] - b[1]) * 111000 * math.cos(a[0] * math.pi / 180)
+        return math.hypot(dx, dy)
+
+    def stem(dong: str) -> str:
+        x = re.sub(r"동$", "", dong)
+        x = re.sub(r"[0-9]+$", "", x)
+        if len(x) > 1 and x.endswith("본"):
+            x = x[:-1]
+        return x
+
+    out: dict[str, str] = {}
+    named = coord = 0
+    for key, hc in haeng.items():
+        gu, dong = key.split("|")
+        pool = cands.get(gu) or []
+        if not pool:
+            continue
+        # ① 이름이 그대로 있으면 그것 (동작구 상도1동처럼 법정동에도 있는 경우)
+        if dong in pool:
+            out[key] = dong; named += 1; continue
+        # ② 앞부분이 겹치는 것 — 하나뿐이면 그것, 여럿이면 좌표로 가른다
+        st = stem(dong)
+        hit = [c for c in pool if st and c.startswith(st)]
+        if len(hit) == 1:
+            out[key] = hit[0]; named += 1; continue
+        pick_from = hit if len(hit) > 1 else pool
+        best, bd = None, 1e18
+        for c in pick_from:
+            bc = beop.get(gu + "|" + c)
+            if not bc:
+                continue
+            d = dist(hc, bc)
+            if d < bd:
+                best, bd = c, d
+        if best:
+            out[key] = best
+            if len(hit) > 1:
+                named += 1
+            else:
+                coord += 1
+
+    print(f"  hjMap  행정동 {len(out):,}개 (이름 {named:,} · 좌표 {coord:,})")
+    return out
 
 
 def pack_nrg_deals(rows: list[dict]) -> dict:
