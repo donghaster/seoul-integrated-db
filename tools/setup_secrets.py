@@ -15,6 +15,21 @@ import os
 import subprocess
 import sys
 
+# 윈도우 한글 콘솔(cp949)은 gh가 뱉는 체크표시(✓) 같은 글자를 못 찍고 죽는다.
+# 실제로 --check가 UnicodeEncodeError로 멈췄다. 못 찍는 글자는 물음표로 흘린다.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors="replace")
+    except Exception:          # noqa: BLE001 - 못 바꿔도 아래 safe()가 대부분 막는다
+        pass
+
+
+def safe(text) -> str:
+    """콘솔이 못 찍는 글자를 미리 걷어낸다. gh 출력은 무엇이 섞여 올지 모른다."""
+    enc = sys.stdout.encoding or "utf-8"
+    return str(text).encode(enc, "replace").decode(enc, "replace")
+
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SIBLING_ENV = os.path.join(os.path.dirname(BASE_DIR), "seoul dashboard", ".env")
 REPO = os.environ.get("GH_REPO", "donghaster/seoul-integrated-db")
@@ -63,14 +78,14 @@ def check_gh() -> bool:
     code, out = run(["gh", "auth", "status"])
     if code != 0:
         print("  ! GitHub CLI 로그인이 안 돼 있습니다. 먼저 `gh auth login`을 실행하세요.")
-        print("   ", out.splitlines()[0] if out else "")
+        print("   ", safe(out.splitlines()[0]) if out else "")
         return False
     who = "?"
     for line in out.splitlines():
         if "Logged in to" in line:
             who = line.strip()
             break
-    print(f"  GitHub CLI: {who}")
+    print(safe(f"  GitHub CLI: {who}"))
     return True
 
 
@@ -84,7 +99,7 @@ def main() -> int:
 
     code, out = run(["gh", "repo", "view", REPO, "--json", "name", "-q", ".name"])
     if code != 0:
-        print(f"  ! 저장소에 접근할 수 없습니다: {out}")
+        print(safe(f"  ! 저장소에 접근할 수 없습니다: {out}"))
         return 1
     print(f"  저장소 접근 OK")
 
@@ -121,14 +136,14 @@ def main() -> int:
             print(f"    {name} 등록 완료")
         else:
             failed = True
-            print(f"    {name} 등록 실패: {out}")
+            print(safe(f"    {name} 등록 실패: {out}"))
 
     if failed:
         return 1
 
     print("\n등록된 시크릿 목록:")
     code, out = run(["gh", "secret", "list", "--repo", REPO])
-    print("   ", out.replace("\n", "\n    ") if out else "(없음)")
+    print("   ", safe(out.replace("\n", "\n    ")) if out else "(없음)")
 
     print("\n이제 다음 명령으로 자동 갱신을 즉시 돌려볼 수 있습니다:")
     print(f"    gh workflow run refresh-data.yml --repo {REPO}")
