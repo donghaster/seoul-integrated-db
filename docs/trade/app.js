@@ -33,8 +33,19 @@
   var DOW_LABEL = ["월", "화", "수", "목", "금", "토", "일"];
   var TYPE_COLOR = {
     "골목상권": "#4fada8", "발달상권": "#4f7fe6",
-    "전통시장": "#cf9a45", "관광특구": "#9b59d0",
+    "전통시장": "#cf9a45", "관광특구": "#8b4ab8",   // 흰 글씨 대비 4.5를 넘기려고 한 단계 낮췄다
   };
+  /* 태그 바탕색이 밝으면 흰 글씨가 안 읽힌다 — 전통시장 금색은 대비가 2.67이었다.
+     바탕 밝기를 재서 글자를 검게/희게 뒤집는다. */
+  function inkOn(hex) {
+    var v = [1, 3, 5].map(function (i) {
+      var x = parseInt(hex.substr(i, 2), 16) / 255;
+      return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+    });
+    var L = 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+    return (L + 0.05) / 0.05 > 4.5 ? "#16191f" : "#ffffff";
+  }
+
   var ALL = "all";
   var QUARTER_DAYS = 91;                 // 유동인구는 분기 합계라 일평균으로 바꿔 본다
 
@@ -949,7 +960,8 @@
         return '<tr class="tr-row" data-c="' + esc(x.t.c) + '">' +
           "<td>" + (single ? (x.d < 1000 ? x.d + "m" : (x.d / 1000).toFixed(1) + "km") : (i + 1)) + "</td>" +
           '<td class="tr-name">' + esc(x.t.n) + "</td>" +
-          '<td><span class="tr-tag" style="background:' + (TYPE_COLOR[x.t.t] || "#8a93a3") + '">' + esc(x.t.t) + "</span></td>" +
+          '<td><span class="tr-tag" style="background:' + (TYPE_COLOR[x.t.t] || "#8a93a3") +
+            ";color:" + inkOn(TYPE_COLOR[x.t.t] || "#8a93a3") + '">' + esc(x.t.t) + "</span></td>" +
           "<td>" + esc(x.t.dong) + "</td>" +
           '<td class="rt-price">' + comma(perDay(val(x.t, "fp"))) + "명</td>" +
           "<td>" + comma(val(x.t, "st")) + "</td>" +

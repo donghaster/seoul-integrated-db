@@ -31,6 +31,7 @@
   --shadow: 0 2px 14px -6px rgba(35, 45, 66, 0.12);
   --shadow-sm: 0 1px 6px -2px rgba(35, 45, 66, 0.10);
   --shadow-hover: 0 10px 26px -10px rgba(35, 45, 66, 0.22);
+  --topbar: rgba(253, 253, 254, 0.92);
   --sans: "Pretendard", "Noto Sans KR", -apple-system, "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
 }
 
@@ -61,7 +62,7 @@ a { color: var(--accent-2); }
   gap: 10px 24px;
   padding: 14px 26px;
   border-bottom: 1px solid var(--line);
-  background: rgba(253, 253, 254, 0.92);
+  background: var(--topbar);
   backdrop-filter: blur(8px);
   position: sticky;
   top: 0;
@@ -1004,8 +1005,44 @@ html[data-theme="dark"] .leaflet-container { background: #1a1f2a; }
 .theme-toggle button.is-on { background: var(--accent); color: #fff; }
 
 @media print {
-  /* 종이에는 늘 밝은 색으로 나간다 */
-  html[data-theme="dark"] { color-scheme: light; }
+  /* 종이에는 늘 밝은 색으로 나간다.
+     color-scheme만 바꾸면 CSS 변수는 그대로 남아, 흰 종이에 옅은 회색
+     글씨가 찍힌다. 밝은 값을 통째로 다시 깔아야 한다. */
+  html[data-theme="dark"] {
+    color-scheme: light;
+    --bg: #f4f6fa;
+    --card: #fdfdfe;
+    --card-2: #eef1f6;
+    --line: #dde2ea;
+    --line-soft: #e7eaf1;
+    --txt: #232a38;
+    --txt-dim: #667085;
+    --txt-mute: #6c7381;
+    --accent: #4670ca;
+    --accent-2: #35569e;
+    --accent-light: #e7edfb;
+    --accent-pale: #f5f7fc;
+    --sale: #4f7fe6;
+    --jeonse: #4fada8;
+    --monthly: #cf9a45;
+    --up: #bc3d3d;
+    --down: #4e6aa9;
+    --gold: #c9a15a;
+    --topbar: rgba(253, 253, 254, 0.92);
+  }
+  /* 다크에서 덧칠했던 어두운 배경들도 종이에서는 원래대로 */
+  html[data-theme="dark"] .read-guide,
+  html[data-theme="dark"] .lb-speak,
+  html[data-theme="dark"] .cc-do,
+  html[data-theme="dark"] .pi-note,
+  html[data-theme="dark"] .loc-caveat { background: #fff8ec; border-color: #f0dfb3; }
+  html[data-theme="dark"] .thin-note,
+  html[data-theme="dark"] .calc-warn { background: #fdf2f2; border-color: #f0cfcf; }
+  html[data-theme="dark"] .brief-flag,
+  html[data-theme="dark"] .spread-warn { color: #8a6a1f; background: #fdf3dc; border-color: #ecd9a8; }
+  html[data-theme="dark"] .brief-thin { color: #9c3232; background: #fdefef; border-color: #f0cfcf; }
+  html[data-theme="dark"] .cc-badge { color: #fff; }
+  html[data-theme="dark"] .leaflet-tile { filter: none; }
   .theme-toggle { display: none !important; }
 }
 
@@ -1082,3 +1119,32 @@ html[data-theme="dark"] .leaflet-container { background: #1a1f2a; }
   .pick-label { padding-top: 0; }
 }
 .tr-chart h4 .h4-sub { font-size: 10.5px; font-weight: 700; color: var(--txt-mute); }
+
+/* ── 다크에서 남아 있던 밝은 자리 보정 ──
+   상단바가 흰색으로 남아 제목이 안 보였다(대비 1.17). 배지·경고 상자들도
+   밝은 배경에 밝은 글씨가 겹쳐 읽을 수 없었다. */
+html[data-theme="dark"] {
+  --topbar: rgba(26, 31, 42, 0.92);
+}
+/* 결론 배지 — 배경이 var(--txt)라 다크에서 밝아진다. 글씨를 어둡게 뒤집는다 */
+html[data-theme="dark"] .cc-badge { color: var(--bg); }
+/* 금·은·동은 밝은 그라데이션이라 그대로 두고, 무채색 배지만 손본다 */
+html[data-theme="dark"] .rank-neutral .rank-chip { background: var(--card-2); color: var(--txt-dim); }
+html[data-theme="dark"] .rank-neutral .rank-chip.r1 { background: #e8ecf3; color: #12151c; }
+html[data-theme="dark"] .rank-neutral .rank-chip.r2 { background: #8994a5; color: #12151c; }
+html[data-theme="dark"] .rank-neutral .rank-chip.r3 { background: #55606f; color: #e8ecf3; }
+/* 노란 계열 안내 상자들 */
+html[data-theme="dark"] .loc-caveat { background: #241f14; border-color: #4a3d22; }
+html[data-theme="dark"] .spread-warn { background: #2b2412; border-color: #4a3d22; color: #e0bd72; }
+html[data-theme="dark"] .brief-flag { color: #e0bd72; background: #2b2412; border-color: #4a3d22; }
+html[data-theme="dark"] .brief-thin { color: #f0918b; background: #2a1a1a; border-color: #5a3030; }
+/* 로고 이미지가 없을 때 나오는 대체 글씨 */
+html[data-theme="dark"] .brand-plate-fallback { color: var(--txt); }
+/* 파란 알약 위 흰 글씨가 다소 흐렸다(3.25) — 채운 색만 한 단계 낮춘다 */
+html[data-theme="dark"] nav.section-nav button.active,
+html[data-theme="dark"] .tab-row button.active,
+html[data-theme="dark"] .school-chip.is-on,
+html[data-theme="dark"] .mini-btn.is-on,
+html[data-theme="dark"] .policy-card .date-chip,
+html[data-theme="dark"] .theme-toggle button.is-on,
+html[data-theme="dark"] .top-tab.is-on { background: #3a63bd; }
