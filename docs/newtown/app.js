@@ -621,6 +621,7 @@
     if (!A) {
       document.getElementById("dealBody").innerHTML =
         '<tr class="empty-row"><td colspan="8">실거래 데이터(apt.js)를 불러오지 못했습니다.</td></tr>';
+      if (window.wireScrollBoxes) window.wireScrollBoxes();
       return;
     }
     var rows = filtered().map(function (d) {
@@ -652,6 +653,8 @@
         "<td>" + x.st.wolse.toLocaleString() + "</td>" +
         "</tr>";
     }).join("") : '<tr class="empty-row"><td colspan="9">조건에 맞는 뉴타운이 없습니다.</td></tr>';
+    // 행이 채워진 뒤에 불러야 넘치는지 알 수 있다
+    if (window.wireScrollBoxes) window.wireScrollBoxes();
 
     document.getElementById("dealDesc").innerHTML =
       "표본 " + aptWin().label + " · 국토교통부 아파트 실거래 기준. " +

@@ -706,7 +706,7 @@
     drawMapSide(inRadius(t, list, single));
     initIndustry(t, list);
     initCompare(list);
-    wireScrollBoxes();
+    window.wireScrollBoxes();
 
     document.getElementById("printBanner").innerHTML =
       "<b>" + esc(scopeName()) + "</b> 상권분석 · 상권 " + comma(list.length) + "곳 · " +
@@ -1150,7 +1150,7 @@
       "평당가와 직접 비교하시면 안 됩니다. 마지막 달은 <b>신고 기한(계약 후 30일)</b> 때문에 " +
       "아직 덜 찬 숫자입니다. 더 자세한 내용은 <a href='../sangga/index.html'>상가·오피스텔 대시보드</a>에 있습니다.</p>";
 
-    wireScrollBoxes();
+    window.wireScrollBoxes();
 
     var labels = months.map(function (m) { return m.slice(2, 4) + "." + m.slice(4); });
     var data = months.map(function (m) { return cnt[m] || 0; });
@@ -1489,7 +1489,7 @@
       }).join("") + "</tbody></table></div>" +
       (!single && near.length > 120 ? '<p class="dim-note" style="margin-top:8px">유동인구 상위 120곳만 표시했습니다(전체 ' +
         comma(near.length) + "곳). 범위를 <b>행정동</b>까지 좁히시면 다 보입니다.</p>" : "");
-    wireScrollBoxes();
+    window.wireScrollBoxes();
 
     document.querySelectorAll("#nearList .tr-row").forEach(function (r) {
       r.addEventListener("click", function () { gotoTrade(r.dataset.c); });
@@ -1664,33 +1664,6 @@
       "위 <b>수익률 계산</b>에 실제 조건을 넣어 확인하시면 됩니다.");
     return '<div class="read-guide" style="margin-top:16px"><h4>금집부쌤이 보는 ' + esc(name) +
       '</h4><ol>' + lines.map(function (x) { return "<li>" + x + "</li>"; }).join("") + '</ol></div>';
-  }
-
-  /* ── 표 펼치기 ──
-     10행만 보이고 나머지는 안에서 스크롤한다. 다만 인쇄하거나 한눈에 훑고 싶을
-     때가 있어, 넘치는 표에는 펼치기 단추를 자동으로 붙인다.
-     표가 다시 그려지면 요소가 새로 생기므로 표시가 자연히 초기화된다. */
-  function wireScrollBoxes() {
-    document.querySelectorAll(".deal-scroll").forEach(function (box) {
-      if (box.dataset.wired) return;
-      box.dataset.wired = "1";
-      if (box.scrollHeight <= box.clientHeight + 4) return;   // 다 보이면 단추가 필요 없다
-      var n = box.querySelectorAll("tbody tr").length;
-      var shut = "▾ 전체 " + comma(n) + "행 펼치기";
-      var btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "expand-btn";
-      btn.innerHTML = shut;
-      btn.addEventListener("click", function () {
-        var open = box.classList.toggle("is-open");
-        btn.innerHTML = open ? "▴ 접기" : shut;
-        if (!open) {
-          box.scrollTop = 0;
-          box.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        }
-      });
-      box.parentNode.insertBefore(btn, box.nextSibling);
-    });
   }
 
   /* ── 지도 반경 ──

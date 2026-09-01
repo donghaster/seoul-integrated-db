@@ -77,6 +77,37 @@
   syncChartTheme();
   window.addEventListener("themechange", syncChartTheme);
 
+  /* ── 긴 표 접기 ──
+     표를 10행쯤만 보이게 두고 나머지는 안에서 스크롤한다. 다만 한눈에
+     훑거나 인쇄할 때가 있어, 넘치는 표에는 펼치기 단추를 자동으로 붙인다.
+     .deal-scroll 를 두른 표면 어느 대시보드에서든 그대로 동작한다.
+     표를 다시 그리면 요소가 새로 생기므로 표시가 자연히 초기화된다. */
+  window.wireScrollBoxes = function () {
+    document.querySelectorAll(".deal-scroll").forEach(function (box) {
+      if (box.dataset.wired) return;
+      // 다 보이면 단추가 필요 없다. 다만 여기서 표시를 남기면 안 된다 —
+      // 표가 아직 비어 있을 때 한 번 불리면 그대로 잠겨, 나중에 행이
+      // 채워져도 단추가 안 붙는다. 실제로 붙일 때만 표시한다.
+      if (box.scrollHeight <= box.clientHeight + 4) return;
+      box.dataset.wired = "1";
+      var n = box.querySelectorAll("tbody tr").length;
+      var shut = "▾ 전체 " + n.toLocaleString() + "행 펼치기";
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "expand-btn";
+      btn.innerHTML = shut;
+      btn.addEventListener("click", function () {
+        var open = box.classList.toggle("is-open");
+        btn.innerHTML = open ? "▴ 접기" : shut;
+        if (!open) {
+          box.scrollTop = 0;
+          box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+      });
+      box.parentNode.insertBefore(btn, box.nextSibling);
+    });
+  };
+
   /* ── 조회시각 ── */
   var fetched = document.getElementById("fetchedAt");
   if (fetched) {
