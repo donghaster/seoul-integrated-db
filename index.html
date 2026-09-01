@@ -24,6 +24,18 @@
   .note { margin-top: 20px; padding-top: 16px; border-top: 1px solid #e7eaf1;
           font-size: 12px; color: #6c7381; line-height: 1.8; }
   code { background: #eef1f6; padding: 1px 6px; border-radius: 5px; }
+
+  /* 대시보드는 다크를 따라가는데 이 첫 화면만 희면 눈이 아프다 */
+  @media (prefers-color-scheme: dark) {
+    body { background: #12151c; color: #e8ecf3; }
+    .box { background: #1a1f2a; border-color: #2f3846; box-shadow: 0 2px 14px -6px rgba(0,0,0,.5); }
+    .sub, .note { color: #a8b3c4; }
+    .note { border-top-color: #272e3b; }
+    a.go { background: #3a63bd; }
+    a.go:hover { background: #4a76d4; }
+    .links a { background: #24304a; color: #8ab0ff; }
+    code { background: #212734; }
+  }
 </style>
 </head>
 <body>
@@ -34,15 +46,17 @@
     <a class="go" href="docs/index.html">대시보드 열기 →</a>
 
     <div class="links">
-      <a href="docs/newtown/index.html">🏙️ 뉴타운</a>
       <a href="docs/apt/index.html">🏘️ 아파트</a>
+      <a href="docs/newtown/index.html">🏙️ 뉴타운</a>
       <a href="docs/sangga/index.html">🏢 상가·오피스텔</a>
+      <a href="docs/trade/index.html">📊 상권분석</a>
     </div>
 
     <p class="note">
       자동으로 넘어가지 않으면 위 버튼을 눌러 주세요.<br />
       지도(배경 타일)만 인터넷이 필요하고, 나머지 자료는 모두 이 폴더 안에 들어 있습니다.<br />
-      로컬 서버로 띄우려면 <code>실행하기.bat</code>을 더블클릭하세요.
+      로컬 서버로 띄우려면 <code>실행하기.bat</code>을 더블클릭하세요.<br />
+      인터넷에서는 <b>seoul-integrated-db.vercel.app</b> 으로 바로 열리고, 휴대폰에서도 같습니다.
     </p>
   </div>
 </body>
