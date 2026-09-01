@@ -1270,9 +1270,18 @@ html[data-theme="dark"] .find-go:hover { background: #4a76d4; }
 .scope-now b { color: var(--txt); }
 
 /* ════════════════ 실거래 표 — 안에서 스크롤 ════════════════ */
+/* 표는 10행쯤 보이고 나머지는 안에서 스크롤한다.
+   행 높이가 표마다 달라(거래 36px · 상권 목록 44px) --tbl-h로 따로 준다. */
 .deal-scroll {
-  max-height: 420px; overflow-y: auto; overflow-x: auto;
+  max-height: var(--tbl-h, 400px); overflow-y: auto; overflow-x: auto;
   border: 1px solid var(--line); border-radius: 11px;
+  /* 스크롤이 남았다는 것을 아래쪽 그림자로 알린다 */
+  background:
+    linear-gradient(var(--card) 30%, rgba(0,0,0,0)) top / 100% 22px no-repeat,
+    linear-gradient(rgba(0,0,0,0), var(--card) 70%) bottom / 100% 22px no-repeat,
+    radial-gradient(farthest-side at 50% 0, rgba(0,0,0,.13), rgba(0,0,0,0)) top / 100% 8px no-repeat,
+    radial-gradient(farthest-side at 50% 100%, rgba(0,0,0,.13), rgba(0,0,0,0)) bottom / 100% 8px no-repeat;
+  background-attachment: local, local, scroll, scroll;
 }
 .deal-scroll .deal-table { font-size: 12.5px; }
 .deal-scroll .deal-table th {
@@ -1296,3 +1305,15 @@ html[data-theme="dark"] .find-go:hover { background: #4a76d4; }
 @media print {
   .deal-scroll { max-height: none; overflow: visible; }
 }
+
+/* 표 펼치기 */
+.deal-scroll.is-open { max-height: none; }
+.expand-btn {
+  display: block; width: 100%; margin-top: 7px;
+  border: 1px dashed var(--line); border-radius: 9px;
+  background: var(--card-2); color: var(--txt);
+  font: inherit; font-size: 12px; font-weight: 800;
+  padding: 8px 0; cursor: pointer;
+}
+.expand-btn:hover { border-color: var(--accent); color: var(--accent); }
+@media print { .expand-btn { display: none !important; } }
