@@ -74,6 +74,13 @@
       <label>빠른 기간</label>
       <div class="tab-row seg-sm" id="windowTabs"></div>
     </div>
+    <div class="ctl">
+      <label>평당가 기준</label>
+      <div class="tab-row seg-sm" id="pyBaseTabs">
+        <button class="active" data-b="net">전용</button>
+        <button data-b="supply">분양</button>
+      </div>
+    </div>
     <div class="filter-note" id="periodNote"></div>
 
     <!-- 법정동은 개수가 많아 칩으로 펼친다(선택한 구 안에서만) -->
@@ -285,7 +292,7 @@
     </div>
     <div class="deal-scroll" style="--tbl-h:560px">
       <table class="rank-table deal-table">
-        <thead><tr><th>순위</th><th>단지명</th><th>분양 <span class="th-sub">㎡ (평)</span></th><th>전용 <span class="th-sub">㎡</span></th><th>층</th><th id="dealPriceHead">거래가</th><th>평당가 <span class="th-sub">전용 기준</span></th><th>거래일</th></tr></thead>
+        <thead><tr><th>순위</th><th>단지명</th><th>분양 <span class="th-sub">㎡ (평)</span></th><th>전용 <span class="th-sub">㎡</span></th><th>층</th><th id="dealPriceHead">거래가</th><th>평당가 <span class="th-sub" id="dealPyHead">전용 기준</span></th><th>거래일</th></tr></thead>
         <tbody id="dealBody"></tbody>
       </table>
     </div>
@@ -353,7 +360,7 @@
     </div>
     <div class="deal-scroll" style="--tbl-h:560px">
       <table class="rank-table deal-table">
-        <thead><tr><th>순위</th><th>단지명</th><th>전용면적</th><th>층</th><th>거래가</th><th>평당가 <span class="th-sub">전용 기준</span></th><th>거래일</th></tr></thead>
+        <thead><tr><th>순위</th><th>단지명</th><th>분양 <span class="th-sub">㎡ (평)</span></th><th>전용 <span class="th-sub">㎡</span></th><th>층</th><th>거래가</th><th>평당가 <span class="th-sub" id="pyPyHead">전용 기준</span></th><th>거래일</th></tr></thead>
         <tbody id="pyBody"></tbody>
       </table>
     </div>
@@ -429,6 +436,6 @@
 <script src="../data/locinfo.js?v=e97bc091b7"></script>
 <script src="../data/newtown.js?v=8ba14b3baf"></script>
 <script src="../shared/brand.js?v=e35116c24e"></script>
-<script src="app.js?v=62bd39f540"></script>
+<script src="app.js?v=c5a2449220"></script>
 </body>
 </html>

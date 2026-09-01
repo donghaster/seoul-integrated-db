@@ -29,6 +29,7 @@
     dealType: "sale",
     cmpOn: { sale: true, jeonse: true, wolse: true },
     volRank: "gu",
+    pyBase: "net",                 // 평당가 기준: net 전용 | supply 분양
   };
 
   /* ════════════════ 원본 실거래 풀기 ════════════════
@@ -322,6 +323,20 @@
   var SUPPLY_RATIO = 0.74;
   function supplyArea(a) { return a / SUPPLY_RATIO; }
 
+  /* ── 평당가 기준 ──
+     안에서 계산하는 평당가는 늘 전용 기준이다(거래금액 ÷ 전용면적 ÷ 3.3058).
+     화면에 내보낼 때만 기준을 갈아 끼운다. 분양 기준은 전용값 × 0.74다.
+
+     반드시 이 함수를 거쳐야 한다. 한 곳이라도 빠뜨리면 한 화면에 두 기준이
+     섞여, 토글이 없느니만 못한 상태가 된다. */
+  function pyConv(v) {
+    if (!v) return 0;
+    return state.pyBase === "supply" ? Math.round(v * SUPPLY_RATIO) : Math.round(v);
+  }
+  function pyNum(v) { return pyConv(v).toLocaleString(); }
+  function pyBaseLabel() { return state.pyBase === "supply" ? "분양 기준" : "전용 기준"; }
+  function pyBaseWord() { return state.pyBase === "supply" ? "분양" : "전용"; }
+
   /* 분양 칸 — ㎡와 평을 같이. 평은 분양 기준이라야 고객 말과 맞는다. */
   function supplyText(a) {
     if (!a) return "-";
@@ -335,7 +350,7 @@
 
   function pyText(row, type) {
     if (!row.a) return "-";
-    return Math.round(convValue(row, type) / (row.a / PYEONG)).toLocaleString() + "만원";
+    return pyNum(convValue(row, type) / (row.a / PYEONG)) + "만원";
   }
 
   function dateText(d) { return d.replace(/-/g, "."); }
@@ -824,7 +839,8 @@
       { label: "매매 거래", value: r.cnt.sale.toLocaleString() + "건", sub: "중위 매매가 " + eokman(r.med.sale) },
       { label: "전세 거래", value: r.cnt.jeonse.toLocaleString() + "건", sub: "중위 보증금 " + eokman(r.med.jeonse) },
       { label: "월세 거래", value: r.cnt.wolse.toLocaleString() + "건", sub: "중위 월세 " + (r.med.wolse || 0).toLocaleString() + "만원" },
-      { label: "중위 매매 평당가", value: (r.med.pyeong || 0).toLocaleString() + "만원", sub: "매매가 ÷ (전용면적 ÷ 3.3058)" },
+      { label: "중위 매매 평당가 (" + pyBaseWord() + ")", value: pyNum(r.med.pyeong) + "만원",
+        sub: "매매가 ÷ (" + pyBaseWord() + "면적 ÷ 3.3058)" },
       { label: "전월세 중 월세 비중", value: pctText(r.cnt.wolse, r.cnt.jeonse + r.cnt.wolse), sub: "전세 " + pctText(r.cnt.jeonse, r.cnt.jeonse + r.cnt.wolse) },
     ];
     document.getElementById("kpiRow").innerHTML = box.map(function (b) {
@@ -1150,11 +1166,23 @@
         "<td>" + (reg.cnt.sale || 0).toLocaleString() + "</td>" +
         "<td>" + (reg.cnt.jeonse || 0).toLocaleString() + "</td>" +
         "<td>" + (reg.cnt.wolse || 0).toLocaleString() + "</td>" +
-        "<td>" + (reg.med.pyeong || 0).toLocaleString() + "만원</td>" +
+        "<td>" + pyNum(reg.med.pyeong) + "만원</td>" +
         "</tr>";
     }).join("") : '<tr class="empty-row"><td colspan="7">표시할 지역이 없습니다.</td></tr>';
     if (window.wireScrollBoxes) window.wireScrollBoxes();
   }
+
+  /* 평당가 기준 토글 — 화면 전체가 같은 기준으로 말하게 다시 그린다.
+     한 화면에 전용 기준과 분양 기준이 섞이면 토글이 없느니만 못하다. */
+  document.querySelectorAll("#pyBaseTabs button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      if (state.pyBase === b.dataset.b) return;
+      document.querySelectorAll("#pyBaseTabs button").forEach(function (x) { x.classList.remove("active"); });
+      b.classList.add("active");
+      state.pyBase = b.dataset.b;
+      renderAll();
+    });
+  });
 
   document.querySelectorAll("#volRankTabs button").forEach(function (b) {
     b.addEventListener("click", function () {
@@ -1450,7 +1478,7 @@
         "<td>" + (g.sale.length ? g.sale.length + "건" : "-") +
           (thin && g.sale.length ? ' <span class="brief-thin">적음</span>' : "") + "</td>" +
         "<td>" + (g.medSale ? eokman(g.medSale) : "-") + "</td>" +
-        "<td>" + (g.py ? Math.round(g.py).toLocaleString() + "만원" : "-") + "</td>" +
+        "<td>" + (g.py ? pyNum(g.py) + "만원" : "-") + "</td>" +
         "<td>" + (g.jeonse.length ? g.jeonse.length + "건" : "-") + "</td>" +
         "<td>" + (g.medJeonse ? eokman(g.medJeonse) : "-") + "</td>" +
         "<td>" + (g.ratio ? g.ratio + "%" : "-") + "</td>" +
@@ -1527,7 +1555,7 @@
           "<td>" + (x.apt.y ? x.apt.y + "년" : "-") + "</td>" +
           "<td>" + (x.saleN || "-") + "</td>" +
           "<td>" + (x.medSale ? eokman(x.medSale) : "-") + "</td>" +
-          "<td>" + (x.py ? Math.round(x.py).toLocaleString() + "만원" : "-") + "</td>" +
+          "<td>" + (x.py ? pyNum(x.py) + "만원" : "-") + "</td>" +
           "<td>" + x.rows.filter(function (r) { return r.t === "jeonse"; }).length + "</td>" +
           "<td>" + (x.medJeonse ? eokman(x.medJeonse) : "-") + "</td>" +
           "</tr>";
@@ -1556,7 +1584,7 @@
     var g = mainBand;
     if (g.sale.length >= APT_MIN) {
       out.push("가장 거래가 많은 <b>" + bandLabel(g.b) + "</b>는 매매 " + g.sale.length + "건, " +
-        "<b>중위 " + eokman(g.medSale) + "</b>(평당 " + Math.round(g.py).toLocaleString() + "만원)입니다." +
+        "<b>중위 " + eokman(g.medSale) + "</b>(평당 " + pyNum(g.py) + "만원)입니다." +
         (g.ratio ? " 전세는 중위 " + eokman(g.medJeonse) + "로 <b>전세가율 " + g.ratio + "%</b>입니다." : ""));
     } else if (g.sale.length) {
       out.push("<b>" + bandLabel(g.b) + "</b> 매매는 <b>" + g.sale.length + "건뿐</b>이라 " +
@@ -1591,7 +1619,7 @@
       out.push("인근 <b>" + sim.length + "곳</b>(" +
         sim.map(function (x) { return esc(x.apt.n) + (x.dist != null ? " " + (x.dist < 1000 ? x.dist + "m" : (x.dist / 1000).toFixed(1) + "km") : ""); }).join(", ") +
         ")의 같은 평형대 기준으로는 " +
-        (band ? "<b>평당 " + Math.round(band).toLocaleString() + "만원</b> 수준입니다. " : "매매 표본이 없습니다. ") +
+        (band ? "<b>평당 " + pyNum(band) + "만원</b> 수준입니다. " : "매매 표본이 없습니다. ") +
         ((sp && sp.tag !== "표기 분리")
             ? "<b>다만 이 값은 일반 분양 단지 기준</b>이라 " + esc(a.n) + "에 그대로 적용하시면 안 됩니다."
             : "연식·동·향·층에 따라 차이가 나므로 <b>참고 범위</b>로만 말씀하세요."));
@@ -1998,7 +2026,7 @@
       var h = Math.max(3, Math.round(Math.abs(d) / peak * 40));
       var up = d >= 0;
       return '<div class="dv-col' + (x.partial ? " partial" : "") + '" title="' + qLabel(x.q) +
-        " 매매 " + x.n + "건 · 동 " + x.py.toLocaleString() + "만원 / 구 " + x.guPy.toLocaleString() + '만원">' +
+        " 매매 " + x.n + "건 · 동 " + pyNum(x.py) + "만원 / 구 " + pyNum(x.guPy) + '만원">' +
         '<span class="dv-val">' + x.pct + "%</span>" +
         '<span class="dv-bar ' + (up ? "up" : "down") + '" style="height:' + h + 'px"></span>' +
         '<span class="dv-q">' + qLabel(x.q) + (x.partial ? " *" : "") + "</span></div>";
@@ -2120,7 +2148,7 @@
     var sign = function (v) { return (v >= 0 ? "+" : "\u2212") + Math.abs(v).toFixed(1) + "%"; };
     var speak =
       esc(gu) + "는 서울 " + N + "개 구 가운데 <b>값은 " + pRank + "위</b>(평당 " +
-      pr.py.toLocaleString() + "만원)로 " + pWord + "인데, <b>오르는 속도는 " + rRank + "위</b>(전년 대비 " +
+      pyNum(pr.py) + "만원)로 " + pWord + "인데, <b>오르는 속도는 " + rRank + "위</b>(전년 대비 " +
       sign(yoy) + ")로 " + rWord + "입니다. " +
       (Math.abs(gap) < 0.5 ? "서울 평균과 비슷합니다. "
         : "25개구 평균(" + sign(R.avg) + ")보다 <b>" + Math.abs(gap).toFixed(1) + "%p " +
@@ -2132,7 +2160,7 @@
       '<div class="lb-grid">' +
         '<div class="lb-cell"><span class="lb-k">값 (중위 평당가)</span>' +
           '<span class="lb-v">서울 <b>' + pRank + "위</b></span>" +
-          '<span class="lb-s">' + pr.py.toLocaleString() + "만원 · " + pWord + "</span></div>" +
+          '<span class="lb-s">' + pyNum(pr.py) + "만원 · " + pWord + "</span></div>" +
         '<div class="lb-cell"><span class="lb-k">상승률 (공식지수)</span>' +
           '<span class="lb-v">서울 <b>' + rRank + "위</b></span>" +
           '<span class="lb-s">전년 대비 ' + sign(yoy) + " · " + rWord + "</span></div>" +
@@ -2166,8 +2194,8 @@
 
     return "<h3>📊 데이터로 본 입지 — " + regionLabel() + "</h3>" +
       "<ul>" +
-      "<li>중위 매매 평당가 <b>" + (r.med.pyeong || 0).toLocaleString() + "만원</b> — 서울 전체 중위(" +
-      (seoul.med.pyeong || 0).toLocaleString() + "만원) 대비 <b>" + ratio + "%</b></li>" +
+      "<li>중위 매매 평당가 <b>" + pyNum(r.med.pyeong) + "만원</b>(" + pyBaseWord() +
+      " 기준) — 서울 전체 중위(" + pyNum(seoul.med.pyeong) + "만원) 대비 <b>" + ratio + "%</b></li>" +
       "<li>중위 매매가 <b>" + eokman(r.med.sale) + "</b> · 중위 전세보증금 <b>" + eokman(r.med.jeonse) + "</b>" +
       (r.med.sale ? " (전세가율 약 <b>" + Math.round((r.med.jeonse / r.med.sale) * 100) + "%</b>)" : "") + "</li>" +
       "<li>표본 기간 총 <b>" + (r.cnt.sale + r.cnt.jeonse + r.cnt.wolse).toLocaleString() + "건</b> 신고 " +
@@ -2181,13 +2209,15 @@
         (state.gu === ALL ? "자치구" : "법정동") + "</th><th>중위 평당가</th><th>매매 건수</th></tr></thead><tbody>" +
         rows.map(function (x, i) {
           return "<tr><td>" + (i + 1) + "</td><td>" + esc(x.d) + "</td>" +
-            '<td class="rt-price">' + x.py.toLocaleString() + "만원</td><td>" + x.c.toLocaleString() + "건</td></tr>";
+            '<td class="rt-price">' + pyNum(x.py) + "만원</td><td>" + x.c.toLocaleString() + "건</td></tr>";
         }).join("") + "</tbody></table>" : "") +
       locBriefHtml() +
       priceIndexHtml() +
       dongVsGuHtml() +
       "<p style='margin-top:10px;color:var(--txt-mute);font-size:12.5px'>" +
-      "※ 평당가 = 거래금액 ÷ (전용면적 ÷ 3.3058). 매매 신고 3건 이상인 지역만 순위에 넣습니다.</p>";
+      "※ 평당가 = 거래금액 ÷ (" + pyBaseWord() + "면적 ÷ 3.3058). 매매 신고 3건 이상인 지역만 순위에 넣습니다." +
+      (state.pyBase === "supply"
+        ? " <b>분양면적은 실거래 자료에 없어</b> 전용률 74%로 환산했습니다." : "") + "</p>";
   }
 
   /* 한국부동산원 공동주택 매매 실거래가격지수 — 구 단위 공식 통계.
@@ -2548,8 +2578,8 @@
         : (r > 0 ? "<b>" + r.toFixed(1) + "% 올랐습니다</b>"
                  : "<b>" + Math.abs(r).toFixed(1) + "% 내렸습니다</b>");
       var t = "<b>" + esc(d.label) + "</b>는 " + labels[a.i] + " 평당 " +
-        Math.round(a.s.v).toLocaleString() + "만원(" + a.s.n + "건)에서 " +
-        labels[b.i] + " " + Math.round(b.s.v).toLocaleString() + "만원(" + b.s.n + "건)으로 " + word + ".";
+        pyNum(a.s.v) + "만원(" + a.s.n + "건)에서 " +
+        labels[b.i] + " " + pyNum(b.s.v) + "만원(" + b.s.n + "건)으로 " + word + ".";
 
       // 중간에 크게 출렁였으면 단일 추세로 말하지 않는다
       if (v.length >= 3) {
@@ -2627,7 +2657,8 @@
     if (idxState.view === "type") {
       TYPES.forEach(function (t) {
         var stats = pyStats(regionKey(), t);
-        var raw = stats.map(function (x) { return x.v; });
+        // 지수 모드는 비율이라 기준과 무관하다. 만원/평 모드만 기준을 따라간다.
+        var raw = stats.map(function (x) { return isIdx ? x.v : pyConv(x.v); });
         sets.push(Object.assign({
           label: TYPE_LABEL[t],
           data: isIdx ? toIndex(raw) : raw,
@@ -2648,7 +2679,8 @@
       targets.forEach(function (tg) {
         if (!BY_REGION[tg.key]) return;
         var stats = pyStats(tg.key, "sale");
-        var raw = stats.map(function (x) { return x.v; });
+        // 지수 모드는 비율이라 기준과 무관하다. 만원/평 모드만 기준을 따라간다.
+        var raw = stats.map(function (x) { return isIdx ? x.v : pyConv(x.v); });
         sets.push(Object.assign({
           label: tg.name + " (매매)",
           data: isIdx ? toIndex(raw) : raw,
@@ -2697,7 +2729,7 @@
           title: {
             display: true,
             text: regionLabel() + " · " + (state.gran === "week" ? "주별" : "월별") + " 중위 평당가 " +
-                  (isIdx ? "지수 (첫 구간=100)" : "(만원/평)"),
+                  (isIdx ? "지수 (첫 구간=100)" : "(만원/평 · " + pyBaseLabel() + ")"),
             font: { size: 13, weight: "bold" },
           },
           tooltip: {
@@ -2733,7 +2765,7 @@
           },
         },
         scales: {
-          y: { title: { display: true, text: isIdx ? "지수" : "만원/평" } },
+          y: { title: { display: true, text: isIdx ? "지수" : "만원/평 (" + pyBaseWord() + ")" } },
         },
       },
     });
@@ -2816,7 +2848,7 @@
 
   function pyRowsHtml(rows, type) {
     if (!rows || !rows.length) {
-      return '<tr class="empty-row"><td colspan="7">해당 기간 · 지역에 ' + TYPE_LABEL[type] + " 실거래가 없습니다.</td></tr>";
+      return '<tr class="empty-row"><td colspan="8">해당 기간 · 지역에 ' + TYPE_LABEL[type] + " 실거래가 없습니다.</td></tr>";
     }
     return rows.map(function (r, i) {
       var rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
@@ -2825,10 +2857,11 @@
       return "<tr>" +
         '<td><span class="rank-chip ' + rc + '">' + (i + 1) + "</span></td>" +
         '<td><div class="rt-name">' + esc(r.n) + "</div>" + where + "</td>" +
-        "<td>" + areaText(r.a) + "</td>" +
+        "<td>" + supplyText(r.a) + "</td>" +
+        "<td>" + netText(r.a) + "</td>" +
         "<td>" + (r.f ? r.f + "층" : "-") + "</td>" +
         '<td class="rt-price">' + priceText(r, type) + "</td>" +
-        '<td class="rt-price">' + (r.py || 0).toLocaleString() + "만원</td>" +
+        '<td class="rt-price">' + pyNum(r.py) + "만원</td>" +
         '<td class="rt-sub">' + dateText(r.d) + "</td>" +
         "</tr>";
     }).join("");
@@ -2842,7 +2875,9 @@
       .filter(function (t) { return t !== pyState.type; })
       .map(function (t) {
         return '<h3 style="margin:18px 0 8px; font-size:15px;">' + regionLabel() + " · " + TYPE_LABEL[t] + " 평당가격 TOP 10</h3>" +
-          '<table class="rank-table"><thead><tr><th>순위</th><th>단지명</th><th>전용면적</th><th>층</th><th>거래가</th><th>평당가</th><th>거래일</th></tr></thead><tbody>' +
+          '<table class="rank-table"><thead><tr><th>순위</th><th>단지명</th>' +
+          '<th>분양<span class="th-sub">㎡ (평)</span></th><th>전용<span class="th-sub">㎡</span></th>' +
+          '<th>층</th><th>거래가</th><th>평당가<span class="th-sub">' + pyBaseLabel() + '</span></th><th>거래일</th></tr></thead><tbody>' +
           pyRowsHtml(tops[t], t) + "</tbody></table>";
       }).join("");
   }
@@ -2997,7 +3032,7 @@
       var pv = i ? mo[i - 1].sale.py : 0, pn = i ? mo[i - 1].sale.n : 0;
       return "<tr><td>" + moLabel(x.m) + flag(x.m, x.sale.n, x.sale.hot) + "</td>" +
         "<td>" + x.sale.n.toLocaleString() + "건</td>" +
-        "<td>" + (x.sale.py ? Math.round(x.sale.py).toLocaleString() + "만원" : "-") + "</td>" +
+        "<td>" + (x.sale.py ? pyNum(x.sale.py) + "만원" : "-") + "</td>" +
         "<td>" + (x.sale.amt ? eokman(x.sale.amt) : "-") + "</td>" +
         "<td>" + deltaHtml(x.sale.py, pv, x.sale.n, pn, x.sale.hot) + "</td></tr>";
     });
@@ -3007,7 +3042,7 @@
       return "<tr><td>" + moLabel(x.m) + flag(x.m, x.jeonse.n, x.jeonse.hot) + "</td>" +
         "<td>" + x.jeonse.n.toLocaleString() + "건</td>" +
         "<td>" + (x.jeonse.dep ? eokman(x.jeonse.dep) : "-") + "</td>" +
-        "<td>" + (x.jeonse.py ? Math.round(x.jeonse.py).toLocaleString() + "만원" : "-") + "</td>" +
+        "<td>" + (x.jeonse.py ? pyNum(x.jeonse.py) + "만원" : "-") + "</td>" +
         "<td>" + deltaHtml(x.jeonse.py, pv, x.jeonse.n, pn, x.jeonse.hot) + "</td></tr>";
     });
 
@@ -3049,8 +3084,8 @@
     var ph = phaseOf(vals);
     var a = use[0], b = use[use.length - 1];
 
-    var why = ["<b>매매 중위 평당가</b>가 " + moLabel(a.m) + " " + Math.round(a.sale.py).toLocaleString() +
-      "만원에서 " + moLabel(b.m) + " " + Math.round(b.sale.py).toLocaleString() + "만원으로 <b>" +
+    var why = ["<b>매매 중위 평당가</b>가 " + moLabel(a.m) + " " + pyNum(a.sale.py) +
+      "만원에서 " + moLabel(b.m) + " " + pyNum(b.sale.py) + "만원으로 <b>" +
       (ph.r >= 0 ? "+" : "\u2212") + Math.abs(ph.r).toFixed(1) + "%</b>입니다."];
 
     // 거래량 — 마감된 달끼리만
@@ -3138,7 +3173,7 @@
         }
         return head + why +
           "가장 최근은 " + moLabel(last1.m) + " " + get(last1).n + "건" +
-          (get(last1).py ? ", 중위 평당가 " + Math.round(get(last1).py).toLocaleString() + "만원" : "") +
+          (get(last1).py ? ", 중위 평당가 " + pyNum(get(last1).py) + "만원" : "") +
           "입니다. " + how;
       }
 
@@ -3148,8 +3183,8 @@
                : (r > 0 ? "<b>" + r.toFixed(1) + "% 올랐습니다</b>"
                         : "<b>" + Math.abs(r).toFixed(1) + "% 내렸습니다</b>");
       var t = "<b>" + label + "</b>는 " + moLabel(a2.m) + " 평당 " +
-        Math.round(get(a2).py).toLocaleString() + "만원(" + get(a2).n + "건)에서 " +
-        moLabel(b2.m) + " " + Math.round(get(b2).py).toLocaleString() + "만원(" + get(b2).n + "건)으로 " +
+        pyNum(get(a2).py) + "만원(" + get(a2).n + "건)에서 " +
+        moLabel(b2.m) + " " + pyNum(get(b2).py) + "만원(" + get(b2).n + "건)으로 " +
         word + ".";
       if (isPending(b2.m)) {
         t += " 다만 " + moLabel(b2.m) + "은 <b>신고가 아직 다 안 들어와</b> 확정된 숫자가 아닙니다.";
@@ -3237,7 +3272,16 @@
       briefConcl(mo) + out.map(function (t) { return "<li>" + t + "</li>"; }).join("");
   }
 
+  /* 머리글의 '전용 기준 / 분양 기준' 글자도 토글을 따라간다 */
+  function syncPyHeads() {
+    ["dealPyHead", "pyPyHead"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.textContent = pyBaseLabel();
+    });
+  }
+
   function renderAll() {
+    syncPyHeads();
     renderKpi();
     renderIndex();
     renderBrief();
