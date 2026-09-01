@@ -24,7 +24,9 @@
   var OFFI_LABEL = { sale: "매매", jeonse: "전세", wolse: "월세(환산)" };
   var OFFI_COLOR = { sale: "#4f7fe6", jeonse: "#4fada8", wolse: "#cf9a45" };
 
-  var state = { gu: ALL, dong: ALL, win: D.defaultWindow, nrgGroup: "shop", offiType: "sale" };
+  var state = { gu: ALL, dong: ALL, win: D.defaultWindow, nrgGroup: "shop", offiType: "sale",
+    pyBase: "net",              // 오피스텔 평당가 기준: net 전용 | supply 공급
+  };
 
   function win() { return D.windows[state.win]; }
 
@@ -64,15 +66,47 @@
     return Math.round(value / (area / PYEONG)).toLocaleString() + "만원";
   }
 
-  // 오피스텔 전용면적 평당가 -> 공급(분양)면적 기준 환산.
-  // 네이버·KB 시세는 대개 공급면적 기준이라 그대로 비교하면 30%쯤 비싸 보인다.
-  var SUPPLY_RATIO = 0.74;        // 전용률 74% 가정
+  /* ── 오피스텔 평당가 기준 ──
+     네이버·KB 시세는 공급(분양)면적 기준이라, 전용 기준 그대로 대면 훨씬 비싸 보인다.
+
+     전에 여기에 아파트와 같은 0.74를 쓰고 있었는데 이건 틀렸다. 오피스텔은
+     복도·엘리베이터·주차장 같은 공용면적 비중이 아파트보다 훨씬 커서
+     전용률이 50% 안팎이다(아파트 70~80%). 0.74로 두면 공급 환산 평당가가
+     실제보다 5할 가까이 높게 나와, 그대로 말씀드리면 시세를 과대평가하게 된다.
+
+     소형 원룸은 40%대, 아파텔은 60%대라 편차가 크다. 가운데인 50%를 쓰되
+     화면에 가정값임을 밝힌다. */
+  var OFFI_SUPPLY_RATIO = 0.50;
+
+  function pyConv(v) {
+    if (!v) return 0;
+    return state.pyBase === "supply" ? Math.round(v * OFFI_SUPPLY_RATIO) : Math.round(v);
+  }
+  function pyBaseWord() { return state.pyBase === "supply" ? "공급" : "전용"; }
+  function pyBaseLabel() { return pyBaseWord() + " 기준"; }
+
+  /* 오피스텔 평당가 — 고른 기준 하나만 크게 적고, 다른 기준은 작게 곁들인다 */
   function pyTextBoth(value, area) {
     if (!area) return "-";
-    var py = Math.round(value / (area / PYEONG));
-    return py.toLocaleString() + "만원" +
-      '<div class="rt-sub">공급 환산 ' + Math.round(py * SUPPLY_RATIO).toLocaleString() + "만원</div>";
+    var net = Math.round(value / (area / PYEONG));
+    var sup = Math.round(net * OFFI_SUPPLY_RATIO);
+    var main = state.pyBase === "supply" ? sup : net;
+    var sub = state.pyBase === "supply" ? "전용 " + net.toLocaleString() : "공급 " + sup.toLocaleString();
+    return main.toLocaleString() + "만원" + '<div class="rt-sub">' + sub + "만원</div>";
   }
+
+  /* 오피스텔 평당가 기준 토글 — 화면 전체가 같은 기준으로 다시 그려진다 */
+  document.querySelectorAll("#pyBaseTabs button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      if (state.pyBase === b.dataset.b) return;
+      document.querySelectorAll("#pyBaseTabs button").forEach(function (x) { x.classList.remove("active"); });
+      b.classList.add("active");
+      state.pyBase = b.dataset.b;
+      var h = document.getElementById("offiPyHead");
+      if (h) h.textContent = pyBaseLabel();
+      renderAll();
+    });
+  });
 
   /* 선택한 지역을 섹션 제목에 반영한다 */
   function scopeLabel() {
@@ -218,7 +252,9 @@
       { label: "일반상가 매매", value: (r.nrgCnt.shop || 0).toLocaleString() + "건", sub: "근린생활·판매 등" },
       { label: "업무용 매매", value: (r.nrgCnt.office || 0).toLocaleString() + "건", sub: "사무실·오피스" },
       { label: "상가·업무용 중위가", value: eokman(r.med.nrg), sub: "평당 " + (r.med.nrgPy || 0).toLocaleString() + "만원(연면적 기준)" },
-      { label: "오피스텔 매매", value: (r.offiCnt.sale || 0).toLocaleString() + "건", sub: "중위 " + eokman(r.med.offiSale) },
+      { label: "오피스텔 매매", value: (r.offiCnt.sale || 0).toLocaleString() + "건",
+        sub: "중위 " + eokman(r.med.offiSale) +
+             (r.med.offiPy ? " · 평당 " + pyConv(r.med.offiPy).toLocaleString() + "만원(" + pyBaseWord() + ")" : "") },
       { label: "오피스텔 전월세", value: offiRent.toLocaleString() + "건", sub: "월세 비중 " + pct(r.offiCnt.wolse, offiRent) },
     ].map(function (b) {
       return '<div class="stat-box"><div class="label">' + b.label + '</div><div class="value">' +
@@ -665,7 +701,7 @@
         "<td>" + areaText(x.row.a) + "</td>" +
         "<td>" + (x.row.f ? x.row.f + "층" : "-") + "</td>" +
         '<td class="rt-price">' + offiPriceText(x.row, t) + "</td>" +
-        "<td>" + pyText(convValue(x.row, t), x.row.a) + "</td>" +
+        "<td>" + pyConv(convValue(x.row, t) / (x.row.a / PYEONG)).toLocaleString() + "만원</td>" +
         '<td class="rt-sub">' + dateText(x.row.d) + "</td></tr>";
     }).join("");
 
