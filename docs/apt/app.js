@@ -130,10 +130,14 @@
      이미 잡혀 있다.) */
   /* 받침에 맞는 조사를 고른다. '875만원로'처럼 적으면 읽기 사납다. */
   function josa(w, withB, noB) {
-    var t = String(w || "").replace(/<[^>]*>/g, "").trim();
-    var c = t.charCodeAt(t.length - 1);
-    if (!(c >= 0xac00 && c <= 0xd7a3)) return noB;   // 한글이 아니면 받침 없는 쪽
-    return (c - 0xac00) % 28 ? withB : noB;
+    var t = String(w || "").replace(/<[^>]*>/g, "");
+    // 끝이 ')'나 숫자·단위여도 소리 나는 마지막 한글로 판단해야 한다.
+    // "84㎡ (34평)"은 '평'으로 끝나 받침이 있으니 '은'이다.
+    for (var i = t.length - 1; i >= 0; i--) {
+      var c = t.charCodeAt(i);
+      if (c >= 0xac00 && c <= 0xd7a3) return (c - 0xac00) % 28 ? withB : noB;
+    }
+    return noB;                                      // 한글이 없으면 받침 없는 쪽
   }
 
   function bandLabel(b) {
@@ -1584,8 +1588,10 @@
     var a = sum.apt, out = [];
     var total = sum.cnt.sale + sum.cnt.jeonse + sum.cnt.wolse;
 
-    out.push("<b>" + esc(a.n) + "</b>는 " + esc(a.gu) + " " + esc(a.dg) + "에 있고" +
-      (a.y ? " <b>" + a.y + "년 준공</b>" : "") + "입니다. " +
+    // 준공연도가 없으면 "있고" 다음이 비어 "있고입니다"가 됐다.
+    // 분양권·입주권처럼 준공 전 단지가 그렇다.
+    out.push("<b>" + esc(a.n) + "</b>" + josa(a.n, "은", "는") + " " + esc(a.gu) + " " + esc(a.dg) +
+      (a.y ? "에 있고 <b>" + a.y + "년 준공</b>입니다. " : "에 있습니다. ") +
       "자료 기간(" + DATA_START.slice(2).replace(/-/g, ".") + "~" + DATA_END.slice(2).replace(/-/g, ".") + ") 신고된 거래는 " +
       "<b>매매 " + sum.cnt.sale + "건 · 전세 " + sum.cnt.jeonse + "건 · 월세 " + sum.cnt.wolse + "건</b>, " +
       "모두 " + total.toLocaleString() + "건입니다.");
@@ -1600,7 +1606,8 @@
 
     var g = mainBand;
     if (g.sale.length >= APT_MIN) {
-      out.push("가장 거래가 많은 <b>" + bandLabel(g.b) + "</b>는 매매 " + g.sale.length + "건, " +
+      out.push("가장 거래가 많은 <b>" + bandLabel(g.b) + "</b>" + josa(bandLabel(g.b), "은", "는") +
+        " 매매 " + g.sale.length + "건, " +
         "<b>중위 " + eokman(g.medSale) + "</b>(평당 " +
         Math.round(g.py * SUPPLY_RATIO).toLocaleString() + "만원 · 전용 기준 " + pyNum(g.py) + "만원)입니다." +
         (g.ratio ? " 전세는 중위 " + eokman(g.medJeonse) + josa(eokman(g.medJeonse), "으로", "로") +
@@ -1611,7 +1618,8 @@
         "가장 최근 거래는 " + dateText(g.sale[g.sale.length - 1].d) + " " +
         eokman(g.sale[g.sale.length - 1].v) + "입니다. <b>아래 인근 유사 단지</b>를 함께 보고 말씀드리겠습니다.");
     } else {
-      out.push("<b>" + bandLabel(g.b) + "</b>는 <b>매매 신고가 없습니다</b>. " +
+      out.push("<b>" + bandLabel(g.b) + "</b>" + josa(bandLabel(g.b), "은", "는") +
+        " <b>매매 신고가 없습니다</b>. " +
         (g.jeonse.length ? "전세는 " + g.jeonse.length + "건, 중위 " + eokman(g.medJeonse) + "입니다. " : "") +
         ((sp && sp.tag !== "표기 분리") ? "매매가 되는 물건인지부터 확인하셔야 합니다."
             : "매매 시세는 <b>아래 인근 유사 단지</b>로 가늠하셔야 합니다."));
@@ -2582,12 +2590,12 @@
       var all = d._stats.filter(function (x) { return x.n; });
       var total = all.reduce(function (t, x) { return t + x.n; }, 0);
       if (!total) {
-        out.push("<b>" + esc(d.label) + "</b>는 이 기간에 거래가 없었습니다.");
+        out.push("<b>" + esc(d.label) + "</b>" + josa(d.label, "은", "는") + " 이 기간에 거래가 없었습니다.");
         return;
       }
       var v = usable(d);
       if (v.length < 2) {
-        out.push("<b>" + esc(d.label) + "</b>는 " + total.toLocaleString() + "건인데, " +
+        out.push("<b>" + esc(d.label) + "</b>" + josa(d.label, "은", "는") + " " + total.toLocaleString() + "건인데, " +
           "쓸 만한 " + unit + "이 " + v.length + "곳뿐이라 <b>흐름을 말씀드리기 어렵습니다</b>. " +
           (state.gran === "week" ? "<b>월간</b>으로 바꾸시면" : "<b>기간을 넓히시면</b>") + " 나아집니다.");
         return;
@@ -2597,7 +2605,7 @@
       var word = Math.abs(r) < 1.5 ? "거의 그대로입니다"
         : (r > 0 ? "<b>" + r.toFixed(1) + "% 올랐습니다</b>"
                  : "<b>" + Math.abs(r).toFixed(1) + "% 내렸습니다</b>");
-      var t = "<b>" + esc(d.label) + "</b>는 " + labels[a.i] + " 평당 " +
+      var t = "<b>" + esc(d.label) + "</b>" + josa(d.label, "은", "는") + " " + labels[a.i] + " 평당 " +
         pyNum(a.s.v) + "만원(" + a.s.n + "건)에서 " +
         labels[b.i] + " " + pyNum(b.s.v) + "만원(" + b.s.n + "건)으로 " + word + ".";
 
@@ -3170,7 +3178,7 @@
       var any = mo.filter(function (x) { return get(x).n > 0; });
       var total = any.reduce(function (a, x) { return a + get(x).n; }, 0);
 
-      if (!total) return "<b>" + label + "</b>는 이 기간에 거래가 없었습니다.";
+      if (!total) return "<b>" + label + "</b>" + josa(label, "은", "는") + " 이 기간에 거래가 없었습니다.";
 
       if (pts.length < 2) {
         var enough = mo.filter(function (x) { return get(x).n >= MIN_N && get(x).py; });
