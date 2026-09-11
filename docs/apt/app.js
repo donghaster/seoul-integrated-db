@@ -353,11 +353,30 @@
   var SUPPLY_RATIO = 0.769;
   var SUPPLY_TBL = window.APT_SUPPLY || {};
 
-  /* 이 거래의 공급면적. 표에 있으면 실제값, 없으면 전용률로 어림한다. */
+  /* 이 거래의 공급면적.
+       ① 단지표에 그 전용면적이 있으면 실제값
+       ② 단지표에 _ratio(그 단지 전용률)만 있으면 그것으로 어림
+       ③ 아무것도 없으면 서울 평균 전용률로 어림
+
+     ①에서 소수점을 딱 맞춰 찾지 않는다. 실거래는 84.98로 오는데 모집공고는
+     84.9871처럼 넷째 자리까지라, 문자열로 맞추면 번번이 놓친다.
+     0.06㎡(0.02평) 안에서 가장 가까운 것을 고른다 — 이 범위에 서로 다른
+     주택형이 들어오는 일은 없다. */
+  var AREA_TOL = 0.06;
+
   function supplyOf(a, gu, dg, name) {
     var t = SUPPLY_TBL[gu + "|" + dg + "|" + name];
-    var hit = t && t[a.toFixed(2)];
-    return hit ? { v: hit, exact: true } : { v: a / SUPPLY_RATIO, exact: false };
+    if (t) {
+      var best = null, gap = AREA_TOL;
+      for (var k in t) {
+        if (k.charAt(0) === "_") continue;          // _ratio 같은 설정값은 건너뛴다
+        var d = Math.abs(parseFloat(k) - a);
+        if (d <= gap) { gap = d; best = t[k]; }
+      }
+      if (best) return { v: best, exact: true };
+      if (t._ratio) return { v: a / t._ratio, exact: false };
+    }
+    return { v: a / SUPPLY_RATIO, exact: false };
   }
   function supplyArea(a) { return a / SUPPLY_RATIO; }
 
