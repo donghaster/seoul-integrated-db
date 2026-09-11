@@ -665,40 +665,112 @@
   var _riseCache = {};
 
   /* 상승률은 단지별로 묶어야 해서 무겁다 — 실제로 볼 때만 계산한다 */
-  function riseOf(key, type) {
-    var ck = key + "|" + type + "@" + state.start + "~" + state.end;
+  /* 순위를 어느 단위로 묶을지.
+
+     '단지'는 이름만으로 묶으면 안 된다. 서울에는 '한성'이라는 아파트가
+     영등포 신길동·구로 고척동·서초 서초동에 따로 있고 '현대'는 더 많다.
+     이름만으로 묶으면 서로 다른 단지의 거래가 한 줄로 합쳐져 상승률이
+     엉뚱하게 나온다. 구·동까지 붙여 갈라야 한다. */
+  var RANK_UNIT = {
+    gu:   { key: function (x) { return x.gu; },
+            label: function (x) { return x.gu; } },
+    dong: { key: function (x) { return x.gu + "|" + x.dg; },
+            label: function (x) { return state.gu === ALL ? x.gu + " " + x.dg : x.dg; } },
+    apt:  { key: function (x) { return x.gu + "|" + x.dg + "|" + x.n; },
+            label: function (x) {
+              return state.dong !== ALL ? x.n
+                   : state.gu !== ALL ? x.n + " (" + x.dg + ")"
+                   : x.n + " (" + x.gu + " " + x.dg + ")";
+            } },
+  };
+
+  function riseOf(key, type, unit) {
+    unit = unit || "apt";
+    var ck = key + "|" + type + "|" + unit + "@" + state.start + "~" + state.end;
     if (_riseCache[ck]) return _riseCache[ck];
     var rows = dealsIn(key).filter(function (x) { return x.t === type; });
-    var out = computeRise(rows);
+    var out = computeRise(rows, unit);
     _riseCache[ck] = out;
     return out;
   }
 
-  function computeRise(rows) {
+  function computeRise(rows, unit) {
     if (!rows.length) return [];
+    var u = RANK_UNIT[unit] || RANK_UNIT.apt;
     var lo = new Date(state.start + "T00:00:00").getTime();
     var hi = new Date(state.end + "T00:00:00").getTime();
     var mid = new Date(lo + (hi - lo) / 2);
     var p = function (n) { return n < 10 ? "0" + n : "" + n; };
     var midStr = mid.getFullYear() + "-" + p(mid.getMonth() + 1) + "-" + p(mid.getDate());
 
-    var early = {}, late = {};
+    var early = {}, late = {}, name = {};
     for (var i = 0; i < rows.length; i++) {
       var x = rows[i], v = pyOf(x);
       if (!v) continue;
+      var k = u.key(x);
+      name[k] = u.label(x);
       var bag = x.d < midStr ? early : late;
-      (bag[x.n] = bag[x.n] || []).push(v);
+      (bag[k] = bag[k] || []).push(v);
     }
     var out = [];
-    Object.keys(early).forEach(function (n) {
-      if (!late[n]) return;
-      var a = median(early[n]), b = median(late[n]);
+    Object.keys(early).forEach(function (k) {
+      if (!late[k]) return;
+      var a = median(early[k]), b = median(late[k]);
       if (!a || !b) return;
-      out.push({ n: n, before: a, after: b, rate: (b - a) / a * 100,
-                 cnt: early[n].length + late[n].length });
+      out.push({ n: name[k], before: a, after: b, rate: (b - a) / a * 100,
+                 cnt: early[k].length + late[k].length });
     });
     out.sort(function (x, y) { return y.rate - x.rate; });
     return out.slice(0, TOP_N);
+  }
+
+  /* 평당가가 높은 순위를 자치구·법정동·단지 단위로 낸다.
+
+     거래 한 건만으로 1등이 되면 순위가 장난이 된다. 그래서 최소 건수를
+     둔다 — 단지는 3건, 동·구는 10건. 미달은 아예 빼지 않고 순위에서만
+     뺀다(표에 '표본 적음'을 붙일 수도 있으나, 여기서는 뺀다). */
+  var RANK_MIN = { apt: 3, dong: 10, gu: 10 };
+
+  /* 묶어 볼 때는 어디까지를 범위로 삼을지.
+
+     고른 곳 안에서만 묶으면 헛돈다. 반포동을 고른 채 '자치구별'을 누르면
+     서초구 한 줄만 나온다. 자치구별은 늘 서울 전체를 봐야 내 구가 몇 위인지
+     알 수 있고, 법정동별은 그 구 안에서 견줘야 뜻이 있다. 실거래량 순위와
+     같은 규칙이다. */
+  function rankScopeLabel(unit) {
+    var k = rankScope(unit);
+    return k === ALL ? "서울 전체" : k.indexOf("|") === -1 ? k : k.replace("|", " ");
+  }
+
+  function rankScope(unit) {
+    if (unit === "gu") return ALL;
+    if (unit === "dong") return state.gu === ALL ? ALL : state.gu;
+    return regionKey();
+  }
+
+  function pyRankOf(key, type, unit) {
+    var ck = "pyrank:" + key + "|" + type + "|" + unit + "@" + state.start + "~" + state.end;
+    if (_riseCache[ck]) return _riseCache[ck];
+    var u = RANK_UNIT[unit] || RANK_UNIT.apt;
+    var rows = dealsIn(key).filter(function (x) { return x.t === type; });
+    var bag = {}, name = {};
+    for (var i = 0; i < rows.length; i++) {
+      var x = rows[i], v = pyOf(x);
+      if (!v) continue;
+      var k = u.key(x);
+      name[k] = u.label(x);
+      (bag[k] = bag[k] || []).push(v);
+    }
+    var min = RANK_MIN[unit] || 3;
+    var out = [];
+    Object.keys(bag).forEach(function (k) {
+      if (bag[k].length < min) return;
+      out.push({ n: name[k], py: median(bag[k]), cnt: bag[k].length });
+    });
+    out.sort(function (a, b) { return b.py - a.py; });
+    out = out.slice(0, TOP_N);
+    _riseCache[ck] = out;
+    return out;
   }
 
   /* 구간별 중위 평당가 시계열 — 가격지수용.
@@ -3046,7 +3118,7 @@
 
   /* ════════════════ 평당가격 TOP 10 ════════════════ */
 
-  var pyState = { type: "sale" };
+  var pyState = { type: "sale", unit: "deal" };
 
   function pyRowsHtml(rows, type) {
     if (!rows || !rows.length) {
@@ -3068,10 +3140,61 @@
     }).join("");
   }
 
+  /* 묶어 본 순위 — 자치구·법정동·단지별 중위 평당가 */
+  var PY_HEAD_DEAL =
+    "<tr><th>순위</th><th>단지명</th>" +
+    '<th>분양면적 <span class="th-sub">㎡ (평) · 아래 전용</span></th>' +
+    "<th>층</th><th>거래가</th>" +
+    '<th>평당가 <span class="th-sub">공급 기준 · 아래 전용</span></th><th>거래일</th></tr>';
+
+  function pyHeadGroup(unit) {
+    return "<tr><th>순위</th><th>" +
+      (unit === "gu" ? "자치구" : unit === "dong" ? "법정동" : "단지") +
+      '</th><th>중위 평당가 <span class="th-sub">전용 기준</span></th><th>거래</th></tr>';
+  }
+
+  function pyGroupRowsHtml(rows, unit, type) {
+    if (!rows || !rows.length) {
+      return '<tr class="empty-row"><td colspan="4">해당 기간 · 지역에 ' + TYPE_LABEL[type] +
+        " 거래가 " + (RANK_MIN[unit] || 3) + "건 이상인 " +
+        (unit === "gu" ? "자치구가" : unit === "dong" ? "법정동이" : "단지가") + " 없습니다.</td></tr>";
+    }
+    return rows.map(function (r, i) {
+      var rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
+      return "<tr>" +
+        '<td><span class="rank-chip ' + rc + '">' + (i + 1) + "</span></td>" +
+        '<td class="rt-name">' + esc(r.n) + "</td>" +
+        '<td class="rt-price">' + pyNum(r.py) + "만원</td>" +
+        "<td>" + r.cnt.toLocaleString() + "건</td>" +
+        "</tr>";
+    }).join("");
+  }
+
   function renderPy() {
-    var tops = computeRegion(regionKey()).topPy;
-    document.getElementById("pyBody").innerHTML = pyRowsHtml(tops[pyState.type], pyState.type);
+    var unit = pyState.unit, type = pyState.type;
+    var pd = document.getElementById("pyDesc");
+    if (pd) {
+      pd.innerHTML = unit === "deal"
+        ? "금액이 아니라 <b>평당가(거래금액 ÷ 전용면적 ÷ 3.3058)</b> 상위 30건입니다. " +
+          "큰 평형이 밀리고 <b>작지만 비싼 단지</b>가 드러나므로, 금액 순위와 함께 보시면 좋습니다."
+        : "<b>" + rankScopeLabel(unit) + "</b>의 " +
+          (unit === "gu" ? "자치구별" : unit === "dong" ? "법정동별" : "단지별") +
+          " <b>중위 평당가</b> 순위입니다. 거래 한두 건으로 1등이 되지 않도록 " +
+          "<b>" + (RANK_MIN[unit] || 3) + "건 이상</b>만 셉니다." +
+          (unit === "apt" ? "" :
+            ' <span class="dim-note">자치구별은 늘 서울 전체, 법정동별은 고른 자치구 안에서 견줍니다.</span>');
+    }
+    if (unit === "deal") {
+      document.getElementById("pyHead").innerHTML = PY_HEAD_DEAL;
+      document.getElementById("pyBody").innerHTML =
+        pyRowsHtml(computeRegion(regionKey()).topPy[type], type);
+    } else {
+      document.getElementById("pyHead").innerHTML = pyHeadGroup(unit);
+      document.getElementById("pyBody").innerHTML =
+        pyGroupRowsHtml(pyRankOf(rankScope(unit), type, unit), unit, type);
+    }
     if (window.wireScrollBoxes) window.wireScrollBoxes();
+    var tops = computeRegion(regionKey()).topPy;
     document.getElementById("pyPrintAll").innerHTML = TYPES
       .filter(function (t) { return t !== pyState.type; })
       .map(function (t) {
@@ -3092,14 +3215,24 @@
     });
   });
 
+  document.querySelectorAll("#pyUnitTabs button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("#pyUnitTabs button").forEach(function (x) { x.classList.remove("active"); });
+      b.classList.add("active");
+      pyState.unit = b.dataset.u;
+      renderPy();
+    });
+  });
+
   /* ════════════════ 평당가 상승률 TOP 10 ════════════════ */
 
-  var riseState = { type: "sale" };
+  var riseState = { type: "sale", unit: "apt" };
 
-  function riseRowsHtml(rows) {
+  function riseRowsHtml(rows, unit) {
     if (!rows || !rows.length) {
-      return '<tr class="empty-row"><td colspan="6">전·후반부 모두 거래가 있는 단지가 없습니다. ' +
-        "조회 기간을 늘려 보세요.</td></tr>";
+      var what = unit === "gu" ? "자치구가" : unit === "dong" ? "법정동이" : "단지가";
+      return '<tr class="empty-row"><td colspan="6">전·후반부 모두 거래가 있는 ' + what +
+        " 없습니다. 조회 기간을 늘려 보세요.</td></tr>";
     }
     return rows.map(function (r, i) {
       var rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
@@ -3118,12 +3251,20 @@
   }
 
   function renderRise() {
-    document.getElementById("riseBody").innerHTML = riseRowsHtml(riseOf(regionKey(), riseState.type));
+    var unit = riseState.unit;
+    document.getElementById("riseHead").textContent =
+      unit === "gu" ? "자치구" : unit === "dong" ? "법정동" : "단지명";
+    document.getElementById("riseBody").innerHTML =
+      riseRowsHtml(riseOf(rankScope(unit), riseState.type, unit), unit);
     if (window.wireScrollBoxes) window.wireScrollBoxes();
 
+    var uw = unit === "gu" ? "자치구별" : unit === "dong" ? "법정동별" : "단지별";
     document.getElementById("riseDesc").innerHTML =
       "조회 기간 <b>" + win().label + "</b>을 <b>정확히 반으로 나눠</b> " +
-      "단지별 전반부 → 후반부 중위 평당가 변동률이 큰 순서입니다.";
+      "<b>" + rankScopeLabel(unit) + "</b>의 <b>" + uw + "</b> " +
+      "전반부 → 후반부 중위 평당가 변동률이 큰 순서입니다." +
+      (unit === "apt" ? "" :
+        ' <span class="dim-note">자치구별은 늘 서울 전체, 법정동별은 고른 자치구 안에서 견줍니다.</span>');
 
     // 나머지 유형은 무거우므로 인쇄 직전에만 만든다(buildRisePrintAll)
     document.getElementById("risePrintAll").innerHTML = "";
@@ -3135,9 +3276,19 @@
       .map(function (t) {
         return '<h3 style="margin:18px 0 8px; font-size:15px;">' + regionLabel() + " · " + TYPE_LABEL[t] + " 평당가 상승률 TOP 10</h3>" +
           '<table class="rank-table"><thead><tr><th>순위</th><th>단지명</th><th>전반부</th><th>후반부</th><th>변동률</th><th>거래</th></tr></thead><tbody>' +
-          riseRowsHtml(riseOf(regionKey(), t)) + "</tbody></table>";
+          riseRowsHtml(riseOf(rankScope(riseState.unit), t, riseState.unit), riseState.unit) +
+          "</tbody></table>";
       }).join("");
   }
+
+  document.querySelectorAll("#riseUnitTabs button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("#riseUnitTabs button").forEach(function (x) { x.classList.remove("active"); });
+      b.classList.add("active");
+      riseState.unit = b.dataset.u;
+      renderRise();
+    });
+  });
 
   document.querySelectorAll("#riseTypeTabs button").forEach(function (b) {
     b.addEventListener("click", function () {

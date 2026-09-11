@@ -347,16 +347,30 @@
       <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 아파트 평당가격 TOP 30</h2>
       <button class="sec-print-btn" onclick="printSection('sec-py')">이 섹션 인쇄</button>
     </div>
-    <p class="sec-desc">금액이 아니라 <b>평당가(거래금액 ÷ 전용면적 ÷ 3.3058)</b> 상위 30건입니다.
+    <p class="sec-desc" id="pyDesc">금액이 아니라 <b>평당가(거래금액 ÷ 전용면적 ÷ 3.3058)</b> 상위 30건입니다.
       큰 평형이 밀리고 <b>작지만 비싼 단지</b>가 드러나므로, 금액 순위와 함께 보시면 좋습니다.</p>
-    <div class="tab-row" id="pyTypeTabs">
-      <button class="active" data-t="sale">매매</button>
-      <button data-t="jeonse">전세</button>
-      <button data-t="wolse">월세</button>
+    <div class="view-bar">
+      <div class="view-ctl">
+        <span class="view-label">유형</span>
+        <div class="tab-row" id="pyTypeTabs">
+          <button class="active" data-t="sale">매매</button>
+          <button data-t="jeonse">전세</button>
+          <button data-t="wolse">월세</button>
+        </div>
+      </div>
+      <div class="view-ctl">
+        <span class="view-label">단위</span>
+        <div class="tab-row" id="pyUnitTabs">
+          <button class="active" data-u="deal">거래별<span class="tab-tail"> (개별 거래)</span></button>
+          <button data-u="gu">자치구별</button>
+          <button data-u="dong">법정동별</button>
+          <button data-u="apt">단지별</button>
+        </div>
+      </div>
     </div>
     <div class="deal-scroll" style="--tbl-h:560px">
       <table class="rank-table deal-table">
-        <thead><tr><th>순위</th><th>단지명</th><th>분양면적 <span class="th-sub">㎡ (평) · 아래 전용</span></th><th>층</th><th>거래가</th><th>평당가 <span class="th-sub">공급 기준 · 아래 전용</span></th><th>거래일</th></tr></thead>
+        <thead id="pyHead"></thead>
         <tbody id="pyBody"></tbody>
       </table>
     </div>
@@ -374,21 +388,36 @@
     <div class="read-guide">
       <h4>이 표를 읽는 법</h4>
       <ol>
-        <li>조회 기간을 <b>정확히 반으로 나눠</b>, 단지별 <b>전반부·후반부 중위 평당가</b>를 비교했습니다.</li>
-        <li><b>두 구간 모두 거래가 있는 단지만</b> 계산됩니다. 기간이 짧으면 후보가 적으니
+        <li>조회 기간을 <b>정확히 반으로 나눠</b>, 아래에서 고른 단위(자치구·법정동·단지)별
+          <b>전반부·후반부 중위 평당가</b>를 비교했습니다.</li>
+        <li><b>두 구간 모두 거래가 있는 곳만</b> 계산됩니다. 기간이 짧으면 후보가 적으니
           <b>최근 6개월 이상</b>으로 보시길 권합니다.</li>
-        <li><b>거래 건수가 1~2건인 단지는 등락이 과장</b>돼 보입니다. 반드시 건수를 함께 보세요.</li>
+        <li><b>거래 건수가 1~2건이면 등락이 과장</b>돼 보입니다. 반드시 건수를 함께 보세요.
+          단지별은 표본이 얇아 출렁이니, 흐름을 볼 때는 <b>자치구별·법정동별</b>이 안정적입니다.</li>
       </ol>
     </div>
 
-    <div class="tab-row" id="riseTypeTabs">
-      <button class="active" data-t="sale">매매</button>
-      <button data-t="jeonse">전세</button>
-      <button data-t="wolse">월세</button>
+    <div class="view-bar">
+      <div class="view-ctl">
+        <span class="view-label">유형</span>
+        <div class="tab-row" id="riseTypeTabs">
+          <button class="active" data-t="sale">매매</button>
+          <button data-t="jeonse">전세</button>
+          <button data-t="wolse">월세</button>
+        </div>
+      </div>
+      <div class="view-ctl">
+        <span class="view-label">단위</span>
+        <div class="tab-row" id="riseUnitTabs">
+          <button data-u="gu">자치구별</button>
+          <button data-u="dong">법정동별</button>
+          <button class="active" data-u="apt">단지별</button>
+        </div>
+      </div>
     </div>
     <div class="deal-scroll" style="--tbl-h:560px">
       <table class="rank-table rank-neutral deal-table">
-        <thead><tr><th>순위</th><th>단지명</th><th>전반부 평당가</th><th>후반부 평당가</th><th>변동률</th><th>거래 <span class="th-sub">건</span></th></tr></thead>
+        <thead><tr><th>순위</th><th id="riseHead">단지명</th><th>전반부 평당가</th><th>후반부 평당가</th><th>변동률</th><th>거래 <span class="th-sub">건</span></th></tr></thead>
         <tbody id="riseBody"></tbody>
       </table>
     </div>
@@ -433,6 +462,6 @@
 <script src="../data/locinfo.js?v=e97bc091b7"></script>
 <script src="../data/newtown.js?v=8ba14b3baf"></script>
 <script src="../shared/brand.js?v=e35116c24e"></script>
-<script src="app.js?v=9978beff01"></script>
+<script src="app.js?v=9bb9f2e208"></script>
 </body>
 </html>
