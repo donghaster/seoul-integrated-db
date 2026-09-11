@@ -2784,8 +2784,10 @@
     if (idxState.view === "type") {
       TYPES.forEach(function (t) {
         var stats = pyStats(regionKey(), t);
-        // 지수 모드는 비율이라 기준과 무관하다. 만원/평 모드만 기준을 따라간다.
-        var raw = stats.map(function (x) { return isIdx ? x.v : pyConv(x.v); });
+        // 차트는 전용 기준 하나로 말한다(축 이름에 그렇게 적는다). 표처럼
+        // 공급·전용을 위아래로 같이 적을 자리가 없고, 여러 단지가 섞인
+        // 지역 평균이라 단지별 공급면적으로 환산할 수도 없다.
+        var raw = stats.map(function (x) { return x.v; });
         sets.push(Object.assign({
           label: TYPE_LABEL[t],
           data: isIdx ? toIndex(raw) : raw,
@@ -2806,8 +2808,10 @@
       targets.forEach(function (tg) {
         if (!BY_REGION[tg.key]) return;
         var stats = pyStats(tg.key, "sale");
-        // 지수 모드는 비율이라 기준과 무관하다. 만원/평 모드만 기준을 따라간다.
-        var raw = stats.map(function (x) { return isIdx ? x.v : pyConv(x.v); });
+        // 차트는 전용 기준 하나로 말한다(축 이름에 그렇게 적는다). 표처럼
+        // 공급·전용을 위아래로 같이 적을 자리가 없고, 여러 단지가 섞인
+        // 지역 평균이라 단지별 공급면적으로 환산할 수도 없다.
+        var raw = stats.map(function (x) { return x.v; });
         sets.push(Object.assign({
           label: tg.name + " (매매)",
           data: isIdx ? toIndex(raw) : raw,
