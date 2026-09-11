@@ -1331,6 +1331,10 @@ html[data-theme="dark"] .find-go:hover { background: #4a76d4; }
    고객 앞에서 휴대폰으로 여실 때가 많다. 좁은 화면에서는 상단바를
    한 줄에 욱여넣지 않고 접어서 쌓는다. */
 @media (max-width: 560px) {
+  /* 순위 탭 라벨의 꼬리말은 좁은 화면에서 접는다 — 셋이 세로로 쌓이면
+     그것만 120px을 먹는다. 어느 단위인지는 앞 세 글자로 충분하다. */
+  .tab-tail { display: none; }
+
   .topbar { padding: 12px 14px; gap: 8px 12px; }
   .topbar-right { justify-content: flex-start; gap: 8px; flex-basis: 100%; }
   .fetched { text-align: left; flex-basis: 100%; font-size: 11px; }

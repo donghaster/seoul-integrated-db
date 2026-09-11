@@ -936,6 +936,7 @@
         state.dong = b2.dataset.d;
         dongChips.querySelectorAll("button").forEach(function (x) { x.classList.remove("active"); });
         b2.classList.add("active");
+        syncVolRankTab();
         renderAll();
       });
     });
@@ -945,6 +946,7 @@
     state.gu = guSelect.value;
     state.dong = ALL;
     fillDong();
+    syncVolRankTab();
     renderAll();
   });
 
@@ -1217,10 +1219,46 @@
     renderVolRank();
   }
 
+  /* 단지 하나의 건수·중위 평당가. 지역과 달리 미리 만든 색인이 없어 여기서 센다. */
+  function aptStat(key) {
+    var ck = "apt:" + key + "@" + state.start + "~" + state.end;
+    if (_countCache[ck]) return _countCache[ck];
+    var a = BY_APT[key], cnt = { sale: 0, jeonse: 0, wolse: 0 }, saleP = [];
+    if (a) {
+      for (var i = 0; i < a.deals.length; i++) {
+        var x = a.deals[i];
+        if (x.d < state.start || x.d > state.end) continue;
+        cnt[x.t]++;
+        if (x.t === "sale" && x.a) saleP.push(pyOf(x));
+      }
+    }
+    var res = { cnt: cnt, med: { pyeong: median(saleP) } };
+    _countCache[ck] = res;
+    return res;
+  }
+
+  /* 순위표에 올릴 것을 고른다.
+
+     예전에는 '자치구별'이 위 선택과 무관하게 늘 서울 25개 구였다. 동작구를
+     골라도 표가 그대로라 "왜 안 바뀌지" 하시게 된다. 이제는 고른 만큼 따라
+     내려간다 — 구를 고르면 그 구의 법정동, 동까지 고르면 그 동의 단지.
+     자치구별 탭만은 서울 전체를 유지한다. 내 구가 서울에서 몇 위인지
+     보려면 나머지 24개가 같이 있어야 하기 때문이다. */
   function volRankList() {
     // 선택 기간 기준으로 매번 센다(미리 구운 순위가 없으므로)
-    var keys;
-    if (state.volRank === "gu") {
+    var keys, mode = state.volRank;
+
+    if (mode === "apt") {
+      keys = APT_KEYS.filter(function (k) {
+        var a = BY_APT[k];
+        if (state.gu !== ALL && a.gu !== state.gu) return false;
+        if (state.dong !== ALL && a.dg !== state.dong) return false;
+        return true;
+      }).map(function (k) {
+        var a = BY_APT[k];
+        return { k: k, label: a.n, gu: a.gu, dg: a.dg, apt: true };
+      });
+    } else if (mode === "gu") {
       keys = D.gus.map(function (g) { return { k: g, label: g }; });
     } else if (state.gu === ALL) {
       keys = [];
@@ -1233,28 +1271,61 @@
       });
     }
     keys.forEach(function (x) {
-      var c = countRegion(x.k).cnt;
+      x.stat = x.apt ? aptStat(x.k) : countRegion(x.k);
+      var c = x.stat.cnt;
       x.c = c.sale + c.jeonse + c.wolse;
     });
     keys.sort(function (a2, b2) { return b2.c - a2.c; });
     return keys.slice(0, TOP_N);
   }
 
+  /* 위에서 고른 만큼 순위표도 따라 내려간다. 손으로 탭을 바꾸면 그 선택을
+     존중하되, 지역이 바뀌면 다시 그 지역에 맞는 탭으로 되돌린다. */
+  function volRankDefault() {
+    if (state.dong !== ALL) return "apt";
+    if (state.gu !== ALL) return "dong";
+    return "gu";
+  }
+
+  function syncVolRankTab() {
+    state.volRank = volRankDefault();
+    document.querySelectorAll("#volRankTabs button").forEach(function (b) {
+      b.classList.toggle("active", b.dataset.r === state.volRank);
+    });
+  }
+
   function renderVolRank() {
     var list = volRankList();
     var chartList = list.slice(0, 10);           // 막대는 10개까지만
-    var isGu = state.volRank === "gu";
-    document.getElementById("volRankHead").textContent = isGu ? "자치구" : "법정동";
+    var mode = state.volRank, isGu = mode === "gu";
+    document.getElementById("volRankHead").textContent =
+      isGu ? "자치구" : mode === "apt" ? "단지" : "법정동";
+
+    // 줄 이름 — 자치구별이면 구 이름만, 아래로 갈수록 어디인지 밝혀 준다.
+    function rowName(x) {
+      if (isGu) return x.label;
+      if (mode === "apt") {
+        return state.dong !== ALL ? x.label
+             : state.gu !== ALL ? x.label + " (" + x.dg + ")"
+             : x.label + " (" + x.gu + " " + x.dg + ")";
+      }
+      return x.gu && state.gu === ALL ? x.gu + " " + x.label : x.label;
+    }
+
+    var scope = mode === "gu" ? "서울 자치구별"
+              : mode === "dong" ? (state.gu === ALL ? "서울 법정동별" : state.gu + " 법정동별")
+              : (state.dong !== ALL ? state.gu + " " + state.dong + " 단지별"
+                 : state.gu !== ALL ? state.gu + " 단지별" : "서울 단지별");
 
     if (volRankChart) volRankChart.destroy();
     volRankChart = new Chart(document.getElementById("volRankChart"), {
       type: "bar",
       data: {
-        labels: chartList.map(function (x) { return isGu ? x.label : (x.gu ? x.gu + " " + x.label : x.label); }),
+        labels: chartList.map(rowName),
         datasets: TYPES.map(function (t) {
           return {
             label: TYPE_LABEL[t] === "월세(환산)" ? "월세" : TYPE_LABEL[t],
-            data: chartList.map(function (x) { return regionOf(x.k).cnt[t] || 0; }),
+            data: chartList.map(function (x) { return x.stat.cnt[t] || 0; }),
             backgroundColor: TYPE_COLOR[t],
             borderWidth: 0,
           };
@@ -1268,8 +1339,7 @@
           legend: { labels: { boxWidth: 12, font: { size: 11 } } },
           title: {
             display: true,
-            text: (isGu ? "서울 자치구별" : (state.gu === ALL ? "서울 법정동별" : state.gu + " 법정동별")) +
-                  " 아파트 실거래량 TOP 10 (" + win().label + ")",
+            text: scope + " 아파트 실거래량 TOP 10 (" + win().label + ")",
             font: { size: 13, weight: "bold" },
           },
         },
@@ -1278,9 +1348,9 @@
     });
 
     document.getElementById("volRankBody").innerHTML = list.length ? list.map(function (x, i) {
-      var reg = regionOf(x.k);
+      var reg = x.stat;
       var rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
-      var name = isGu ? x.label : (x.gu ? x.gu + " " + x.label : x.label);
+      var name = rowName(x);
       return "<tr>" +
         '<td><span class="rank-chip ' + rc + '">' + (i + 1) + "</span></td>" +
         '<td class="rt-name">' + esc(name) + "</td>" +
@@ -1290,7 +1360,8 @@
         "<td>" + (reg.cnt.wolse || 0).toLocaleString() + "</td>" +
         "<td>" + pyNum(reg.med.pyeong) + "만원</td>" +
         "</tr>";
-    }).join("") : '<tr class="empty-row"><td colspan="7">표시할 지역이 없습니다.</td></tr>';
+    }).join("") : '<tr class="empty-row"><td colspan="7">해당 기간 · 지역에 ' +
+        (mode === "apt" ? "거래된 단지가" : "표시할 지역이") + ' 없습니다.</td></tr>';
     if (window.wireScrollBoxes) window.wireScrollBoxes();
   }
 

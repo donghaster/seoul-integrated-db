@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>금집부쌤의 서울시 통합 부동산 대시보드 — 아파트</title>
-  <link rel="stylesheet" href="../shared/app.css?v=2d6446da8e" />
+  <link rel="stylesheet" href="../shared/app.css?v=6daf47f5e3" />
   <link rel="stylesheet" href="../vendor/leaflet/leaflet.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🏘️</text></svg>" />
 </head>
@@ -320,14 +320,17 @@
       <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 아파트 실거래량 TOP 30</h2>
       <button class="sec-print-btn" onclick="printSection('sec-volume')">이 섹션 인쇄</button>
     </div>
-    <p class="sec-desc">선택 지역의 <b>월별 거래건수 추이</b>와, 서울 <b>자치구별 / 법정동별 거래량 순위</b>입니다. 실거래 신고는 계약일로부터 30일 이내라 <b>마지막 달은 계속 늘어납니다</b>.</p>
+    <p class="sec-desc">선택 지역의 <b>월별 거래건수 추이</b>와 <b>거래량 순위</b>입니다. 위에서 자치구를 고르면 <b>그 구의 법정동별</b>, 법정동까지 고르면 <b>그 동의 단지별</b> 순위로 따라 내려갑니다. 실거래 신고는 계약일로부터 30일 이내라 <b>마지막 달은 계속 늘어납니다</b>.</p>
     <div class="chart-grid">
       <div class="chart-box"><canvas id="volMonthChart"></canvas></div>
       <div class="chart-box"><canvas id="volDonutChart"></canvas></div>
     </div>
     <div class="tab-row" id="volRankTabs" style="margin-top:22px;">
-      <button class="active" data-r="gu">자치구별 거래량 TOP 30</button>
-      <button data-r="dong">법정동별 거래량 TOP 30</button>
+      <!-- 좁은 화면에서는 "거래량 TOP 30"을 접는다. 셋이 세로로 쌓이면
+           그것만 120px을 먹는데, 어느 단위인지는 앞 세 글자로 충분하다. -->
+      <button class="active" data-r="gu">자치구별<span class="tab-tail"> 거래량 TOP 30</span></button>
+      <button data-r="dong">법정동별<span class="tab-tail"> 거래량 TOP 30</span></button>
+      <button data-r="apt">단지별<span class="tab-tail"> 거래량 TOP 30</span></button>
     </div>
     <div class="chart-box" style="height:320px;"><canvas id="volRankChart"></canvas></div>
     <div class="deal-scroll" style="--tbl-h:560px" style="margin-top:18px;">
@@ -430,6 +433,6 @@
 <script src="../data/locinfo.js?v=e97bc091b7"></script>
 <script src="../data/newtown.js?v=8ba14b3baf"></script>
 <script src="../shared/brand.js?v=e35116c24e"></script>
-<script src="app.js?v=d080a6994e"></script>
+<script src="app.js?v=9978beff01"></script>
 </body>
 </html>
