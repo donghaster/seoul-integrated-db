@@ -123,8 +123,28 @@
   /* 평형(전용면적)을 사람이 쓰는 단위로 묶는다. 84.97과 84.99는 같은 평형이다. */
   function areaBand(a) { return Math.round(a); }
 
+  /* 평형 이름 — ㎡는 전용, 평은 분양 기준으로 적는다.
+     현장에서 84㎡는 "34평"이지 "25평"이 아니다. 전용면적을 평으로 바꿔
+     적고 있었는데, 그렇게 말하면 고객이 못 알아듣는다.
+     (분양면적 = 전용 ÷ 0.74. SUPPLY_RATIO 정의는 아래에 있고 호출 시점에는
+     이미 잡혀 있다.) */
+  /* 받침에 맞는 조사를 고른다. '875만원로'처럼 적으면 읽기 사납다. */
+  function josa(w, withB, noB) {
+    var t = String(w || "").replace(/<[^>]*>/g, "").trim();
+    var c = t.charCodeAt(t.length - 1);
+    if (!(c >= 0xac00 && c <= 0xd7a3)) return noB;   // 한글이 아니면 받침 없는 쪽
+    return (c - 0xac00) % 28 ? withB : noB;
+  }
+
   function bandLabel(b) {
-    return b + "㎡ (" + (b / PYEONG).toFixed(0) + "평)";
+    return b + "㎡ (" + (b / SUPPLY_RATIO / PYEONG).toFixed(0) + "평)";
+  }
+
+  /* 표 칸용 — 분양면적을 크게, 전용 ㎡를 그 아래 옅게 (TOP30 표와 같은 형식) */
+  function bandBoth(b) {
+    var sa = b / SUPPLY_RATIO;
+    return sa.toFixed(1) + "㎡ (" + (sa / PYEONG).toFixed(1) + "평)" +
+      '<div class="rt-sub">전용 ' + b + "㎡</div>";
   }
 
   /* 단지 요약 — 평형별로 나눠야 의미가 있다 */
@@ -1297,10 +1317,10 @@
         '<td><span class="rank-chip ' + (x.rank === 0 ? "r1" : x.rank === 1 ? "r2" : x.rank === 2 ? "r3" : "") +
           '">' + (x.rank + 1) + "</span></td>" +
         (multi ? '<td class="dl-name">' + esc(x.row.n) + "</td>" : "") +
-        "<td>" + areaText(x.row.a) + "</td>" +
+        "<td>" + areaBoth(x.row.a) + "</td>" +
         "<td>" + (x.row.f ? x.row.f + "층" : "-") + "</td>" +
         '<td class="rt-price">' + priceText(x.row, t) + "</td>" +
-        "<td>" + pyText(x.row, t) + "</td>" +
+        '<td class="rt-price">' + pyBoth(x.row, t) + "</td>" +
         '<td class="rt-sub">' + dateText(x.row.d) + "</td></tr>";
     }).join("");
 
@@ -1311,8 +1331,10 @@
       '<p class="detail-where">' + esc(first.gu) + " " + esc(first.dg) +
         (first.y ? " · " + first.y + "년 준공" : "") + "</p>" +
       '<div class="table-wrap"><table class="detail-deals"><thead><tr>' +
-      "<th>순위</th>" + (multi ? "<th>단지</th>" : "") + "<th>전용면적</th><th>층</th><th>" +
-      (t === "wolse" ? "보증금/월세" : "거래금액") + "</th><th>평당가</th><th>거래일</th>" +
+      "<th>순위</th>" + (multi ? "<th>단지</th>" : "") +
+      '<th>분양면적<span class="th-sub">㎡ (평) · 아래 전용</span></th><th>층</th><th>' +
+      (t === "wolse" ? "보증금/월세" : "거래금액") +
+      '</th><th>평당가<span class="th-sub">공급 · 아래 전용</span></th><th>거래일</th>' +
       "</tr></thead><tbody>" + list + "</tbody></table></div>";
   }
 
@@ -1464,11 +1486,12 @@
     return sum.bands.map(function (g) {
       var thin = g.sale.length < APT_MIN;
       return "<tr>" +
-        "<td><b>" + bandLabel(g.b) + "</b></td>" +
+        "<td><b>" + bandBoth(g.b) + "</b></td>" +
         "<td>" + (g.sale.length ? g.sale.length + "건" : "-") +
           (thin && g.sale.length ? ' <span class="brief-thin">적음</span>' : "") + "</td>" +
         "<td>" + (g.medSale ? eokman(g.medSale) : "-") + "</td>" +
-        "<td>" + (g.py ? pyNum(g.py) + "만원" : "-") + "</td>" +
+        "<td>" + (g.py ? Math.round(g.py * SUPPLY_RATIO).toLocaleString() + "만원" +
+          '<div class="rt-sub">전용 ' + pyNum(g.py) + "만원</div>" : "-") + "</td>" +
         "<td>" + (g.jeonse.length ? g.jeonse.length + "건" : "-") + "</td>" +
         "<td>" + (g.medJeonse ? eokman(g.medJeonse) : "-") + "</td>" +
         "<td>" + (g.ratio ? g.ratio + "%" : "-") + "</td>" +
@@ -1483,13 +1506,14 @@
       .sort(function (a, b) { return a.d < b.d ? 1 : -1; }).slice(0, cap || 6);
     if (!v.length) return '<p class="placeholder">신고된 거래가 없습니다.</p>';
     return '<div class="table-wrap"><table class="detail-deals"><thead><tr>' +
-      "<th>거래일</th><th>전용면적</th><th>층</th><th>" +
-      (type === "wolse" ? "보증금/월세" : "금액") + "</th><th>평당가</th></tr></thead><tbody>" +
+      '<th>거래일</th><th>분양면적<span class="th-sub">㎡ (평) · 아래 전용</span></th><th>층</th><th>' +
+      (type === "wolse" ? "보증금/월세" : "금액") +
+      '</th><th>평당가<span class="th-sub">공급 · 아래 전용</span></th></tr></thead><tbody>' +
       v.map(function (x) {
-        return "<tr><td>" + dateText(x.d) + "</td><td>" + areaText(x.a) + "</td>" +
+        return "<tr><td>" + dateText(x.d) + "</td><td>" + areaBoth(x.a) + "</td>" +
           "<td>" + (x.f ? x.f + "층" : "-") + "</td>" +
           '<td class="rt-price">' + priceText(x, type) + "</td>" +
-          "<td>" + pyText(x, type) + "</td></tr>";
+          '<td class="rt-price">' + pyBoth(x, type) + "</td></tr>";
       }).join("") + "</tbody></table></div>";
   }
 
@@ -1515,9 +1539,10 @@
     }
 
     return '<div class="calc-box">' + head + '<div class="table-wrap"><table class="detail-deals"><thead><tr>' +
-      "<th>전용면적</th><th>중위 매매가</th><th>추정 전세</th><th>중위 기준</th></tr></thead><tbody>" +
+      '<th>분양면적<span class="th-sub">㎡ (평) · 아래 전용</span></th>' +
+      "<th>중위 매매가</th><th>추정 전세</th><th>중위 기준</th></tr></thead><tbody>" +
       rows.map(function (g) {
-        return "<tr><td>" + bandLabel(g.b) + "</td>" +
+        return "<tr><td>" + bandBoth(g.b) + "</td>" +
           '<td class="rt-price">' + eokman(g.medSale) + "</td>" +
           "<td><b>" + eokman(Math.round(g.medSale * q.lo / 100)) + " ~ " +
             eokman(Math.round(g.medSale * q.hi / 100)) + "</b></td>" +
@@ -1536,7 +1561,8 @@
     var me = BY_APT[key];
     return '<div class="table-wrap"><table class="detail-deals"><thead><tr>' +
       "<th>단지</th><th>거리</th><th>준공</th><th>매매</th><th>중위 매매가</th>" +
-      "<th>평당가</th><th>전세</th><th>중위 보증금</th></tr></thead><tbody>" +
+      '<th>평당가<span class="th-sub">공급 · 아래 전용</span></th>' +
+      "<th>전세</th><th>중위 보증금</th></tr></thead><tbody>" +
       sim.map(function (x) {
         return "<tr>" +
           '<td class="dl-name">' + esc(x.apt.n) +
@@ -1545,7 +1571,8 @@
           "<td>" + (x.apt.y ? x.apt.y + "년" : "-") + "</td>" +
           "<td>" + (x.saleN || "-") + "</td>" +
           "<td>" + (x.medSale ? eokman(x.medSale) : "-") + "</td>" +
-          "<td>" + (x.py ? pyNum(x.py) + "만원" : "-") + "</td>" +
+          "<td>" + (x.py ? Math.round(x.py * SUPPLY_RATIO).toLocaleString() + "만원" +
+            '<div class="rt-sub">전용 ' + pyNum(x.py) + "만원</div>" : "-") + "</td>" +
           "<td>" + x.rows.filter(function (r) { return r.t === "jeonse"; }).length + "</td>" +
           "<td>" + (x.medJeonse ? eokman(x.medJeonse) : "-") + "</td>" +
           "</tr>";
@@ -1574,8 +1601,10 @@
     var g = mainBand;
     if (g.sale.length >= APT_MIN) {
       out.push("가장 거래가 많은 <b>" + bandLabel(g.b) + "</b>는 매매 " + g.sale.length + "건, " +
-        "<b>중위 " + eokman(g.medSale) + "</b>(평당 " + pyNum(g.py) + "만원)입니다." +
-        (g.ratio ? " 전세는 중위 " + eokman(g.medJeonse) + "로 <b>전세가율 " + g.ratio + "%</b>입니다." : ""));
+        "<b>중위 " + eokman(g.medSale) + "</b>(평당 " +
+        Math.round(g.py * SUPPLY_RATIO).toLocaleString() + "만원 · 전용 기준 " + pyNum(g.py) + "만원)입니다." +
+        (g.ratio ? " 전세는 중위 " + eokman(g.medJeonse) + josa(eokman(g.medJeonse), "으로", "로") +
+          " <b>전세가율 " + g.ratio + "%</b>입니다." : ""));
     } else if (g.sale.length) {
       out.push("<b>" + bandLabel(g.b) + "</b> 매매는 <b>" + g.sale.length + "건뿐</b>이라 " +
         "이것만으로 시세를 말씀드리기 어렵습니다. " +
@@ -1645,7 +1674,8 @@
 
         "<h4>평형별 시세</h4>" +
         '<div class="table-wrap"><table class="detail-deals apt-bands"><thead><tr>' +
-          '<th>전용면적</th><th>매매</th><th>중위 매매가</th><th>평당가</th>' +
+          '<th>분양면적<span class="th-sub">㎡ (평) · 아래 전용</span></th><th>매매</th><th>중위 매매가</th>' +
+          '<th>평당가<span class="th-sub">공급 · 아래 전용</span></th>' +
           '<th>전세</th><th>중위 보증금</th><th>전세가율</th><th>월세</th><th>보증금 / 월세</th>' +
         "</tr></thead><tbody>" + bandRowsHtml(sum) + "</tbody></table></div>" +
 
