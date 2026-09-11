@@ -65,17 +65,25 @@
     return Math.round(value / (area / PYEONG)).toLocaleString() + "만원";
   }
 
-  /* ── 오피스텔 평당가 기준 ──
+  /* ── 오피스텔 전용률 ──
      네이버·KB 시세는 공급(분양)면적 기준이라, 전용 기준 그대로 대면 훨씬 비싸 보인다.
+     아파트와 같은 0.74를 쓰던 것을 0.50으로 내렸었는데, 그것도 거칠었다.
 
-     전에 여기에 아파트와 같은 0.74를 쓰고 있었는데 이건 틀렸다. 오피스텔은
-     복도·엘리베이터·주차장 같은 공용면적 비중이 아파트보다 훨씬 커서
-     전용률이 50% 안팎이다(아파트 70~80%). 0.74로 두면 공급 환산 평당가가
-     실제보다 5할 가까이 높게 나와, 그대로 말씀드리면 시세를 과대평가하게 된다.
+     오피스텔은 크기에 따라 전용률이 크게 갈린다. 복도형 원룸은 공용 비중이
+     커서 40%대이고, 아파텔은 아파트와 비슷하게 설계해 60%대가 나온다.
+     서울 실거래를 보면 55%가 30㎡ 미만 원룸이고 4%가 85㎡ 넘는 대형이라,
+     하나의 비율로 묶으면 대형에서 크게 틀린다. 실제로 전용 144.65㎡짜리가
+     0.50으로 87.5평이 됐는데, 아파텔 기준이면 66평쯤이다 — 20평 차이다.
 
-     소형 원룸은 40%대, 아파텔은 60%대라 편차가 크다. 가운데인 50%를 쓰되
-     화면에 가정값임을 밝힌다. */
-  var OFFI_SUPPLY_RATIO = 0.50;
+     아파트(76.9%)는 조합 자료로 실측했지만 이쪽은 그런 자료가 없다.
+     업계에서 쓰는 구간값이라 화면에 '추정'이라고 분명히 밝힌다. */
+  function offiRatio(a) {
+    if (!a) return 0.53;
+    if (a < 40) return 0.47;        // 복도형 원룸
+    if (a < 60) return 0.53;        // 소형
+    if (a < 85) return 0.60;        // 중형
+    return 0.66;                    // 아파텔
+  }
 
   /* 기준을 토글로 갈아 끼우다가, 두 값을 위아래로 같이 적는 쪽으로 바꿨다.
      고객과 화면을 같이 보면서 "공급 기준으로는 이만큼, 전용으로는 이만큼"이라고
@@ -87,8 +95,10 @@
   /* 분양(공급)면적 ㎡(평)을 크게, 전용 ㎡를 그 아래 옅게 */
   function areaBoth(a) {
     if (!a) return "-";
-    var sa = a / OFFI_SUPPLY_RATIO;
+    var sa = a / offiRatio(a);
     return sa.toFixed(1) + "㎡ (" + (sa / PYEONG).toFixed(1) + "평)" +
+      ' <span class="est-tag" title="전용률 ' + Math.round(offiRatio(a) * 100) +
+        '%로 어림한 값입니다">추정</span>' +
       '<div class="rt-sub">전용 ' + a.toFixed(2) + "㎡</div>";
   }
 
@@ -96,7 +106,7 @@
   function pyTextBoth(value, area) {
     if (!area) return "-";
     var net = Math.round(value / (area / PYEONG));
-    return Math.round(net * OFFI_SUPPLY_RATIO).toLocaleString() + "만원" +
+    return Math.round(net * offiRatio(area)).toLocaleString() + "만원" +
       '<div class="rt-sub">전용 ' + net.toLocaleString() + "만원</div>";
   }
 

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>금집부쌤의 서울시 통합 부동산 대시보드 — 상가·오피스텔</title>
-  <link rel="stylesheet" href="../shared/app.css?v=de7ae27a56" />
+  <link rel="stylesheet" href="../shared/app.css?v=2d6446da8e" />
   <link rel="stylesheet" href="../vendor/leaflet/leaflet.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🏢</text></svg>" />
 </head>
@@ -197,8 +197,10 @@
       <ol>
         <li><b>면적과 평당가는 위에 공급(분양) 기준, 아래 옅은 글씨로 전용 기준</b>을 같이 적었습니다.
           네이버·KB 시세는 공급면적 기준이니 <b>위 숫자</b>로 견주시면 됩니다.
-          오피스텔 <b>전용률은 50% 안팎</b>으로 잡았습니다 &mdash; 소형 원룸은 40%대, 아파텔은 60%대라
-          건물마다 다르니 정확한 값은 <b>분양 카탈로그·등기부</b>로 확인하세요.</li>
+          오피스텔 <b>전용률은 크기에 따라 나눠</b> 잡았습니다 &mdash; 40㎡ 미만 47%, 60㎡ 미만 53%,
+          85㎡ 미만 60%, 그 이상 66%입니다. 복도형 원룸은 공용면적 비중이 커서 낮고, 아파텔은
+          아파트와 비슷하게 설계해 높습니다. <b>어디까지나 추정</b>이니 정확한 값은
+          <b>분양 카탈로그·등기부</b>로 확인하세요.</li>
         <li><b>월세는 환산보증금(보증금 + 월세×100)</b> 순으로 줄을 세웁니다.
           보증금이 큰 물건이 위로 올라오니 월세 액수 자체와는 순서가 다를 수 있습니다.</li>
         <li><b>주거용으로 쓰면 주택 수에 포함</b>되어 기존 주택의 양도세·종부세가 달라집니다.
@@ -274,6 +276,6 @@
 <script src="../data/sangga.js?v=78d700d6e3"></script>
 <script src="../data/geo.js?v=4019d2235b"></script>
 <script src="../shared/brand.js?v=e35116c24e"></script>
-<script src="app.js?v=f5b2c56f1d"></script>
+<script src="app.js?v=d47e0cf0e5"></script>
 </body>
 </html>

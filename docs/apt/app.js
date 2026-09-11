@@ -341,9 +341,24 @@
   }
 
   /* 분양(공급)면적은 실거래 자료에 없다 — 국토교통부는 전용면적만 준다.
-     그런데 고객이 말하는 "34평"은 분양 평수다. 전용률 74%로 되돌려 적되,
-     화면에 '환산'이라고 밝힌다. 뉴타운 대시보드의 공급 환산과 같은 계수다. */
-  var SUPPLY_RATIO = 0.74;
+     그런데 고객이 말하는 "34평"은 분양 평수다.
+
+     전용률은 반포 래미안 트리니원 조합 자료에서 잰 값을 쓴다. 타입 24개
+     2,009세대의 세대수 가중평균이 76.9%였다(59형 76.2% ~ 126형 78.0%로
+     큰 평형일수록 높다). 전에는 0.74를 썼는데, 그러면 분양면적이 3.9%
+     크게 나와 84㎡가 34.7평이 된다 — 실제로는 33.5평이다.
+
+     단지별 실제값을 아는 곳은 data/supply.js에 적어 두고 그대로 쓴다.
+     어림한 값인지 실제값인지는 화면에도 밝힌다. */
+  var SUPPLY_RATIO = 0.769;
+  var SUPPLY_TBL = window.APT_SUPPLY || {};
+
+  /* 이 거래의 공급면적. 표에 있으면 실제값, 없으면 전용률로 어림한다. */
+  function supplyOf(a, gu, dg, name) {
+    var t = SUPPLY_TBL[gu + "|" + dg + "|" + name];
+    var hit = t && t[a.toFixed(2)];
+    return hit ? { v: hit, exact: true } : { v: a / SUPPLY_RATIO, exact: false };
+  }
   function supplyArea(a) { return a / SUPPLY_RATIO; }
 
   /* ── 평당가 ──
@@ -359,20 +374,24 @@
   function pyBaseLabel() { return "전용 기준"; }
   function pyBaseWord() { return "전용"; }
 
-  /* 분양면적 ㎡(평)을 크게, 전용 ㎡를 그 아래 옅게 */
-  function areaBoth(a) {
+  /* 분양면적 ㎡(평)을 크게, 전용 ㎡를 그 아래 옅게.
+     row를 주면 그 단지의 실제 공급면적을 찾아 쓰고, 없으면 어림한다. */
+  function areaBoth(a, row) {
     if (!a) return "-";
-    var sa = supplyArea(a);
-    return sa.toFixed(1) + "㎡ (" + (sa / PYEONG).toFixed(1) + "평)" +
+    var r = row ? supplyOf(a, row.gu, row.dg, row.n) : { v: supplyArea(a), exact: false };
+    return r.v.toFixed(1) + "㎡ (" + (r.v / PYEONG).toFixed(1) + "평)" +
+      (r.exact ? ' <span class="exact-tag" title="조합·시행사 자료의 실제 공급면적">실제</span>' : "") +
       '<div class="rt-sub">전용 ' + a.toFixed(2) + "㎡</div>";
   }
 
-  /* 공급 기준 평당가를 크게, 전용 기준을 그 아래 옅게 */
+  /* 공급 기준 평당가를 크게, 전용 기준을 그 아래 옅게.
+     평당가는 면적으로 나누는 값이라, 실제 공급면적을 알면 그것으로 나눈다. */
   function pyBoth(row, type) {
     if (!row.a) return "-";
-    var net = Math.round(convValue(row, type) / (row.a / PYEONG));
-    return Math.round(net * SUPPLY_RATIO).toLocaleString() + "만원" +
-      '<div class="rt-sub">전용 ' + net.toLocaleString() + "만원</div>";
+    var v = convValue(row, type);
+    var sup = supplyOf(row.a, row.gu, row.dg, row.n).v;
+    return Math.round(v / (sup / PYEONG)).toLocaleString() + "만원" +
+      '<div class="rt-sub">전용 ' + Math.round(v / (row.a / PYEONG)).toLocaleString() + "만원</div>";
   }
 
   function pyText(row, type) {
@@ -904,7 +923,7 @@
       return "<tr>" +
         '<td><span class="rank-chip ' + rc + '">' + (i + 1) + "</span></td>" +
         "<td>" + name + where + "</td>" +
-        "<td>" + areaBoth(r.a) + "</td>" +
+        "<td>" + areaBoth(r.a, r) + "</td>" +
         "<td>" + (r.f ? r.f + "층" : "-") + "</td>" +
         '<td class="rt-price">' + priceText(r, type) + "</td>" +
         '<td class="rt-price">' + pyBoth(r, type) + "</td>" +
@@ -1321,7 +1340,7 @@
         '<td><span class="rank-chip ' + (x.rank === 0 ? "r1" : x.rank === 1 ? "r2" : x.rank === 2 ? "r3" : "") +
           '">' + (x.rank + 1) + "</span></td>" +
         (multi ? '<td class="dl-name">' + esc(x.row.n) + "</td>" : "") +
-        "<td>" + areaBoth(x.row.a) + "</td>" +
+        "<td>" + areaBoth(x.row.a, x.row) + "</td>" +
         "<td>" + (x.row.f ? x.row.f + "층" : "-") + "</td>" +
         '<td class="rt-price">' + priceText(x.row, t) + "</td>" +
         '<td class="rt-price">' + pyBoth(x.row, t) + "</td>" +
@@ -1514,7 +1533,7 @@
       (type === "wolse" ? "보증금/월세" : "금액") +
       '</th><th>평당가<span class="th-sub">공급 · 아래 전용</span></th></tr></thead><tbody>' +
       v.map(function (x) {
-        return "<tr><td>" + dateText(x.d) + "</td><td>" + areaBoth(x.a) + "</td>" +
+        return "<tr><td>" + dateText(x.d) + "</td><td>" + areaBoth(x.a, x) + "</td>" +
           "<td>" + (x.f ? x.f + "층" : "-") + "</td>" +
           '<td class="rt-price">' + priceText(x, type) + "</td>" +
           '<td class="rt-price">' + pyBoth(x, type) + "</td></tr>";
