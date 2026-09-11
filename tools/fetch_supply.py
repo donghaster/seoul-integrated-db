@@ -61,6 +61,11 @@ PAGE_CAP = 12                # 단지당 최대 쪽수 (한 쪽 100행)
 MIN_PAGES = 4                # 새 평형이 안 나와도 이만큼은 본다
 QUOTA_FLOOR = 150            # 이만큼은 남겨 둔다
 SPREAD_MAX = 0.03            # 같은 전용면적인데 호별 공급면적이 3% 넘게 흩어지면 버린다
+RATIO_LO, RATIO_HI = 0.60, 0.86   # 이 범위를 벗어난 전용률은 대장 등재가 부실한 것
+MIN_DWELL = 26.0             # 이보다 작은 전유면적은 주택이 아니라 상가·창고다
+
+# 전유부 주용도가 이 가운데 하나여야 사람이 사는 호로 친다.
+DWELL = ("아파트", "공동주택", "연립주택", "다세대주택", "주택")
 
 GU_CD = {
     "종로구": "11110", "중구": "11140", "용산구": "11170", "성동구": "11200",
@@ -255,6 +260,10 @@ def by_building(raw):
         k = ((it.get("bldNm") or "").strip(), it.get("dongNm", ""), it.get("hoNm", ""))
         a = float(it.get("area") or 0)
         if it.get("exposPubuseGbCdNm") == "전유":
+            # 단지 안에는 상가·창고 호실도 같이 등재돼 있다. 전용 2.88㎡짜리가
+            # 평형표에 섞이면 그 단지 전용률까지 망가진다. 주용도로 가른다.
+            if not any(w in (it.get("mainPurpsCdNm") or "") for w in DWELL):
+                continue
             ho[k][0] += a
         elif it.get("mainAtchGbCdNm") == "주건축물":
             ho[k][1] += a
@@ -279,8 +288,25 @@ def pick(names, want):
     return next(iter(names)) if len(names) == 1 else None
 
 
+def believable(ex, sup):
+    """이 한 쌍을 '실제값'이라고 내세워도 되는가.
+
+    옛날 집합건축물대장은 주거공용 등재가 부실하다. 여의도 대교(1975년)는
+    전유 117.36㎡에 주거공용이 '대피호' 9.02㎡뿐이라 전용률이 92.9%로 나온다.
+    계단·복도·승강기가 아예 안 올라가 있는 것이다. 계산은 맞지만 공급면적이
+    아니다. 아파트 전용률은 복도식 68~75%, 계단식 75~83%, 타워형 주상복합
+    62~72% 어름이니, 이 범위를 크게 벗어나면 등재가 성한 게 아니라고 본다.
+
+    작은 면적은 상가·창고 호실이다. 주용도로도 거르지만, 예전에 받아 둔
+    자료에는 그 정보가 없으므로 면적으로 한 번 더 막는다.
+    """
+    if ex < MIN_DWELL or sup <= 0:
+        return False
+    return RATIO_LO <= ex / sup <= RATIO_HI
+
+
 def tidy(area_lists):
-    """대표값을 낸다. 호별로 크게 흩어지는 전용면적은 버린다.
+    """대표값을 낸다. 못 믿을 것은 버린다.
 
     같은 지번에 다른 단지가 묶여 있으면(상계주공15·16처럼) 같은 전용면적에 서로
     다른 공급면적이 섞인다. 이름으로는 못 가르지만 흩어짐으로는 가른다. 멀쩡한
@@ -294,7 +320,7 @@ def tidy(area_lists):
         if (max(sup) - min(sup)) / avg > SPREAD_MAX:
             dropped += 1
             continue
-        if not 0.55 <= float(ex) / avg <= 0.95:      # 아파트 전용률이 될 수 없는 값
+        if not believable(float(ex), avg):
             dropped += 1
             continue
         out[ex] = round(avg, 2)
@@ -409,6 +435,10 @@ HEADER = """// 단지별 전용면적 -> 공급(분양)면적. tools/fetch_suppl
 // 전용면적은 0.06㎡ 안에서 가장 가까운 것을 찾으므로 소수점을 딱 맞출 필요는 없다.
 // "_ratio": 0.76 처럼 적으면 그 단지 전용률로 어림한다(이때는 '실제'를 안 붙인다).
 //
+// 옛날 대장은 주거공용 등재가 부실해서(여의도 대교 1975년은 전유 117.36㎡에
+// 주거공용이 '대피호' 9.02㎡뿐이다) 전용률이 90%%대로 나오기도 한다. 계산은
+// 맞지만 공급면적이 아니다. 그런 값은 여기 안 적고 평균 전용률로 어림한다.
+//
 // 손으로 확인한 값은 tools/supply_manual.json에 두면 대장값보다 우선한다.
 //
 // %(when)s 기준 — %(n)d개 단지, %(t)d개 평형.
@@ -421,13 +451,21 @@ def write(store):
     손으로 확인한 값(tools/supply_manual.json)은 대장값을 덮어쓴다. 그 값이 왜
     그런지는 _note에 적혀 있고, 여기서 주석으로 옮겨 적는다 — 근거가 자료와
     떨어져 굴러다니면 다음 사람이 되짚을 수가 없다.
+
+    믿을 만한지는 받을 때가 아니라 여기서 다시 가린다. 걸러내는 기준이 바뀌어도
+    받아 둔 자료(.cache/supply-raw-v1.json)는 그대로 두고 다시 구우면 되기
+    때문이다. 하루 1만 번짜리 한도를 다시 쓸 일이 없다.
     """
     hand = json.load(open(HAND, encoding="utf-8")) if os.path.exists(HAND) else {}
     out, notes = {}, {}
+    cut = 0
     for k, v in store.items():
         if v.get("skip") or not v.get("area"):
             continue
-        out[k] = dict(v["area"])
+        good = {a: s for a, s in v["area"].items() if believable(float(a), s)}
+        cut += len(v["area"]) - len(good)
+        if good:
+            out[k] = good
     for k, v in hand.items():                        # 손으로 확인한 값이 언제나 이긴다
         out[k] = dict(v.get("area") or v)
         if v.get("_note"):
@@ -446,8 +484,9 @@ def write(store):
     txt = (HEADER % {"when": time.strftime("%Y-%m-%d"), "n": len(out),
                      "t": sum(len(v) for v in out.values())}) + "\n".join(body) + "\n"
     open(OUT, "w", encoding="utf-8", newline="\n").write(txt)
-    print("supply.js — %d개 단지, %d개 평형, %.0fKB"
-          % (len(out), sum(len(v) for v in out.values()), len(txt.encode("utf-8")) / 1024))
+    print("supply.js — %d개 단지, %d개 평형, %.0fKB (못 믿을 평형 %d개는 뺐다)"
+          % (len(out), sum(len(v) for v in out.values()),
+             len(txt.encode("utf-8")) / 1024, cut))
 
 
 def main():

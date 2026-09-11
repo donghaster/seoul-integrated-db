@@ -144,13 +144,14 @@
      환산해야 같은 줄의 평당가와 어긋나지 않는다. 고덕그라시움은 전용률이
      72.7%라, 서울 평균 76.9%로 적으면 84㎡가 33.0평으로 나오는데 옆 칸
      평당가는 72.7% 기준으로 계산돼 둘이 맞지 않는다. r을 받으면 그 값을 쓴다. */
-  function bandLabel(b, r) {
-    return b + "㎡ (" + (b / (r || SUPPLY_RATIO) / PYEONG).toFixed(0) + "평)";
+  function bandLabel(b, sup) {
+    var sa = sup || b / SUPPLY_RATIO;
+    return b + "㎡ (" + (sa / PYEONG).toFixed(0) + "평)";
   }
 
   /* 표 칸용 — 분양면적을 크게, 전용 ㎡를 그 아래 옅게 (TOP30 표와 같은 형식) */
-  function bandBoth(b, r) {
-    var sa = b / (r || SUPPLY_RATIO);
+  function bandBoth(b, sup) {
+    var sa = sup || b / SUPPLY_RATIO;
     return sa.toFixed(1) + "㎡ (" + (sa / PYEONG).toFixed(1) + "평)" +
       '<div class="rt-sub">전용 ' + b + "㎡</div>";
   }
@@ -410,10 +411,30 @@
     return r;
   }
 
-  /* 전용 기준 평당가를 그 단지 공급 기준으로 바꾼다. */
-  function pyBothRatio(py, gu, dg, name) {
+  /* 이 평형대의 공급면적.
+
+     단지 전체 전용률로 뭉뚱그리면 안 된다. 헬리오시티는 39㎡가 63.7%,
+     130㎡가 79.3%로 타입별 편차가 크다. 평균 73.2%로 84㎡를 환산하면
+     35.1평이 나오는데, 그 단지 84㎡의 실제 공급면적은 110.1㎡ — 33.3평이다.
+     그래서 그 평형대에 실제로 있는 타입들만 골라 평균한다.
+     (평형대는 전용면적을 반올림한 값이다 — areaBand 참고) */
+  function bandSupplyOf(b, gu, dg, name) {
+    var t = SUPPLY_TBL[gu + "|" + dg + "|" + name], sum = 0, n = 0;
+    if (t) {
+      for (var k in t) {
+        if (k.charAt(0) === "_") continue;
+        if (areaBand(parseFloat(k)) === b) { sum += t[k]; n++; }
+      }
+    }
+    return n ? sum / n : b / ratioOf(gu, dg, name);
+  }
+
+  /* 전용 기준 평당가를 공급 기준으로 바꾼다. 면적으로 나눈 값이므로
+     그 평형대의 실제 공급면적을 알면 그 비로 환산한다. */
+  function pyBothBand(py, b, gu, dg, name) {
     if (!py) return "-";
-    return Math.round(py * ratioOf(gu, dg, name)).toLocaleString() + "만원" +
+    var sup = bandSupplyOf(b, gu, dg, name);
+    return Math.round(py * (b / sup)).toLocaleString() + "만원" +
       '<div class="rt-sub">전용 ' + pyNum(py) + "만원</div>";
   }
 
@@ -1562,15 +1583,15 @@
   })();
 
   function bandRowsHtml(sum) {
-    var rr = ratioOf(sum.apt.gu, sum.apt.dg, sum.apt.n);
+    var A = sum.apt;
     return sum.bands.map(function (g) {
       var thin = g.sale.length < APT_MIN;
       return "<tr>" +
-        "<td><b>" + bandBoth(g.b, rr) + "</b></td>" +
+        "<td><b>" + bandBoth(g.b, bandSupplyOf(g.b, A.gu, A.dg, A.n)) + "</b></td>" +
         "<td>" + (g.sale.length ? g.sale.length + "건" : "-") +
           (thin && g.sale.length ? ' <span class="brief-thin">적음</span>' : "") + "</td>" +
         "<td>" + (g.medSale ? eokman(g.medSale) : "-") + "</td>" +
-        "<td>" + pyBothRatio(g.py, sum.apt.gu, sum.apt.dg, sum.apt.n) + "</td>" +
+        "<td>" + pyBothBand(g.py, g.b, A.gu, A.dg, A.n) + "</td>" +
         "<td>" + (g.jeonse.length ? g.jeonse.length + "건" : "-") + "</td>" +
         "<td>" + (g.medJeonse ? eokman(g.medJeonse) : "-") + "</td>" +
         "<td>" + (g.ratio ? g.ratio + "%" : "-") + "</td>" +
@@ -1612,7 +1633,7 @@
       "(중위 " + q.mid + "% · 같은 단지·같은 평형에서 매매·전세가 각 3건 이상인 <b>" +
       q.n.toLocaleString() + "개 평형</b>을 짝지어 계산)입니다. 이 비율을 아래 매매가에 대본 값입니다.</p>";
 
-    var rr = ratioOf(sum.apt.gu, sum.apt.dg, sum.apt.n);
+    var A = sum.apt;
     var rows = sum.bands.filter(function (g) { return g.medSale; });
     if (!rows.length) {
       return base + " 매매도 없어 계산할 기준이 없습니다. 아래 <b>인근 유사 단지</b>를 보세요.</p>";
@@ -1622,7 +1643,7 @@
       '<th>분양면적<span class="th-sub">㎡ (평) · 아래 전용</span></th>' +
       "<th>중위 매매가</th><th>추정 전세</th><th>중위 기준</th></tr></thead><tbody>" +
       rows.map(function (g) {
-        return "<tr><td>" + bandBoth(g.b, rr) + "</td>" +
+        return "<tr><td>" + bandBoth(g.b, bandSupplyOf(g.b, A.gu, A.dg, A.n)) + "</td>" +
           '<td class="rt-price">' + eokman(g.medSale) + "</td>" +
           "<td><b>" + eokman(Math.round(g.medSale * q.lo / 100)) + " ~ " +
             eokman(Math.round(g.medSale * q.hi / 100)) + "</b></td>" +
@@ -1651,7 +1672,7 @@
           "<td>" + (x.apt.y ? x.apt.y + "년" : "-") + "</td>" +
           "<td>" + (x.saleN || "-") + "</td>" +
           "<td>" + (x.medSale ? eokman(x.medSale) : "-") + "</td>" +
-          "<td>" + pyBothRatio(x.py, x.apt.gu, x.apt.dg, x.apt.n) + "</td>" +
+          "<td>" + pyBothBand(x.py, band, x.apt.gu, x.apt.dg, x.apt.n) + "</td>" +
           "<td>" + x.rows.filter(function (r) { return r.t === "jeonse"; }).length + "</td>" +
           "<td>" + (x.medJeonse ? eokman(x.medJeonse) : "-") + "</td>" +
           "</tr>";
@@ -1660,8 +1681,8 @@
 
   /* 금집부쌤이 고객께 바로 읽어 드릴 문장 */
   function aptScript(sum, mainBand) {
-    var rr = ratioOf(sum.apt.gu, sum.apt.dg, sum.apt.n);
     var a = sum.apt, out = [];
+    function bs(b) { return bandSupplyOf(b, a.gu, a.dg, a.n); }
     var total = sum.cnt.sale + sum.cnt.jeonse + sum.cnt.wolse;
 
     // 준공연도가 없으면 "있고" 다음이 비어 "있고입니다"가 됐다.
@@ -1682,20 +1703,20 @@
 
     var g = mainBand;
     if (g.sale.length >= APT_MIN) {
-      out.push("가장 거래가 많은 <b>" + bandLabel(g.b, rr) + "</b>" + josa(bandLabel(g.b, rr), "은", "는") +
+      out.push("가장 거래가 많은 <b>" + bandLabel(g.b, bs(g.b)) + "</b>" + josa(bandLabel(g.b, bs(g.b)), "은", "는") +
         " 매매 " + g.sale.length + "건, " +
         "<b>중위 " + eokman(g.medSale) + "</b>(평당 " +
-        Math.round(g.py * ratioOf(sum.apt.gu, sum.apt.dg, sum.apt.n)).toLocaleString() +
+        Math.round(g.py * (g.b / bs(g.b))).toLocaleString() +
         "만원 · 전용 기준 " + pyNum(g.py) + "만원)입니다." +
         (g.ratio ? " 전세는 중위 " + eokman(g.medJeonse) + josa(eokman(g.medJeonse), "으로", "로") +
           " <b>전세가율 " + g.ratio + "%</b>입니다." : ""));
     } else if (g.sale.length) {
-      out.push("<b>" + bandLabel(g.b, rr) + "</b> 매매는 <b>" + g.sale.length + "건뿐</b>이라 " +
+      out.push("<b>" + bandLabel(g.b, bs(g.b)) + "</b> 매매는 <b>" + g.sale.length + "건뿐</b>이라 " +
         "이것만으로 시세를 말씀드리기 어렵습니다. " +
         "가장 최근 거래는 " + dateText(g.sale[g.sale.length - 1].d) + " " +
         eokman(g.sale[g.sale.length - 1].v) + "입니다. <b>아래 인근 유사 단지</b>를 함께 보고 말씀드리겠습니다.");
     } else {
-      out.push("<b>" + bandLabel(g.b, rr) + "</b>" + josa(bandLabel(g.b, rr), "은", "는") +
+      out.push("<b>" + bandLabel(g.b, bs(g.b)) + "</b>" + josa(bandLabel(g.b, bs(g.b)), "은", "는") +
         " <b>매매 신고가 없습니다</b>. " +
         (g.jeonse.length ? "전세는 " + g.jeonse.length + "건, 중위 " + eokman(g.medJeonse) + "입니다. " : "") +
         ((sp && sp.tag !== "표기 분리") ? "매매가 되는 물건인지부터 확인하셔야 합니다."
@@ -1709,7 +1730,7 @@
           "<b>유사 실거래로 계산한 값</b>입니다 — " +
           esc(q.basis) + "에서 같은 단지·같은 평형의 매매와 전세를 짝지어 낸 전세가율이 " +
           "<b>" + q.lo + "~" + q.hi + "%</b>(중위 " + q.mid + "%, 표본 " + q.n.toLocaleString() + "개 평형)라, " +
-          bandLabel(g.b, rr) + " 매매 중위 " + eokman(g.medSale) + "에 대보면 " +
+          bandLabel(g.b, bs(g.b)) + " 매매 중위 " + eokman(g.medSale) + "에 대보면 " +
           "<b>" + eokman(Math.round(g.medSale * q.lo / 100)) + " ~ " +
           eokman(Math.round(g.medSale * q.hi / 100)) + "</b> 정도가 됩니다. " +
           "<b>실거래로 확인된 값이 아니라는 점</b>을 고객께 꼭 함께 말씀하세요.");
@@ -1771,7 +1792,7 @@
         (special ? '<p class="thin-note"><span>' + special.why + "</span></p>" : "") +
 
         (mainBand ? "<h4>인근 유사 단지 <span class=\"dim-note\">" +
-          bandLabel(mainBand.b, ratioOf(a.gu, a.dg, a.n)) +
+          bandLabel(mainBand.b, bandSupplyOf(mainBand.b, a.gu, a.dg, a.n)) +
           " 기준 · 같은 자치구 2km 이내</span></h4>" + similarHtml(key, mainBand.b) : "") +
 
         '<div class="read-guide" style="margin-top:18px;">' +
