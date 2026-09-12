@@ -3858,7 +3858,7 @@
           why = "값을 쓸 만한 달이 " +
                 hotOnly.map(function (x) { return moLabel(x.m) + " <b>" + esc(get(x).hot[0]) + "</b>"; }).join(", ") +
                 "처럼 <b>한 단지에 몰려</b> 있어서 <b>달별 흐름을 말씀드리기 어렵습니다</b>. ";
-          how = "제가 <b>구 전체로 넓혀</b> 보여드리거나, 아래 TOP10에서 <b>관심 단지를 직접</b> 짚어 드리겠습니다.";
+          how = "<b>구 전체로 넓혀</b> 보시거나, 아래 TOP10에서 <b>관심 단지를 직접</b> 짚어 드리겠습니다.";
         } else if (enough.length) {
           why = "값을 쓸 만한 달이 <b>" + moLabel(enough[0].m) + " 한 달뿐</b>이라 " +
                 "<b>비교해 드릴 대상이 없습니다</b>. ";

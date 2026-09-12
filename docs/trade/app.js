@@ -823,13 +823,13 @@
       "</b>(" + pct(f.age[ageI], f.tot) + "%)입니다.");
     lines.push("남녀 비율은 <b>" + pct(f.ml, f.tot) + " : " + pct(f.fml, f.tot) + "</b>입니다.");
     if (we > wk * 1.1) {
-      lines.push("<b>주말이 평일보다 " + Math.round((we / wk - 1) * 100) + "% 많습니다</b> — 나들이·외식 수요가 붙는 자리입니다.");
+      lines.push("<b>주말이 평일보다 " + Math.round((we / wk - 1) * 100) + "% 많음</b> — 나들이·외식 수요가 붙는 자리입니다.");
     } else if (wk > we * 1.1) {
-      lines.push("<b>평일이 주말보다 " + Math.round((wk / we - 1) * 100) + "% 많습니다</b> — 직장·통근 수요가 중심입니다.");
+      lines.push("<b>평일이 주말보다 " + Math.round((wk / we - 1) * 100) + "% 많음</b> — 직장·통근 수요가 중심입니다.");
     } else {
-      lines.push("평일과 주말이 <b>비슷합니다</b>.");
+      lines.push("평일과 주말이 <b>비슷</b>.");
     }
-    if (night >= 25) lines.push("심야·새벽 비중이 <b>" + night + "%</b>로 높습니다. " +
+    if (night >= 25) lines.push("심야·새벽 비중이 <b>" + night + "%</b>로 높음. " +
       "다만 <b>00~06시는 자고 있는 주민이 함께 잡히는 칸</b>이라, 그 자체를 손님으로 보시면 안 됩니다.");
 
     document.getElementById("fpNote").innerHTML =
@@ -947,10 +947,10 @@
       '<div class="chart-box" style="height:220px"><canvas id="slTm"></canvas></div>' +
       '<div class="read-guide" style="margin-top:16px"><h4>금집부쌤이 보는 매출</h4><ol>' +
         "<li>추정 월매출 <b>" + money(Math.round(s.amt / 3)) + "</b>" +
-        (perStore ? ", 점포 하나당 <b>" + money(perStore) + "</b> 꼴입니다. " : ". ") +
+        (perStore ? ", 점포 하나당 <b>" + money(perStore) + "</b> 꼴. " : ". ") +
         "<b>업종마다 편차가 큽니다</b> — 위 업종별 그래프를 함께 보세요.</li>" +
-        "<li>" + (weDay > mdwkDay ? "<b>주말 매출이 평일보다 높습니다.</b> 주말 장사가 되는 자리입니다."
-                                   : "<b>평일 매출이 주말보다 높습니다.</b> 주말에 쉬는 업종도 고려해 볼 만합니다.") + "</li>" +
+        "<li>" + (weDay > mdwkDay ? "<b>주말 매출이 평일보다 높음.</b> 주말 장사가 되는 자리입니다."
+                                   : "<b>평일 매출이 주말보다 높음.</b> 주말에 쉬는 업종도 고려해 볼 만합니다.") + "</li>" +
         "<li><b>서울시가 카드 결제 등으로 추정한 값</b>입니다. 실제 매출과 다를 수 있으니 " +
         "<b>매도인 장부와 반드시 대조</b>하시고, 고객께도 추정치임을 밝히세요.</li>" +
       "</ol></div>";
@@ -1476,23 +1476,23 @@
       var gap = vac.v - sVac.v;
       lines.push("<b>" + esc(where) + "</b>의 " + size + " 상가 공실률은 <b>" + vac.v.toFixed(1) +
         "%</b>로 서울 평균(" + sVac.v.toFixed(1) + "%)보다 <b>" +
-        (Math.abs(gap) < 0.3 ? "비슷합니다" : gap > 0 ? gap.toFixed(1) + "%p 높습니다" : (-gap).toFixed(1) + "%p 낮습니다") + "</b>." +
-        (vac.v >= 12 ? " <b>열 곳 중 한 곳 넘게 비어 있다는 뜻입니다.</b>" :
-         vac.v <= 2 ? " <b>빈 자리를 찾기 어려운 상권입니다.</b>" : ""));
+        (Math.abs(gap) < 0.3 ? "비슷" : gap > 0 ? gap.toFixed(1) + "%p 높음" : (-gap).toFixed(1) + "%p 낮음") + "</b>." +
+        (vac.v >= 12 ? " <b>열 곳 중 한 곳 넘게 비어 있다는 뜻</b>." :
+         vac.v <= 2 ? " <b>빈 자리를 찾기 어려운 상권</b>." : ""));
     }
     if (perPy) {
       lines.push("임대료는 평당 월 <b>" + perPy.toFixed(1) + "만원</b>" +
         (sPerPy ? "으로 서울 평균(" + sPerPy.toFixed(1) + "만원)의 <b>" +
-          Math.round(perPy / sPerPy * 100) + "%</b>" : "") + "입니다. " +
-        "<b>전용이 아니라 임대면적 기준</b>이니 실제 계약과는 차이가 납니다.");
+          Math.round(perPy / sPerPy * 100) + "%</b>" : "") + ". " +
+        "<b>전용이 아니라 임대면적 기준</b>이니 실제 계약과는 차이 발생.");
     }
     var a = null, b = null;
     for (var i = 0; i < idx.length; i++) if (idx[i] != null) { if (a === null) a = idx[i]; b = idx[i]; }
     if (a && b && a !== b) {
       var d = (b / a - 1) * 100;
       lines.push("임대가격지수는 조사 기간 동안 <b>" + (d > 0 ? "+" : "") + d.toFixed(1) + "%</b> " +
-        (d > 0.3 ? "올랐습니다" : d < -0.3 ? "내렸습니다" : "거의 그대로입니다") +
-        ". 공실률과 <b>같이</b> 보셔야 합니다 — 임대료가 버티는데 공실이 늘면 " +
+        (d > 0.3 ? "상승" : d < -0.3 ? "하락" : "거의 그대로") +
+        ".<br>공실률과 <b>같이</b> 보셔야 합니다 — 임대료가 버티는데 공실이 늘면 " +
         "<b>호가만 남고 계약은 안 되는 상태</b>일 수 있습니다.");
     }
     lines.push("이 자료의 상권 구분은 <b>부동산원 기준</b>이라 저희 상권과 경계가 다릅니다. " +
@@ -1794,22 +1794,22 @@
     var lines = [];
     var share = pct(r.c, t.st.tot);
     lines.push("이 범위에 <b>" + esc(name) + "</b>" + josa(name, "이", "가") + " <b>" + comma(r.c) + "개</b> 있고, " +
-      "전체 점포의 <b>" + share + "%</b>를 차지합니다." +
-      (share >= 15 ? " <b>이미 포화에 가깝습니다.</b>" : share <= 2 ? " 아직 드문 업종입니다." : ""));
+      "전체 점포의 <b>" + share + "%</b>를 차지." +
+      (share >= 15 ? " <b>이미 포화에 가까움.</b>" : share <= 2 ? " 아직 드문 업종." : ""));
     if (r.c >= 20) {
       lines.push(net > 0
         ? "그 분기에 <b>" + comma(r.o) + "곳이 열고 " + comma(r.x) + "곳이 닫아 " + net +
-          "곳 늘었습니다.</b> 들어오는 업종입니다."
+          "곳 늘어남.</b> 들어오는 업종."
         : net < 0
           ? "그 분기에 <b>" + comma(r.o) + "곳이 열고 " + comma(r.x) + "곳이 닫아 " + (-net) +
-            "곳 줄었습니다.</b> <b>빠져나가는 중이니 이유를 꼭 확인하세요.</b>"
-          : "그 분기에 <b>연 곳과 닫은 곳이 같습니다.</b> 자리는 유지되고 있습니다.");
+            "곳 줄어듦.</b> <b>빠져나가는 중이니 이유를 꼭 확인하세요.</b>"
+          : "그 분기에 <b>연 곳과 닫은 곳이 같음.</b> 자리는 유지되는 중.");
     } else {
       lines.push("<b>점포가 " + comma(r.c) + "개뿐이라</b> 개업·폐업 숫자를 흐름으로 읽으시면 안 됩니다.");
     }
     if (per && bPer) {
       lines.push("점포당 월매출은 <b>" + money(per) + "</b>으로 서울 같은 업종(" + money(bPer) +
-        ")의 <b>" + gap + "%</b>입니다." +
+        ")의 <b>" + gap + "%</b>." +
         (gap >= 130 ? " <b>잘되는 자리입니다.</b>" : gap <= 70 ? " <b>기대보다 낮습니다.</b>" : ""));
     }
     lines.push("<b>임대료를 반드시 같이 보세요.</b> 매출이 높아도 임대료가 더 오르면 남는 게 없습니다. " +

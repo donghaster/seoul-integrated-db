@@ -1362,7 +1362,7 @@
       var pts = list.filter(function (x) { return x.r[0] >= MIN_N && x.r[idx] && !x.hot; });
       var any = list.filter(function (x) { return x.r[0] > 0; });
       var total = any.reduce(function (a, x) { return a + x.r[0]; }, 0);
-      if (!total) return "<b>" + label + "</b>는 이 기간에 거래가 없었습니다.";
+      if (!total) return "<b>" + label + "</b>는 이 기간에 <b>거래 없음</b>.";
 
       if (pts.length < 2) {
         var enough = list.filter(function (x) { return x.r[0] >= MIN_N && x.r[idx]; });
@@ -1379,38 +1379,45 @@
           why = "달마다 " + MIN_N + "건이 안 돼 <b>달별 흐름을 말씀드리기 어렵습니다</b>. ";
         }
         return "<b>" + label + "</b>는 이 기간 <b>" + total.toLocaleString() + "건</b>인데, " + why +
-          "건수만 참고하시고, 값은 제가 <b>물건 하나하나로</b> 짚어 드리겠습니다.";
+          "건수만 참고하시고, 값은 <b>물건 하나하나로</b> 짚어 드리겠습니다.";
       }
 
       var a2 = pts[0], b2 = pts[pts.length - 1];
       var r = (b2.r[idx] - a2.r[idx]) / a2.r[idx] * 100;
-      var word = Math.abs(r) < 1.5 ? "거의 그대로입니다"
-               : (r > 0 ? "<b>" + r.toFixed(1) + "% 올랐습니다</b>"
-                        : "<b>" + Math.abs(r).toFixed(1) + "% 내렸습니다</b>");
+      var word = Math.abs(r) < 1.5 ? "거의 그대로"
+               : (r > 0 ? "<b>" + r.toFixed(1) + "% 상승</b>"
+                        : "<b>" + Math.abs(r).toFixed(1) + "% 하락</b>");
       var t = "<b>" + label + "</b>는 " + moLabel(a2.ym) + " " + unitTxt + " " +
         Math.round(a2.r[idx]).toLocaleString() + "만원(" + a2.r[0] + "건)에서 " +
         moLabel(b2.ym) + " " + Math.round(b2.r[idx]).toLocaleString() + "만원(" + b2.r[0] + "건)으로 " +
         word + ".";
-      if (isPending(b2.ym)) {
-        t += " 다만 " + moLabel(b2.ym) + "은 <b>신고가 아직 다 안 들어와</b> 확정된 숫자가 아닙니다.";
+      // 신고가 덜 찬 달과 출렁임이 둘 다 붙으면 같은 꼬리가 두 번 온다.
+      // 꼬리를 '아니'까지만 적어 두고 뒤 문장이 맺게 한다.
+      var pendTail = isPending(b2.ym);
+      if (pendTail) {
+        t += " 다만 " + moLabel(b2.ym) + "은 <b>신고가 아직 다 안 들어와</b> 확정된 숫자가 아니";
       }
       if (pts.length >= 3) {
         var vals = pts.map(function (x) { return x.r[idx]; });
         var hi = Math.max.apply(null, vals), lo = Math.min.apply(null, vals);
         if (lo && (hi - lo) / lo * 100 >= 20) {
-          t += " 그런데 <b>쭉 한 방향으로 움직인 건 아닙니다</b> \u2014 가장 높았던 달은 " +
+          t += (pendTail ? "며 <b>쭉 한 방향으로 움직인 것도 아님</b>"
+                         : " 그런데 <b>쭉 한 방향으로 움직인 건 아님</b>") + "<br>\u2014 가장 높았던 달은 " +
             moLabel(pts[vals.indexOf(hi)].ym) + " " + Math.round(hi).toLocaleString() + "만원, 낮았던 달은 " +
             moLabel(pts[vals.indexOf(lo)].ym) + " " + Math.round(lo).toLocaleString() + "만원으로 <b>" +
-            Math.round((hi - lo) / lo * 100) + "%</b>나 차이가 납니다. " +
+            Math.round((hi - lo) / lo * 100) + "%</b>나 차이 발생.<br>" +
             "<b>그 달에 어떤 물건이 팔렸느냐</b>에 따라 흔들린 것이라 추세로 보시면 안 됩니다.";
         }
       }
+      // 출렁임 문장이 안 붙었으면 위 '…아니'를 여기서 맺는다
+      if (pendTail && t.slice(-2) === "아니") t = t.slice(0, -2) + "아님.";
+
       var hots = list.filter(function (x) { return x.hot && x.r[0] >= MIN_N; });
       if (hots.length) {
         t += " (" + hots.map(function (x) {
           return moLabel(x.ym) + "은 <b>" + esc(x.hot[0]) + "</b> 한 곳이 " + x.hot[1] + "건";
-        }).join(", ") + "이라 이 계산에서 뺐습니다. 한 건물 물량이 통째로 신고되면 " +
-        "<b>그 달 중위값은 사실상 그 건물 값</b>이 됩니다.)";
+        }).join(", ") + "이라 계산에서 제외. 한 건물 물량이 통째로 신고되면 " +
+        "<b>그 달 중위값은 사실상 그 건물 값</b>.)";
       }
       return t;
     }
@@ -1426,15 +1433,15 @@
       var gap = (wb.r[2] - wa.r[2]) / wa.r[2] * 100;
       var t3 = "<b>오피스텔 월세</b>는 중위 월세가 " + Math.round(wa.r[2]).toLocaleString() + "만원에서 " +
         Math.round(wb.r[2]).toLocaleString() + "만원으로 " +
-        (Math.abs(gap) < 1 ? "거의 그대로고" : (gap > 0 ? "<b>" + gap.toFixed(0) + "% 올랐고</b>"
-                                                        : "<b>" + Math.abs(gap).toFixed(0) + "% 내렸고</b>")) +
+        (Math.abs(gap) < 1 ? "거의 그대로" : (gap > 0 ? "<b>" + gap.toFixed(0) + "% 상승</b>"
+                                                        : "<b>" + Math.abs(gap).toFixed(0) + "% 하락</b>")) +
         ", 보증금은 " + eokman(wa.r[1]) + "에서 " + eokman(wb.r[1]) + ", " +
-        "준전세 비중은 " + jrA + "%에서 " + jrB + "%입니다.";
+        "준전세 비중은 " + jrA + "%에서 " + jrB + "%.";
       if (jrB - jrA >= 8 && gap < 0) {
-        t3 += " <b>보증금을 올리고 월세를 낮추는 쪽</b>으로 옮겨가고 있습니다. " +
+        t3 += " <b>보증금을 올리고 월세를 낮추는 쪽</b>으로 이동.<br>" +
               "임대수익으로 보고 계시면 <b>월세가 내렸다는 점</b>을 꼭 감안하셔야 합니다.";
       } else if (jrA - jrB >= 8 && gap > 0) {
-        t3 += " <b>보증금을 낮추고 월세를 늘리는 쪽</b>으로 옮겨가고 있습니다.";
+        t3 += " <b>보증금을 낮추고 월세를 늘리는 쪽</b>으로 이동.";
       }
       out.push(t3);
     } else if (wolse.some(function (x) { return x.r[0]; })) {
@@ -1448,14 +1455,14 @@
     if (solid.length >= 2) {
       var va = solid[0], vb = solid[solid.length - 1];
       out.push("<b>전체 거래량</b>은 " + moLabel(va.ym) + " " + va.n.toLocaleString() + "건에서 " +
-        moLabel(vb.ym) + " " + vb.n.toLocaleString() + "건입니다. " +
-        "(신고가 마감된 달끼리만 비교했습니다.)");
+        moLabel(vb.ym) + " " + vb.n.toLocaleString() + "건. " +
+        "(신고가 마감된 달끼리만 비교)");
     }
 
     var pend = shop.filter(function (x) { return isPending(x.ym); });
     if (pend.length) {
       out.push("<b>" + pend.map(function (x) { return moLabel(x.ym); }).join("·") +
-        " 숫자는 아직 확정이 아닙니다.</b> 신고 기한이 계약일로부터 30일이라 앞으로 건수가 더 늘어납니다. " +
+        " 숫자는 아직 확정이 아님.</b> 신고 기한이 계약일로부터 30일이라 앞으로 건수가 더 늘어남. " +
         "<b>지금 수치만 보고 거래가 끊겼다고 보시면 안 됩니다.</b>");
     }
 
