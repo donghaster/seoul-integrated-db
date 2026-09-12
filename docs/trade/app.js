@@ -990,6 +990,76 @@
 
   var nrgMode = "dong";                   // dong | gu
   var nrgBeop = "";                       // 고른 법정동
+  var nrgBand = "all";                    // 연면적 규모 칸
+
+  /* ── 연면적 규모 칸 ──
+     다른 대시보드와 같은 경계다. 다만 여기 표는 상업·업무용이라 아파트처럼
+     '분양 평수'가 없다. 한 채를 통으로 사고파는 자리라 연면적 그대로 끊고,
+     이름도 '평형대'가 아니라 '연면적 규모'라고 부른다 — 상가·오피스텔
+     대시보드의 상가 쪽과 같은 잣대다. */
+  var PYEONG = 3.3058;
+  var SIZE_BANDS = [
+    { k: "all", name: "전체" },
+    { k: "u20", name: "20평 미만", lo: 0,  hi: 20 },
+    { k: "20",  name: "20평대",    lo: 20, hi: 30 },
+    { k: "30",  name: "30평대",    lo: 30, hi: 40 },
+    { k: "40",  name: "40평대",    lo: 40, hi: 50 },
+    { k: "50",  name: "50평대",    lo: 50, hi: 60 },
+    { k: "60",  name: "60평대",    lo: 60, hi: 70 },
+    { k: "70",  name: "70평대",    lo: 70, hi: 80 },
+    { k: "80",  name: "80평 이상", lo: 80, hi: Infinity },
+  ];
+
+  function nrgBandInfo(k) {
+    for (var i = 0; i < SIZE_BANDS.length; i++) {
+      if (SIZE_BANDS[i].k === k) return SIZE_BANDS[i];
+    }
+    return SIZE_BANDS[0];
+  }
+
+  /* 연면적(㎡)은 원본 행의 다섯째 칸이다 */
+  function inNrgBand(r, b) {
+    if (!b || b.k === "all") return true;
+    var p = (r[4] || 0) / PYEONG;
+    if (!p) return false;
+    return p >= b.lo && p < b.hi;
+  }
+  var nrgBand = "all";                    // 연면적 규모 칸
+
+  /* ── 연면적 규모 칸 ──
+     다른 대시보드와 같은 경계다. 다만 여기 표는 상업·업무용이라 아파트처럼
+     '분양 평수'가 없다. 한 채를 통으로 사고파는 자리라 연면적 그대로 끊고,
+     이름도 '평형대'가 아니라 '연면적 규모'라고 부른다 — 상가·오피스텔
+     대시보드의 상가 쪽과 같은 잣대다. */
+  var PYEONG = 3.3058;
+  var SIZE_BANDS = [
+    { k: "all", name: "전체" },
+    { k: "u20", name: "20평 미만", lo: 0,  hi: 20 },
+    { k: "20",  name: "20평대",    lo: 20, hi: 30 },
+    { k: "30",  name: "30평대",    lo: 30, hi: 40 },
+    { k: "40",  name: "40평대",    lo: 40, hi: 50 },
+    { k: "50",  name: "50평대",    lo: 50, hi: 60 },
+    { k: "60",  name: "60평대",    lo: 60, hi: 70 },
+    { k: "70",  name: "70평대",    lo: 70, hi: 80 },
+    { k: "80",  name: "80평 이상", lo: 80, hi: Infinity },
+  ];
+
+  function nrgBandInfo(k) {
+    for (var i = 0; i < SIZE_BANDS.length; i++) {
+      if (SIZE_BANDS[i].k === k) return SIZE_BANDS[i];
+    }
+    return SIZE_BANDS[0];
+  }
+
+  /* 연면적(㎡)은 원본 행의 다섯째 칸이다 */
+  function rowPyeong(r) { return (r[4] || 0) / PYEONG; }
+
+  function inNrgBand(r, b) {
+    if (!b || b.k === "all") return true;
+    var p = rowPyeong(r);
+    if (!p) return false;
+    return p >= b.lo && p < b.hi;
+  }
 
   /* 행정동 이름에서 법정동 이름을 어림잡는다.
      반포1동·반포4동·반포본동은 모두 법정동 반포동이다. 숫자만 떼면
@@ -1058,9 +1128,13 @@
       if (p[0] !== gu) return false;
       return nrgMode === "gu" ? true : beopGroup(p[1]) === nrgBeop;
     });
+    var b = nrgBandInfo(nrgBand);
     return {
-      rows: rows,
-      label: nrgMode === "gu" ? gu + " 전체" : gu + " " + nrgBeop,
+      all: rows,                                    // 칸 단추에 건수를 적는 데 쓴다
+      rows: rows.filter(function (r) { return inNrgBand(r, b); }),
+      band: b,
+      label: (nrgMode === "gu" ? gu + " 전체" : gu + " " + nrgBeop) +
+             (b.k === "all" ? "" : " · " + b.name),
     };
   }
 
@@ -1123,13 +1197,51 @@
     renderNrg();
   }
 
+  /* 칸 띠는 renderNrg가 host를 통째로 다시 그릴 때마다 새로 생기므로
+     그때마다 다시 묶는다. 위임으로 걸어 두면 단추 수가 바뀌어도 그대로 산다. */
+  function wireNrgBand() {
+    var host = document.getElementById("nrgBandTabs");
+    if (!host || host.dataset.wired) return;
+    host.dataset.wired = "1";
+    host.addEventListener("click", function (e) {
+      var btn = e.target.closest("button[data-b]");
+      if (!btn) return;
+      nrgBand = btn.dataset.b;
+      renderNrg();
+    });
+  }
+
   function renderNrg() {
     var host = document.getElementById("nrgBody");
     if (!host) return;
     var D = SG && SG.deals;
     var q = nrgDeals();
-    if (!q.rows.length) {
+    if (!(q.all || []).length) {
       host.innerHTML = '<p class="placeholder">' + esc(q.note || "이 범위에 신고된 상업업무용 매매가 없습니다.") + "</p>";
+      return;
+    }
+
+    /* 연면적 규모 칸. 그 범위에 없는 칸은 단추를 만들지 않는다 —
+       눌러 봤자 빈 표만 나오는 단추가 여덟 개 늘어서 있으면 고르기 나쁘다. */
+    var tally = {};
+    q.all.forEach(function (r) {
+      for (var bi = 1; bi < SIZE_BANDS.length; bi++) {
+        if (inNrgBand(r, SIZE_BANDS[bi])) {
+          tally[SIZE_BANDS[bi].k] = (tally[SIZE_BANDS[bi].k] || 0) + 1;
+          break;
+        }
+      }
+    });
+    var bandHtml = '<div class="tab-row seg-sm band-tabs" id="nrgBandTabs" aria-label="연면적 규모">' +
+      SIZE_BANDS.filter(function (b) { return b.k === "all" || tally[b.k]; }).map(function (b) {
+        return '<button data-b="' + b.k + '"' + (b.k === nrgBand ? ' class="active"' : "") + ">" +
+          b.name + (b.k === "all" ? "" : ' <span class="band-n">' + tally[b.k] + "</span>") + "</button>";
+      }).join("") + "</div>";
+
+    if (!q.rows.length) {
+      host.innerHTML = bandHtml +
+        '<p class="placeholder">' + esc(q.label) + "에 신고된 매매가 없습니다.</p>";
+      wireNrgBand();
       return;
     }
 
@@ -1147,7 +1259,7 @@
     var pys = q.rows.map(function (r) { return r[7]; }).filter(Boolean).sort(function (a, b) { return a - b; });
     var med = function (a) { return a.length ? a[a.length >> 1] : 0; };
 
-    host.innerHTML =
+    host.innerHTML = bandHtml +
       '<div class="mini-row">' +
         '<div class="mini"><span>' + esc(q.label) + " 거래</span><b>" + comma(q.rows.length) + "건</b>" +
           '<span class="mini-foot">최근 12개월</span></div>' +
@@ -1182,6 +1294,7 @@
       "평당가와 직접 비교하시면 안 됩니다. 마지막 달은 <b>신고 기한(계약 후 30일)</b> 때문에 " +
       "아직 덜 찬 숫자입니다. 더 자세한 내용은 <a href='../sangga/index.html'>상가·오피스텔 대시보드</a>에 있습니다.</p>";
 
+    wireNrgBand();
     window.wireScrollBoxes();
 
     var labels = months.map(function (m) { return m.slice(2, 4) + "." + m.slice(4); });
