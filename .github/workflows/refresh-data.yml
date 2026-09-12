@@ -63,6 +63,16 @@ jobs:
       - name: 국토부 실거래 수집
         run: python tools/fetch_molit.py
 
+      # 분양면적(건축물대장) — 서울 8,284곳을 하루에 다 받을 수 없어 조금씩 채운다.
+      # 받아 둔 것은 .cache에 쌓이므로 다음 날 이어받는다. 급한 일이 아니라서
+      # 20분만 쓰고, 실패해도 실거래 갱신까지 막지 않는다.
+      # 한도는 서비스마다 따로 하루 1만 번이라 실거래 수집을 굶기지 않는다.
+      - name: 분양면적 채우기
+        continue-on-error: true
+        env:
+          SUPPLY_QUOTA_SHARE: "0.5"   # 나머지 절반은 즉석 조회용으로 남긴다
+        run: python tools/fetch_supply.py --minutes 20
+
       # 뒤 단계가 실패하더라도 받아둔 원본은 남겨 다음 실행이 이어받게 한다
       - name: 원본 캐시 저장
         if: always()

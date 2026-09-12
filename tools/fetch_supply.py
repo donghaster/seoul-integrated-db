@@ -28,10 +28,16 @@
     거래 많은 단지부터 받고, 받은 것은 곧바로 적어 둔다. 하루 한도에 걸리면
     멈췄다가, 다음 날 다시 돌리면 못 받은 것부터 잇는다.
 
+급하지 않은 일이다
+    하루 한도(1만 번)를 다 태우면 그날 다른 볼일을 못 본다. 그래서 기본으로
+    절반만 쓰고 멈춘다(SUPPLY_QUOTA_SHARE로 바꿀 수 있다). 매일 조금씩
+    채우면 되는 일이라 서두를 이유가 없다.
+
 실행
-    py tools/fetch_supply.py                # 남은 한도만큼
-    py tools/fetch_supply.py --budget 3000  # 이번엔 3,000번만
-    py tools/fetch_supply.py --write        # 받아 둔 것으로 supply.js만 다시 굽는다
+    py tools/fetch_supply.py                 # 하루 한도의 절반까지
+    py tools/fetch_supply.py --minutes 20    # 20분만 쓰고 멈춘다
+    py tools/fetch_supply.py --budget 3000   # 3,000번만 쓴다
+    py tools/fetch_supply.py --write         # 받지 않고 supply.js만 다시 굽는다
 """
 from __future__ import annotations
 
@@ -60,6 +66,9 @@ HOST = "https://apis.data.go.kr/1613000/BldRgstHubService/"
 PAGE_CAP = 12                # 단지당 최대 쪽수 (한 쪽 100행)
 MIN_PAGES = 4                # 새 평형이 안 나와도 이만큼은 본다
 QUOTA_FLOOR = 150            # 이만큼은 남겨 둔다
+# 이 일은 급하지 않다. 하루 한도를 다 태우면 그날 다른 볼일(단지 하나 확인,
+# 새 기능 시험)을 못 본다. 절반만 쓰고 나머지는 남겨 둔다.
+QUOTA_SHARE = float(os.environ.get("SUPPLY_QUOTA_SHARE", "0.5"))
 SPREAD_MAX = 0.03            # 같은 전용면적인데 호별 공급면적이 3% 넘게 흩어지면 버린다
 RATIO_LO, RATIO_HI = 0.60, 0.86   # 이 범위를 벗어난 전용률은 대장 등재가 부실한 것
 MIN_DWELL = 26.0             # 이보다 작은 전유면적은 주택이 아니라 상가·창고다
@@ -355,7 +364,7 @@ def fetch_site(sig, cd, bun, ji, cap=PAGE_CAP):
 
 
 # ── 받기 ───────────────────────────────────────────────────────────────────
-def collect(budget=None):
+def collect(budget=None, minutes=None):
     store = json.load(open(STORE, encoding="utf-8")) if os.path.exists(STORE) else {}
     cs = complexes()
     want = defaultdict(set)
@@ -374,6 +383,14 @@ def collect(budget=None):
         if STATE["remain"] is not None and STATE["remain"] < QUOTA_FLOOR:
             print("\n※ 오늘 한도가 바닥이라 멈춘다 (남은 %d번). 내일 다시 돌리면 이어받는다."
                   % STATE["remain"])
+            break
+        if STATE["limit"] and STATE["calls"] - start >= STATE["limit"] * QUOTA_SHARE:
+            print("\n※ 하루 한도의 %.0f%%(%d번)를 썼다. 나머지는 다른 일에 남겨 둔다."
+                  % (QUOTA_SHARE * 100, STATE["limit"] * QUOTA_SHARE))
+            break
+        if minutes and time.time() - t0 > minutes * 60:
+            # 서버가 느린 날엔 호출 수로만 끊으면 한없이 늘어진다. 시간으로도 끊는다.
+            print("\n※ 정해 둔 %d분을 다 썼다. 다음에 이어받는다." % minutes)
             break
         if budget and STATE["calls"] - start >= budget:
             print("\n※ 이번에 쓰기로 한 %d번을 다 썼다. 다시 돌리면 이어받는다." % budget)
@@ -492,12 +509,13 @@ def write(store):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--budget", type=int, default=None, help="이번에 쓸 호출 수")
+    ap.add_argument("--minutes", type=int, default=None, help="이번에 쓸 시간(분)")
     ap.add_argument("--write", action="store_true", help="받지 않고 supply.js만 다시 굽는다")
     a = ap.parse_args()
     if a.write:
         write(json.load(open(STORE, encoding="utf-8")))
         return
-    write(collect(a.budget))
+    write(collect(a.budget, a.minutes))
 
 
 if __name__ == "__main__":
