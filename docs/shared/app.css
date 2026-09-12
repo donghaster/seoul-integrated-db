@@ -1331,6 +1331,16 @@ html[data-theme="dark"] .find-go:hover { background: #4a76d4; }
   .deal-scroll { max-height: none; overflow: visible; }
 }
 
+/* 실거래 TOP30 평형대 칸 — 매매/전세/월세 줄 아래에 한 단 작게 붙인다.
+   구마다 칸이 아홉이라 좁은 화면에서는 접히지 않고 옆으로 넘어가게 둔다. */
+.band-tabs { margin-top: 8px; }
+.band-note { margin: 8px 0 0; font-size: 12px; color: var(--txt-dim); }
+.band-note:empty { margin: 0; }
+@media (max-width: 760px) {
+  .band-tabs { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; padding-bottom: 3px; }
+  .band-tabs button { flex: none; }
+}
+
 /* 표 펼치기 */
 .deal-scroll.is-open { max-height: none; }
 .expand-btn {

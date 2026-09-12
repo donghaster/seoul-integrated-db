@@ -27,6 +27,7 @@
     start: "", end: "",            // 조회 시작·종료일(자유 선택)
     gran: "month",                 // 집계 단위: week | month
     dealType: "sale",
+    dealBand: "all",               // 실거래 TOP30 평형대 — all | u20 | 20 | 30 … | 80
     cmpOn: { sale: true, jeonse: true, wolse: true },
     volRank: "gu",
   };
@@ -694,6 +695,61 @@
     return res;
   }
 
+  /* ── 실거래 TOP30 평형대 ──
+     손님은 "34평"이라고 말씀하시지 "전용 84㎡"라고 하지 않는다. 그러니
+     칸도 분양 평수로 끊는다. 전용면적을 분양면적으로 바꿔 재는데, 단지가
+     건축물대장에 잡혀 있으면 그 실제 공급면적을, 없으면 전용률로 어림한다
+     (supplyOf가 둘을 알아서 고른다).
+     20평 미만 칸을 따로 둔 까닭은, 그게 없으면 소형 거래가 어느 칸에도
+     안 잡혀 조용히 사라지기 때문이다. */
+  var DEAL_BANDS = [
+    { k: "all", name: "전체" },
+    { k: "u20", name: "20평 미만", lo: 0,  hi: 20 },
+    { k: "20",  name: "20평대",    lo: 20, hi: 30 },
+    { k: "30",  name: "30평대",    lo: 30, hi: 40 },
+    { k: "40",  name: "40평대",    lo: 40, hi: 50 },
+    { k: "50",  name: "50평대",    lo: 50, hi: 60 },
+    { k: "60",  name: "60평대",    lo: 60, hi: 70 },
+    { k: "70",  name: "70평대",    lo: 70, hi: 80 },
+    { k: "80",  name: "80평 이상", lo: 80, hi: Infinity },
+  ];
+
+  function bandOf(k) {
+    for (var i = 0; i < DEAL_BANDS.length; i++) {
+      if (DEAL_BANDS[i].k === k) return DEAL_BANDS[i];
+    }
+    return DEAL_BANDS[0];
+  }
+
+  /* 이 거래의 분양 평수 */
+  function supPy(x) {
+    if (!x.a) return null;
+    return supplyOf(x.a, x.gu, x.dg, x.n).v / PYEONG;
+  }
+
+  function inBand(x, b) {
+    if (!b || b.k === "all") return true;
+    var p = supPy(x);
+    if (p == null) return false;          // 면적이 없으면 평형대를 못 가른다
+    return p >= b.lo && p < b.hi;
+  }
+
+  /* 평형대를 고른 TOP30. computeRegion은 KPI·중위값까지 같이 내므로
+     평형대를 거기 끼워 넣으면 요약 숫자까지 함께 좁아진다. 표만 좁힌다. */
+  var _bandCache = {};
+
+  function bandTop(key, type, bandKey) {
+    var ck = key + "|" + type + "|" + bandKey + "@" + state.start + "~" + state.end;
+    if (_bandCache[ck]) return _bandCache[ck];
+    var b = bandOf(bandKey);
+    var rows = dealsIn(key).filter(function (x) {
+      return x.t === type && inBand(x, b);
+    });
+    var res = pickTop(rows, convOf);
+    _bandCache[ck] = res;
+    return res;
+  }
+
   function computeRegion(key) {
     var ck = key + "@" + state.start + "~" + state.end;
     if (_cache[ck]) return _cache[ck];
@@ -1159,22 +1215,45 @@
     });
   }
 
+  /* 지금 고른 평형대의 TOP30. 표도 지도도 이걸 본다. */
+  function topRows(type) {
+    var b = bandOf(state.dealBand);
+    return b.k === "all"
+      ? (region().top[type] || [])
+      : bandTop(regionKey(), type, b.k);
+  }
+
   function renderDeal() {
-    var r = region();
     var type = state.dealType;
+    var b = bandOf(state.dealBand);
+    var rows = topRows(type);
+
     document.getElementById("dealPriceHead").textContent = type === "wolse" ? "보증금 / 월세" : "거래가";
-    document.getElementById("dealBody").innerHTML = dealRowsHtml(r.top[type] || [], type, true);
+    document.getElementById("dealBody").innerHTML = rows.length
+      ? dealRowsHtml(rows, type, true)
+      : '<tr><td colspan="7" class="placeholder">' + esc(regionLabel()) + " · " +
+        esc(b.name) + "에는 이 기간 신고된 " + TYPE_LABEL[type] + " 거래가 없습니다.</td></tr>";
+
+    var note = document.getElementById("dealBandNote");
+    if (note) {
+      // 0건이면 표 안에 이미 그렇게 적혀 있으니 여기까지 되풀이하지 않는다
+      note.innerHTML = (b.k === "all" || !rows.length) ? "" :
+        "<b>" + esc(b.name) + "</b> " + rows.length + "건" +
+        (rows.length >= 30 ? " (금액 상위 30건)" : "") +
+        ' <span class="dim-note">분양 평수 기준 · 같은 단지 같은 평형은 3건까지</span>';
+    }
     if (window.wireScrollBoxes) window.wireScrollBoxes();
 
     // 인쇄용 — 화면에 보이는 표 말고 나머지 두 유형도 함께 출력
     document.getElementById("dealPrintAll").innerHTML = TYPES.filter(function (t) { return t !== type; })
       .map(function (t) {
-        return '<h3 style="margin:18px 0 8px; font-size:15px;">' + regionLabel() + " · " + TYPE_LABEL[t] + " 실거래가 TOP 10</h3>" +
+        return '<h3 style="margin:18px 0 8px; font-size:15px;">' + regionLabel() + " · " + TYPE_LABEL[t] +
+          (b.k === "all" ? "" : " · " + b.name) + " 실거래가 TOP 10</h3>" +
           '<table class="rank-table"><thead><tr><th>순위</th><th>단지명</th>' +
           '<th>분양면적<span class="th-sub">㎡ (평) · 전용</span></th><th>층</th><th>' +
           (t === "wolse" ? "보증금 / 월세" : "거래가") +
           '</th><th>평당가<span class="th-sub">공급 · 전용</span></th><th>거래일</th></tr></thead><tbody>' +
-          dealRowsHtml(r.top[t] || [], t, false) + "</tbody></table>";
+          dealRowsHtml(topRows(t), t, false) + "</tbody></table>";
       }).join("");
 
     document.querySelectorAll("#dealBody .rt-name-clickable").forEach(function (el, i) {
@@ -1193,6 +1272,25 @@
       renderMap();
     });
   });
+
+  /* 평형대 칸 — 매매·전세·월세 줄 바로 아래에 같은 모양으로 붙인다 */
+  (function initBandTabs() {
+    var host = document.getElementById("dealBandTabs");
+    if (!host) return;
+    host.innerHTML = DEAL_BANDS.map(function (b) {
+      return '<button data-b="' + b.k + '"' + (b.k === "all" ? ' class="active"' : "") +
+        ">" + b.name + "</button>";
+    }).join("");
+    host.addEventListener("click", function (e) {
+      var btn = e.target.closest("button[data-b]");
+      if (!btn) return;
+      host.querySelectorAll("button").forEach(function (x) { x.classList.remove("active"); });
+      btn.classList.add("active");
+      state.dealBand = btn.dataset.b;
+      renderDeal();
+      renderMap();
+    });
+  })();
 
   /* ════════════════ ② 매매·전세·월세 가격비교 ════════════════ */
 
@@ -1585,7 +1683,10 @@
     markers = {};
     selectedKey = null;
 
-    var rows = (region().top[state.dealType] || []).slice(0, 10);   // 지도는 TOP10만
+    /* 위 표가 평형대로 좁혀져 있으면 지도도 같이 좁힌다. 표와 지도가 다른
+       목록을 들고 있으면, 표에서 단지 이름을 눌렀을 때 그 단지가 지도에 없어
+       "좌표를 찾지 못했다"고 나온다 — 좌표가 없는 게 아니라 다른 목록이라서다. */
+    var rows = topRows(state.dealType).slice(0, 10);   // 지도는 TOP10만
     var pts = [], miss = 0;
 
     // 같은 단지가 평형·층만 달리해 여러 번 오르면 좌표가 똑같아 마커가 겹친다.

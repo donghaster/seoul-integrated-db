@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>금집부쌤의 서울시 통합 부동산 대시보드 — 아파트</title>
-  <link rel="stylesheet" href="../shared/app.css?v=bca80693da" />
+  <link rel="stylesheet" href="../shared/app.css?v=bf7566fe88" />
   <!-- 색 테마를 첫 칠 전에 찍는다. brand.js는 본문 맨 아래라, 다크로 맞춰 둔
        폰에서 흰 화면이 한 번 번쩍인 뒤 어두워진다. -->
   <script>
@@ -295,12 +295,16 @@
       <button class="sec-print-btn" onclick="printSection('sec-top10')">이 섹션 인쇄</button>
     </div>
     <p class="sec-desc">선택 지역의 실거래 중 <b>금액 상위 30건</b>입니다. 표에는 <b>10건만 보이고</b>, 아래 <b>펼치기</b>를 누르시면 30위까지 나옵니다.<br />
+      아래 <b>평형대</b>를 고르시면 그 평형대 안에서 다시 금액 상위 30건을 봅니다 — <b>분양 평수 기준</b>이라 손님이 말씀하시는 “34평”과 같은 기준입니다. 위 지도도 고른 평형대를 따라갑니다.<br />
       <b>분양면적은 실거래 자료에 없어</b> 전용률 <b>76.9%</b>로 환산한 값입니다(반포 래미안 트리니원 2,009세대에서 잰 값) — 고객이 말씀하시는 <b>“34평”은 분양 평수</b>라 그 기준으로 적었습니다. 단지마다 전용률이 달라 실제와 1~2평 차이 날 수 있습니다. 월세는 <b>환산보증금(보증금 + 월세×100)</b> 기준으로 줄을 세웁니다. 단지명을 클릭하면 위 지도에 위치가 표시됩니다.</p>
     <div class="tab-row" id="dealTypeTabs">
       <button class="active" data-t="sale">매매</button>
       <button data-t="jeonse">전세</button>
       <button data-t="wolse">월세</button>
     </div>
+    <!-- 평형대는 JS에서 채운다(app.js DEAL_BANDS) -->
+    <div class="tab-row seg-sm band-tabs" id="dealBandTabs" aria-label="평형대"></div>
+    <p class="band-note" id="dealBandNote"></p>
     <div class="deal-scroll" style="--tbl-h:560px">
       <table class="rank-table deal-table">
         <thead><tr><th>순위</th><th>단지명</th><th>분양면적 <span class="th-sub">㎡ (평) · 아래 전용</span></th><th>층</th><th id="dealPriceHead">거래가</th><th>평당가 <span class="th-sub">공급 기준 · 아래 전용</span></th><th>거래일</th></tr></thead>
@@ -480,6 +484,6 @@
 <script src="../data/locinfo.js?v=e97bc091b7"></script>
 <script src="../data/newtown.js?v=8ba14b3baf"></script>
 <script src="../shared/brand.js?v=79fcfd3556"></script>
-<script src="app.js?v=ffab640449"></script>
+<script src="app.js?v=9b7df5d9e3"></script>
 </body>
 </html>
