@@ -208,11 +208,16 @@
         <li><b>뉴타운 구역 가격이 아닙니다.</b> 해당 <b>법정동 아파트 전체</b>의 실거래 중위값입니다.
           재개발 물건(빌라·단독·<b>입주권</b>)은 아파트 실거래가 아니라 이 표에 <b>들어 있지 않습니다</b>.</li>
         <li><b>평당가는 전용면적 기준</b>입니다. 네이버·KB의 공급(분양)면적 기준보다 30%가량 높게 나오므로,
-          그 시세와 비교하실 때는 함께 적어 둔 <b>공급 환산값</b>을 쓰세요.</li>
+          그 시세와 비교하실 때는 함께 적어 둔 <b>공급 환산값</b>을 쓰세요.
+          표 위의 <b>평형대</b> 칸은 그 반대로 <b>분양 평수</b>로 끊었습니다(전용률 74% 환산) &mdash;
+          손님이 말씀하시는 평수와 같은 기준입니다.</li>
         <li><b>순위 차이 = 동네 급 차이가 아닙니다.</b> 이미 입주가 끝난 뉴타운은 신축 시세가 잡혀 높게,
           아직 이주·철거 중인 곳은 주변 구축만 거래돼 낮게 나옵니다. <b>진행단계</b> 열과 함께 보세요.</li>
       </ol>
     </div>
+
+    <!-- 평형대 칸은 JS에서 채운다(app.js SIZE_BANDS) -->
+    <div class="tab-row seg-sm band-tabs" id="dealBandTabs" aria-label="평형대" hidden></div>
 
     <div class="deal-scroll" style="--tbl-h:590px">
       <table class="rank-table rank-neutral deal-table">
@@ -263,6 +268,6 @@
 <script src="../data/newtown.js?v=8ba14b3baf"></script>
 <script src="../data/apt.js?v=cc62214a3b"></script>
 <script src="../shared/brand.js?v=79fcfd3556"></script>
-<script src="app.js?v=6be16a57a0"></script>
+<script src="app.js?v=400429c63d"></script>
 </body>
 </html>

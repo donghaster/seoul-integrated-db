@@ -49,7 +49,7 @@
       : { bg: TAG_LIGHT[i],  fg: "#ffffff" };
   }
 
-  var state = { gu: ALL, wave: ALL, status: ALL, zone: "noryangjin",
+  var state = { gu: ALL, wave: ALL, status: ALL, zone: "noryangjin", band: "all",
                 group: "stage", view: "card", openKeys: null };
 
   /* ── 서울 5개 권역 ── */
@@ -112,8 +112,36 @@
         뉴타운이 걸친 법정동만 골라 최근 12개월치를 한 번 집계해 둔다. ── */
   var APT_MONTHS = 12;
   var PYEONG = 3.3058;
-  var aptStat = {};          // "구|동" -> { cnt: {...}, med: {...} }
+  var aptStat = {};          // "평형대|구|동" -> { cnt: {...}, med: {...} }
   var aptWinLabel = "-";
+
+  /* 전용면적 평당가 -> 공급(분양)면적 평당가 환산 계수.
+     네이버·KB 시세는 대개 공급면적 기준이라 그대로 비교하면 30%쯤 비싸 보인다.
+     아래 buildAptStat이 이 값으로 평형대를 가르므로 그보다 먼저 서 있어야 한다 —
+     var는 선언만 끌어올려지고 값은 제자리에서 들어가, 뒤에 두면 NaN이 된다. */
+  var SUPPLY_RATIO = 0.74;        // 전용률 74% 가정
+
+  /* ── 평형대 칸 ──
+     아파트·상가 대시보드와 같은 경계다. 분양 평수로 끊는다 — 손님은
+     "34평"이라 하시지 "전용 84㎡"라고 하지 않는다.
+     여기서는 아래 SUPPLY_RATIO(74%)로 환산한다. 이 화면이 공급 평당가를
+     그 값으로 적고 있으니, 칸도 같은 잣대라야 한 화면 안에서 말이 맞는다. */
+  var SIZE_BANDS = [
+    { k: "all", name: "전체" },
+    { k: "u20", name: "20평 미만", lo: 0,  hi: 20 },
+    { k: "20",  name: "20평대",    lo: 20, hi: 30 },
+    { k: "30",  name: "30평대",    lo: 30, hi: 40 },
+    { k: "40",  name: "40평대",    lo: 40, hi: 50 },
+    { k: "50",  name: "50평대",    lo: 50, hi: 60 },
+    { k: "60",  name: "60평 이상", lo: 60, hi: Infinity },
+  ];
+
+  function bandInfo(k) {
+    for (var i = 0; i < SIZE_BANDS.length; i++) {
+      if (SIZE_BANDS[i].k === k) return SIZE_BANDS[i];
+    }
+    return SIZE_BANDS[0];
+  }
 
   function median(arr) {
     if (!arr.length) return 0;
@@ -142,14 +170,22 @@
     aptWinLabel = start.getFullYear() + "." + p2(start.getMonth() + 1) + " ~ " +
                   end.getFullYear() + "." + p2(end.getMonth() + 1);
 
+    /* 평형대 칸을 따로 담는다. 원본을 한 번 훑는 김에 같이 세므로
+       화면이 무거워지지 않고, 굽는 자료를 늘리지 않아도 된다. */
+    function bandKeyOf(area) {
+      if (!area) return null;                       // 면적이 없으면 칸을 못 가른다
+      var p = (area / SUPPLY_RATIO) / PYEONG;       // 분양 평수
+      for (var j = 1; j < SIZE_BANDS.length; j++) {
+        var b = SIZE_BANDS[j];
+        if (p >= b.lo && p < b.hi) return b.k;
+      }
+      return null;
+    }
+
     var bag = {};
-    for (var i = 0; i < enc.rows.length; i++) {
-      var r = enc.rows[i];
-      if (r[3] < startOff) continue;
-      var key = enc.regions[r[1]];
-      if (!need[key]) continue;
-      var b = bag[key] || (bag[key] = { sale: [], py: [], jeonse: 0, wolse: 0 });
-      var t = enc.types[r[0]];
+    function put(bk, key, t, r) {
+      var id = bk + "|" + key;
+      var b = bag[id] || (bag[id] = { sale: [], py: [], jeonse: 0, wolse: 0 });
       if (t === "sale") {
         b.sale.push(r[7]);
         if (r[4]) b.py.push(r[7] / (r[4] / PYEONG));
@@ -158,6 +194,17 @@
       } else {
         b.wolse++;
       }
+    }
+
+    for (var i = 0; i < enc.rows.length; i++) {
+      var r = enc.rows[i];
+      if (r[3] < startOff) continue;
+      var key = enc.regions[r[1]];
+      if (!need[key]) continue;
+      var t = enc.types[r[0]];
+      put("all", key, t, r);
+      var bk = bandKeyOf(r[4]);
+      if (bk) put(bk, key, t, r);
     }
 
     Object.keys(bag).forEach(function (k) {
@@ -171,12 +218,9 @@
 
   function aptWin() { return { label: aptWinLabel }; }
 
-  function aptRegion(key) { return aptStat[key] || null; }
+  function aptRegion(key) { return aptStat[state.band + "|" + key] || null; }
 
   /* ── 뉴타운이 걸친 법정동들의 실거래를 합산 ── */
-  // 전용면적 평당가 -> 공급(분양)면적 평당가 환산 계수.
-  // 네이버·KB 시세는 대개 공급면적 기준이라 그대로 비교하면 30%쯤 비싸 보인다.
-  var SUPPLY_RATIO = 0.74;        // 전용률 74% 가정
   function toSupply(py) { return Math.round(py * SUPPLY_RATIO); }
 
   function dealStat(d) {
@@ -658,7 +702,51 @@
 
   var pyChart = null;
 
+  /* 평형대 칸을 그린다. 그 칸에 표본이 있는 뉴타운이 하나도 없으면
+     단추를 만들지 않는다 — 눌러 봤자 빈 표만 나온다. */
+  function fillDealBands() {
+    var host = document.getElementById("dealBandTabs");
+    if (!host || !A) return;
+    var pool = filtered();
+    var have = SIZE_BANDS.filter(function (b) {
+      if (b.k === "all") return true;
+      return pool.some(function (d) {
+        return (d.dongs || []).some(function (dong) {
+          var r = aptStat[b.k + "|" + d.gu + "|" + dong];
+          return r && r.med.pyeong;
+        });
+      });
+    });
+    if (have.length <= 1) { host.innerHTML = ""; host.hidden = true; host.dataset.set = ""; return; }
+    host.hidden = false;
+    if (!have.some(function (b) { return b.k === state.band; })) state.band = "all";
+
+    /* 칸 목록이 그대로면 다시 그리지 않는다. renderDeal이 돌 때마다 단추를
+       새로 만들면 방금 누른 단추가 사라져 초점이 날아가고 화면이 깜빡인다. */
+    var sig = have.map(function (b) { return b.k; }).join(",");
+    if (host.dataset.set !== sig) {
+      host.dataset.set = sig;
+      host.innerHTML = have.map(function (b) {
+        return '<button data-b="' + b.k + '">' + b.name + "</button>";
+      }).join("");
+    }
+    host.querySelectorAll("button").forEach(function (x) {
+      x.classList.toggle("active", x.dataset.b === state.band);
+    });
+    if (!host.dataset.wired) {
+      host.dataset.wired = "1";
+      host.addEventListener("click", function (e) {
+        var btn = e.target.closest("button[data-b]");
+        if (!btn) return;
+        state.band = btn.dataset.b;
+        fillDealBands();
+        renderDeal();
+      });
+    }
+  }
+
   function renderDeal() {
+    fillDealBands();
     if (!A) {
       document.getElementById("dealBody").innerHTML =
         '<tr class="empty-row"><td colspan="8">실거래 데이터(apt.js)를 불러오지 못했습니다.</td></tr>';
@@ -693,12 +781,18 @@
         "<td>" + x.st.jeonse.toLocaleString() + "</td>" +
         "<td>" + x.st.wolse.toLocaleString() + "</td>" +
         "</tr>";
-    }).join("") : '<tr class="empty-row"><td colspan="9">조건에 맞는 뉴타운이 없습니다.</td></tr>';
+    }).join("") : '<tr class="empty-row"><td colspan="9">' +
+      (state.band === "all" ? "조건에 맞는 뉴타운이 없습니다."
+        : esc(bandInfo(state.band).name) + " 매매 신고가 있는 뉴타운이 없습니다. 위 칸을 '전체'로 두고 보세요.") +
+      "</td></tr>";
     // 행이 채워진 뒤에 불러야 넘치는지 알 수 있다
     if (window.wireScrollBoxes) window.wireScrollBoxes();
 
     document.getElementById("dealDesc").innerHTML =
       "표본 " + aptWin().label + " · 국토교통부 아파트 실거래 기준. " +
+      (state.band === "all" ? "" :
+        "<b>" + esc(bandInfo(state.band).name) + "</b>만 추려 " + rows.length +
+        "개 뉴타운에 표본이 있습니다. ") +
       "동이 여러 개인 뉴타운은 <b>매매 건수로 가중평균</b>한 값이며, 괄호 없이 적은 동별 값이 그 재료입니다.";
 
     var top = rows.slice(0, 20);
