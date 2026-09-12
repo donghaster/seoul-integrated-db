@@ -194,11 +194,19 @@
       // 전세가율 — 같은 평형끼리 비교해야 뜻이 있다
       g.ratio = (g.medSale && g.medJeonse) ? Math.round(g.medJeonse / g.medSale * 100) : 0;
     });
-    list.sort(function (x, y) { return y.n - x.n; });
+    /* 예전에는 거래 많은 평형을 맨 위에 올렸다. 그런데 단지마다 순서가
+       제각각이라, 두 단지를 번갈아 보여 드리면 눈이 매번 줄을 다시 찾는다.
+       작은 평형부터 큰 평형으로 세운다 — 어느 단지를 열어도 같은 순서다.
+       다만 '대표 평형'은 여전히 가장 많이 거래된 쪽이어야 한다. 인근 유사
+       단지를 그 평형으로 찾고 브리핑도 그 평형으로 말하기 때문이다.
+       그래서 보여 주는 순서와 대표 평형을 따로 둔다. */
+    var main = list.slice().sort(function (x, y) { return y.n - x.n; })[0] || null;
+    list.sort(function (x, y) { return x.b - y.b; });
     return {
       apt: a,
       deals: inWin,
       bands: list,
+      main: main,
       cnt: {
         sale: inWin.filter(function (x) { return x.t === "sale"; }).length,
         jeonse: inWin.filter(function (x) { return x.t === "jeonse"; }).length,
@@ -1910,7 +1918,9 @@
       // 구운 자료 전체가 아니라 위에서 고른 기간을 말해야 한다.
       // 아래 표들과 같은 기간을 세면서 문장만 1년치를 말하면 서로 어긋난다.
       "조회 기간(" + state.start.slice(2).replace(/-/g, ".") + "~" + state.end.slice(2).replace(/-/g, ".") + ") 신고된 거래는 " +
-      "<b>매매 " + sum.cnt.sale + "건 · 전세 " + sum.cnt.jeonse + "건 · 월세 " + sum.cnt.wolse + "건</b>, " +
+      // 바로 뒤 합계는 '1,874건'인데 앞의 월세만 '1115건'이라 자릿점이 어긋났다
+      "<b>매매 " + sum.cnt.sale.toLocaleString() + "건 · 전세 " + sum.cnt.jeonse.toLocaleString() +
+      "건 · 월세 " + sum.cnt.wolse.toLocaleString() + "건</b>, " +
       "모두 " + total.toLocaleString() + "건입니다.");
 
     var sp = specialKind(sum);
@@ -1988,7 +1998,7 @@
     openAptKey = key;
 
     var a = sum.apt;
-    var mainBand = sum.bands[0] || null;
+    var mainBand = sum.main || null;    // 표는 작은 평형부터, 대표는 거래 많은 평형
     /* 기간을 좁혀 그 안에 거래가 하나도 없으면 대표 평형이 사라져
        '인근 유사 단지'가 통째로 빠진다. 그런데 바로 위 안내문은
        "아래 인근 유사 단지를 보세요"라고 가리키고 있다 — 정작 볼 게 없다.
