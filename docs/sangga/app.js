@@ -554,12 +554,15 @@
       };
     });
     out.sort(function (a, b) { return b.offi - a.offi; });
-    // 서울 전체면 4,500곳이 넘는다. 다 그리면 화면이 무거워지고, 500등짜리
-    // 건물을 상담에서 짚을 일도 없다. 상위 100곳만 놓고 나머지는 지역을
-    // 좁혀서 보시게 한다.
-    out.total = out.length;
-    var cut = out.slice(0, 100);
-    cut.total = out.length;
+    // 자료 쪽에서 이미 '동별 20 · 구별 60 · 서울 150'까지만 구워 온다
+    // (build_data.py trim_bld). 표를 그보다 길게 늘이면 61번째부터는 구울 때
+    // 잘려 나간 자리라 순위가 어긋난다. 굽는 만큼만 보여 준다.
+    var cut = out.slice(0, 60);
+    // 자른 목록의 길이가 아니라 그 지역의 진짜 건물 수를 쓴다. 자료 쪽에서
+    // 이미 한 번 잘라 왔으므로 out.length는 실제보다 적다.
+    var tk = state.dong !== ALL ? state.gu + "|" + state.dong
+           : state.gu !== ALL ? state.gu : "all";
+    cut.total = (D.offiBldTotal || {})[tk] || out.length;
     return cut;
   }
 
@@ -693,10 +696,10 @@
         "<th>상가 중위가</th><th>오피스텔 중위 매매가</th></tr>";
 
     document.getElementById("volDesc").innerHTML = isBld
-      ? "<b>" + volScopeLabel() + "</b> 오피스텔 " +
-        (rank.total && rank.total > rank.length
-          ? "건물 " + rank.total.toLocaleString() + "곳 중 거래 많은 <b>100곳</b>"
-          : "건물 " + rank.length.toLocaleString() + "곳") + "입니다. " +
+      ? "<b>" + volScopeLabel() + "</b> 오피스텔 건물 " +
+        (rank.total > rank.length
+          ? rank.total.toLocaleString() + "곳 중 거래 많은 <b>" + rank.length + "곳</b>"
+          : "<b>" + rank.length.toLocaleString() + "곳</b>") + "입니다. " +
         '<span class="dim-note">상가·업무용은 지번이 비공개(1**)이고 건물명도 오지 않아 ' +
         "건물별로 가를 수 없습니다.</span>"
       : "선택 지역의 <b>월별 거래건수</b>와 <b>" + volScopeLabel() + " 거래량 순위</b>입니다." +

@@ -467,6 +467,48 @@ def offi_jeonse_ratio(sale: list, rent: list) -> dict:
     return out
 
 
+# 오피스텔 건물별 순위를 어디까지 구울지.
+# 서울 4,548곳을 다 구우면 0.80MB인데, 화면은 표 60줄·막대 12개까지만 쓴다.
+# 나머지는 받아만 놓고 아무도 안 보는 무게다. 화면이 보여 줄 수 있는 만큼만
+# 굽되, 어느 지역을 골라도 그 지역 순위가 끊기지 않게 세 겹으로 남긴다.
+BLD_KEEP_DONG, BLD_KEEP_GU, BLD_KEEP_SEOUL = 20, 60, 150
+
+
+def trim_bld(rows: list[dict]) -> list[dict]:
+    """건물별 순위를 화면이 쓰는 만큼만 남긴다.
+
+    법정동을 고르면 그 동 안에서, 자치구를 고르면 그 구 안에서, 아무것도 안
+    고르면 서울 전체에서 순위가 매겨진다. 그래서 세 가지 잣대로 각각 상위를
+    골라 합집합을 남긴다 — 한 가지만 쓰면 "그 구에서는 3등인데 서울에서는
+    800등"인 건물이 구 보기에서 사라진다.
+
+    기간(3·6·12개월)마다 순위가 다르므로 기간별로도 따로 고른다.
+    """
+    keep: set[int] = set()
+
+    def pick(group: list[dict], w: str, n: int) -> None:
+        def tot(x):
+            v = x["w"].get(w)
+            return (v["s"] + v["j"] + v["o"]) if v else 0
+        for x in sorted(group, key=tot, reverse=True)[:n]:
+            keep.add(id(x))
+
+    by_gu: dict = defaultdict(list)
+    by_dong: dict = defaultdict(list)
+    for x in rows:
+        by_gu[x["gu"]].append(x)
+        by_dong[(x["gu"], x["dg"])].append(x)
+
+    for w in (str(v) for v in WINDOWS):
+        for g in by_dong.values():
+            pick(g, w, BLD_KEEP_DONG)
+        for g in by_gu.values():
+            pick(g, w, BLD_KEEP_GU)
+        pick(rows, w, BLD_KEEP_SEOUL)
+
+    return [x for x in rows if id(x) in keep]
+
+
 def build_sangga(yms: list[str]) -> dict:
     nrg = [r for r in load_all("nrgSale", yms) if r["date"] <= TODAY]
     offi_sale = [r for r in load_all("offiSale", yms) if r["date"] <= TODAY]
@@ -595,6 +637,16 @@ def build_sangga(yms: list[str]) -> dict:
         if row["w"]:
             rank_offi_bld.append(row)
 
+    # 자른 목록만 내려보내면 화면이 "역삼동 오피스텔 30곳"이라고 말하게 된다.
+    # 실제로는 그보다 많은데 잘린 것이라 거짓이 된다. 진짜 개수를 같이 굽는다.
+    offi_bld_total: dict = defaultdict(int)
+    for x in rank_offi_bld:
+        offi_bld_total["all"] += 1
+        offi_bld_total[x["gu"]] += 1
+        offi_bld_total[x["gu"] + "|" + x["dg"]] += 1
+
+    rank_offi_bld = trim_bld(rank_offi_bld)
+
     rank_gu = {}
     for w in WINDOWS:
         sw = str(w)
@@ -615,6 +667,7 @@ def build_sangga(yms: list[str]) -> dict:
         "regions": out_regions,
         "rankGu": rank_gu,
         "rankOffiBld": rank_offi_bld,
+        "offiBldTotal": dict(offi_bld_total),
         "groupLabel": NRG_GROUP_LABEL,
         "jeonseRatio": offi_jeonse_ratio(offi_sale, offi_rent),
         "total": len(nrg) + len(offi_sale) + len(offi_rent),
