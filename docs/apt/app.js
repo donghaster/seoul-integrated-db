@@ -1655,9 +1655,7 @@
   function initMap() {
     map = L.map("aptMap", { scrollWheelZoom: true }).setView([37.5535, 126.9905], 11);
     if (window.watchMapSize) window.watchMapSize(map, document.getElementById("aptMap"));
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "&copy; OpenStreetMap contributors", maxZoom: 19,
-    }).addTo(map);
+    window.osmTiles(map);
     markerLayer = L.layerGroup().addTo(map);
   }
 

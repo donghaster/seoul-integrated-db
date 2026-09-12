@@ -1574,9 +1574,7 @@
     map = L.map(el, { scrollWheelZoom: false }).setView([t.lat, t.lng], 14);
     if (window.watchMapSize) window.watchMapSize(map, el);
     map.attributionControl.setPrefix("");
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19, attribution: "&copy; OpenStreetMap contributors",
-    }).addTo(map);
+    window.osmTiles(map);
     layer = L.layerGroup().addTo(map);
 
     var show, near;

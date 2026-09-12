@@ -86,6 +86,30 @@
   syncChartTheme();
   window.addEventListener("themechange", syncChartTheme);
 
+  /* ── OSM 바탕 타일 ──
+     예전에는 'https://{s}.tile.openstreetmap.org/...'를 썼다. {s}는 Leaflet이
+     a·b·c 세 갈래로 나눠 부르는 자리인데, 어느 타일이 어느 갈래로 갈지는
+     좌표로 정해진다(abs(x+y) % 3). 그래서 세 갈래 중 하나가 안 열리는 망에서는
+     늘 같은 자리의 타일만 까맣게 남는다 — 지도 오른쪽 한 칸이 매번 같은 자리에
+     비던 게 이것으로 설명된다. OSM도 요즘은 갈래 없는 주소를 권한다.
+
+     타일이 하나 실패해도 그 자리는 그냥 빈 칸으로 남으므로, 한 번은 다시
+     불러 본다. 두 번째도 실패하면 더 조르지 않는다 — 지도가 목적이 아니라
+     위치를 짚어 주는 화면이라 한 칸이 비어도 브리핑은 이어진다. */
+  window.osmTiles = function (map) {
+    var layer = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap contributors", maxZoom: 19,
+    });
+    layer.on("tileerror", function (e) {
+      var img = e.tile;
+      if (!img || img.dataset.retried) return;
+      img.dataset.retried = "1";
+      var src = img.src;
+      setTimeout(function () { img.src = src.split("?")[0] + "?r=1"; }, 600);
+    });
+    return layer.addTo(map);
+  };
+
   /* ── 지도 칸이 바뀌면 지도에게 알려 준다 ──
      Leaflet은 창 크기가 바뀔 때만 스스로 다시 잰다. 칸만 넓어지는 경우
      — 옆 상세칸이 채워지거나, 고정 막대 높이가 달라지거나, 인쇄용으로

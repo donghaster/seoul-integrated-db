@@ -337,9 +337,7 @@
   function initMap() {
     map = L.map("ntMap", { scrollWheelZoom: true }).setView([37.5535, 126.9905], 11);
     if (window.watchMapSize) window.watchMapSize(map, document.getElementById("ntMap"));
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "&copy; OpenStreetMap contributors", maxZoom: 19,
-    }).addTo(map);
+    window.osmTiles(map);
     layer = L.layerGroup().addTo(map);
   }
 
@@ -585,9 +583,7 @@
   function initZoneMap() {
     zoneMap = L.map("zoneMap", { scrollWheelZoom: true }).setView(N.zoneDetail.noryangjin.center, 15);
     if (window.watchMapSize) window.watchMapSize(zoneMap, document.getElementById("zoneMap"));
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "&copy; OpenStreetMap contributors", maxZoom: 19,
-    }).addTo(zoneMap);
+    window.osmTiles(zoneMap);
     zoneLayer = L.layerGroup().addTo(zoneMap);
   }
 
