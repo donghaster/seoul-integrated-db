@@ -1067,12 +1067,18 @@
   }
 
   function moFlag(ym, n, hot) {
-    var t = "";
-    if (isPending(ym)) t += ' <span class="brief-flag">집계중</span>';
-    if (n > 0 && n < MIN_N) t += ' <span class="brief-thin">표본 적음</span>';
+    // 딱지가 '월' 칸 오른쪽으로 줄줄이 붙어 칸을 넓히고 표를 가로로 밀어냈다.
+    // 둘을 갈라 본다 — '집계중'인 달에 '표본 적음'은 당연한 말이라 겹쳐 붙일
+    // 이유가 없다(아직 들어오는 중이니 적은 게 맞다). '한 곳 N%'는 다르다.
+    // 다 들어온 달에도 중위값이 한 곳에 끌려갔다는 뜻이라 그대로 둔다.
+    var t = "", pending = isPending(ym);
+    if (pending) t += ' <span class="brief-flag">집계중</span>';
+    if (!pending && n > 0 && n < MIN_N) {
+      t += ' <span class="brief-thin" title="거래가 너무 적어 중위값을 시세로 보기 어렵습니다">적음</span>';
+    }
     if (hot && n) {
       t += ' <span class="brief-hot" title="' + esc(hot[0]) + ' 한 곳이 ' + hot[1] +
-           '건(' + Math.round(hot[1] / n * 100) + '%) — 중위값이 그 건물 값에 끌려갑니다">한 곳 ' +
+           '건(' + Math.round(hot[1] / n * 100) + '%) — 중위값이 그 건물 값에 끌려갑니다">한곳 ' +
            Math.round(hot[1] / n * 100) + '%</span>';
     }
     return t;

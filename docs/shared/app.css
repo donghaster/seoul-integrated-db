@@ -1384,6 +1384,16 @@ html[data-theme="dark"] .rank-table tbody tr.rank-mine { background: #1e2740; }
    들어 있던 table-wrap이 가로 스크롤이었으니 그 의도를 되살린 것이다. */
 .brief-card .brief-table th,
 .brief-card .brief-table td { white-space: nowrap; }
+/* '월' 칸만은 접히게 둔다. 집계중·한 곳 N% 딱지가 오른쪽으로 붙으면 이 칸이
+   넓어져 표 전체가 가로로 밀려 나간다. 딱지는 달 아래로 내려 놓는다 —
+   그 줄만 두 줄이 되고 나머지 열한 줄은 그대로다. */
+.brief-card .brief-table td:first-child { white-space: normal; }
+.brief-card .brief-table td:first-child { line-height: 1.25; }
+.brief-card .brief-table td:first-child .brief-flag,
+.brief-card .brief-table td:first-child .brief-thin,
+.brief-card .brief-table td:first-child .brief-hot {
+  margin-left: 0; font-size: 9px; padding: 0 4px; vertical-align: 0;
+}
 .brief-card .brief-scroll .brief-table th {
   position: sticky; top: 0; z-index: 2;
   background: var(--card-2);
