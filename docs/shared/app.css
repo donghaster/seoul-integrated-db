@@ -1372,3 +1372,21 @@ html[data-theme="dark"] .est-tag { color: #e0bd72; background: #2b2412; border-c
 }
 .rank-table tbody tr.rank-mine td { font-weight: 700; }
 html[data-theme="dark"] .rank-table tbody tr.rank-mine { background: #1e2740; }
+
+/* 월별 브리핑 카드 안의 표 — 여섯 달만 펼치고 나머지는 스크롤.
+   카드가 이미 테두리와 배경을 갖고 있어, 안에 또 상자를 그리면 겹쳐 보인다.
+   테두리는 지우고 스크롤과 머리글 고정만 가져간다. */
+.brief-card .brief-scroll {
+  border: 0; border-radius: 0; background: none;
+}
+/* 칸을 접지 않는다. 좁은 카드에서 "12억 3,212만원"이 두세 줄로 접히면 한 행이
+   34px에서 71px로 부푼다. 여섯 칸짜리 표는 가로로 조금 넘치는데, 원래 이 표가
+   들어 있던 table-wrap이 가로 스크롤이었으니 그 의도를 되살린 것이다. */
+.brief-card .brief-table th,
+.brief-card .brief-table td { white-space: nowrap; }
+.brief-card .brief-scroll .brief-table th {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--card-2);
+}
+/* 카드 안에서는 펼치기 단추도 한 단계 작게 */
+.brief-card .expand-btn { font-size: 11.5px; padding: 6px 0; margin-top: 5px; }

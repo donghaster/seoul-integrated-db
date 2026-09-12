@@ -49,6 +49,16 @@
     return rest.toLocaleString() + "만원";
   }
 
+  /* 억 단위 숫자만. 단위는 머리글이 지고 칸은 숫자만 놓는다 — "12억 3,212만원"을
+     열두 줄 늘어놓으면 눈이 단위를 매번 다시 읽는다. */
+  function eokNum(man) {
+    if (!man) return "-";
+    var v = man / 10000;
+    return v >= 100 ? Math.round(v).toLocaleString() : v.toFixed(1).replace(/\.0$/, "");
+  }
+
+  function manNum(man) { return man ? Math.round(man).toLocaleString() : "-"; }
+
   function areaText(a) { return a.toFixed(2) + "㎡ (" + (a / PYEONG).toFixed(1) + "평)"; }
   function dateText(d) { return d.replace(/-/g, "."); }
 
@@ -1042,6 +1052,10 @@
 
   function moLabel(ym) { return ym.slice(2, 4) + "년 " + parseInt(ym.slice(4), 10) + "월"; }
 
+  /* 표 안에서만 쓰는 짧은 달 — "25년 10월"은 열두 줄 늘어놓으면 '월' 칸 하나가
+     120px을 먹는다. 옆에 집계중·표본 적음 딱지까지 붙으니 표가 가로로 넘친다. */
+  function moShort(ym) { return ym.slice(2, 4) + "." + ym.slice(4); }
+
   // 신고 기한 30일 — 그 달 말일 + 30일이 자료 기준일을 넘으면 아직 집계중
   function isPending(ym) {
     var today = (D.today || D.builtAt || "").slice(0, 10);
@@ -1069,18 +1083,27 @@
     var r = (cur - prev) / prev * 100, sign = r > 0 ? "+" : "";
     if (nCur < MIN_N || nPrev < MIN_N || hot) {
       return '<span class="d-weak" title="표본이 적어 시세 변동으로 보기 어렵습니다">' +
-             sign + r.toFixed(1) + '%<sup>*</sup></span>';
+             sign + r.toFixed(1) + '<sup>*</sup></span>';
     }
     var cls = Math.abs(r) < 1 ? "d-flat" : (r > 0 ? "d-up" : "d-down");
-    return '<span class="' + cls + '">' + sign + r.toFixed(1) + "%</span>";
+    return '<span class="' + cls + '">' + sign + r.toFixed(1) + "</span>";
   }
 
   // 머리글을 두 줄로 — 단어 중간에서 끊기는 걸 막는다
   function th2(a, b) { return '<span class="th2">' + a + "</span><span class=\"th2\">" + b + "</span>"; }
 
+  /* 월별 브리핑 카드.
+
+     12개월을 다 펼치면 카드 하나가 950px이다. 상가·오피스텔 매매 표는 칸이
+     여섯이라 금액이 줄바꿈되면서 한 행이 71px로 부푼다(월세 표는 다섯 칸이라
+     34px이다). 세 카드가 나란히 서니 화면 한 장이 이 표로 다 찬다.
+
+     브리핑에서 주로 보는 건 최근 몇 달이라, 여섯 달만 펼쳐 두고 나머지는
+     스크롤로 넘긴다. 다른 표들과 같은 장치를 쓴다(wireScrollBoxes). */
   function briefCard(title, cols, rows) {
     return '<div class="brief-card"><h4>' + title + "</h4>" +
-      '<div class="table-wrap"><table class="brief-table"><thead><tr>' +
+      '<div class="deal-scroll brief-scroll" data-rows="6">' +
+      '<table class="brief-table"><thead><tr>' +
       cols.map(function (c) { return "<th>" + c + "</th>"; }).join("") +
       "</tr></thead><tbody>" + rows.join("") + "</tbody></table></div></div>";
   }
@@ -1139,43 +1162,46 @@
     var nrgRows = shop.map(function (x, i) {
       var o = office[i].r;
       var pv = i ? shop[i - 1].r[2] : 0, pn = i ? shop[i - 1].r[0] : 0;
-      return "<tr><td>" + moLabel(x.ym) + moFlag(x.ym, x.r[0], x.hot) + "</td>" +
-        "<td>" + x.r[0].toLocaleString() + "건</td>" +
-        "<td>" + (x.r[1] ? eokman(x.r[1]) : "-") + "</td>" +
-        "<td>" + (x.r[2] ? Math.round(x.r[2]).toLocaleString() + "만원" : "-") + "</td>" +
+      return "<tr><td>" + moShort(x.ym) + moFlag(x.ym, x.r[0], x.hot) + "</td>" +
+        "<td>" + x.r[0].toLocaleString() + "</td>" +
+        "<td>" + eokNum(x.r[1]) + "</td>" +
+        "<td>" + manNum(x.r[2]) + "</td>" +
         "<td>" + deltaHtml(x.r[2], pv, x.r[0], pn, x.hot) + "</td>" +
-        "<td>" + o[0].toLocaleString() + "건</td></tr>";
+        "<td>" + o[0].toLocaleString() + "</td></tr>";
     });
 
     // ── 오피스텔 매매·전세 ──
     var saleRows = sale.map(function (x, i) {
       var j = jeonse[i].r;
       var pv = i ? sale[i - 1].r[2] : 0, pn = i ? sale[i - 1].r[0] : 0;
-      return "<tr><td>" + moLabel(x.ym) + moFlag(x.ym, x.r[0], x.hot) + "</td>" +
-        "<td>" + x.r[0].toLocaleString() + "건</td>" +
-        "<td>" + (x.r[1] ? eokman(x.r[1]) : "-") + "</td>" +
+      return "<tr><td>" + moShort(x.ym) + moFlag(x.ym, x.r[0], x.hot) + "</td>" +
+        "<td>" + x.r[0].toLocaleString() + "</td>" +
+        "<td>" + eokNum(x.r[1]) + "</td>" +
         "<td>" + deltaHtml(x.r[2], pv, x.r[0], pn, x.hot) + "</td>" +
-        "<td>" + j[0].toLocaleString() + "건</td>" +
-        "<td>" + (j[1] ? eokman(j[1]) : "-") + "</td></tr>";
+        "<td>" + j[0].toLocaleString() + "</td>" +
+        "<td>" + eokNum(j[1]) + "</td></tr>";
     });
 
     // ── 오피스텔 월세: 값이 아니라 계약 구조가 핵심 ──
     var wolseRows = wolse.map(function (x) {
       var n = x.r[0];
-      return "<tr><td>" + moLabel(x.ym) + moFlag(x.ym, n, x.hot) + "</td>" +
-        "<td>" + n.toLocaleString() + "건</td>" +
-        "<td>" + (x.r[1] ? eokman(x.r[1]) : "-") + "</td>" +
-        "<td>" + (x.r[2] ? Math.round(x.r[2]).toLocaleString() + "만원" : "-") + "</td>" +
-        "<td>" + (n ? Math.round(x.r[3] / n * 100) + "%" : "-") + "</td></tr>";
+      return "<tr><td>" + moShort(x.ym) + moFlag(x.ym, n, x.hot) + "</td>" +
+        "<td>" + n.toLocaleString() + "</td>" +
+        "<td>" + manNum(x.r[1]) + "</td>" +
+        "<td>" + manNum(x.r[2]) + "</td>" +
+        "<td>" + (n ? Math.round(x.r[3] / n * 100) : "-") + "</td></tr>";
     });
 
     grid.innerHTML =
       briefCard("상가·업무용 매매",
-        ["월", "일반상가", th2("중위", "거래가"), th2("평당가", "연면적 기준"), "전월비", "업무용"], nrgRows) +
+        ["월", th2("일반상가", "(건)"), th2("중위 거래가", "(억)"),
+         th2("평당가", "(만원)"), th2("전월비", "(%)"), th2("업무용", "(건)")], nrgRows) +
       briefCard("오피스텔 매매·전세",
-        ["월", "매매", th2("중위", "매매가"), "전월비", "전세", th2("중위", "보증금")], saleRows) +
+        ["월", th2("매매", "(건)"), th2("중위 매매가", "(억)"), th2("전월비", "(%)"),
+         th2("전세", "(건)"), th2("중위 보증금", "(억)")], saleRows) +
       briefCard("오피스텔 월세",
-        ["월", "건수", th2("중위", "보증금"), th2("중위", "월세"), th2("준전세", "비중")], wolseRows);
+        ["월", th2("건수", "(건)"), th2("중위 보증금", "(만원)"),
+         th2("중위 월세", "(만원)"), th2("준전세", "(%)")], wolseRows);
 
     renderBriefThin([
       { name: "일반상가 매매", list: shop },
@@ -1185,6 +1211,7 @@
       { name: "오피스텔 월세", list: wolse },
     ]);
     renderBriefScript(shop, office, sale, jeonse, wolse);
+    if (window.wireScrollBoxes) window.wireScrollBoxes();
   }
 
   // 달마다 표본이 한 번도 MIN_N을 넘지 못한 유형은 따로 경고한다
