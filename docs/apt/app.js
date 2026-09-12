@@ -3499,6 +3499,15 @@
 
     renderIndexScript(sets, labels, isIdx);
 
+    /* 이 칸이 무엇에 답하는 칸인지 먼저 밝힌다. 월간과 주간은 정밀도의
+       차이가 아니라 쓰임의 차이다 — 월간은 방향을 보는 칸이고, 주간은
+       가장 최근 움직임을 보는 칸이다. 신고 기한이 30일이라 월간은 이번 달을
+       통째로 버리는데 주간은 지난 주들을 살리므로, 오히려 주간이 더 최근까지
+       본다. 이 말을 안 적어 두면 둘을 번갈아 누르며 "왜 다르지" 하게 된다. */
+    document.getElementById("idxPurpose").innerHTML = state.gran === "week"
+      ? '<b>최근 움직임</b><span>지난달에 무슨 일 있었나?</span>'
+      : '<b>방향</b><span>요즘 시장 어때요?</span>';
+
     document.getElementById("idxDesc").innerHTML =
       "조회 기간 <b>" + win().label + "</b> · " + (state.gran === "week" ? "주별" : "월별") + " 중위 평당가를 " +
       (isIdx ? "첫 구간 100 기준으로 지수화" : "만원/평 그대로") + "함. " +

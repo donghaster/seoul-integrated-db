@@ -756,6 +756,22 @@ section[data-tabpanel].is-on { display: block; }
 }
 .scope-moved b { color: var(--accent); }
 
+/* 이 칸이 무엇에 답하는 칸인지 — 월간이냐 주간이냐에 따라 바뀐다.
+   집계 기준은 위 고정 막대에 있어 섹션에서 멀다. 여기서 한 번 더 말해 준다. */
+.gran-purpose {
+  display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap;
+  margin: 0 0 8px; font-size: 13px;
+}
+.gran-purpose b {
+  font-size: 12px; font-weight: 800; letter-spacing: .01em;
+  color: #fff; background: var(--accent);
+  border-radius: 6px; padding: 3px 9px;
+}
+.gran-purpose span { color: var(--txt-dim); font-weight: 600; }
+/* 다크에서 --accent는 밝은 파랑이라 흰 글씨를 얹으면 3.3:1까지 떨어진다.
+   판은 그대로 두고 글씨를 어둡게 뒤집는다(순위 칩에서 쓰던 수법). */
+html[data-theme="dark"] .gran-purpose b { color: #12151c; }
+
 /* ════════════════ 계산값 블록 — 실거래와 확실히 구분한다 ════════════════ */
 
 .calc-box {
