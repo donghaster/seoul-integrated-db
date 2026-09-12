@@ -1178,6 +1178,7 @@
   guSelect.addEventListener("change", function () {
     state.gu = guSelect.value;
     state.dong = ALL;
+    scopeMoved = "";                       // 손으로 고른 것이니 안내를 거둔다
     fillDong();
     syncVolRankTab();
     renderAll();
@@ -1929,14 +1930,14 @@
       if (drop.hidden || !hits.length) return;
       if (e.key === "ArrowDown") { cursor = Math.min(cursor + 1, hits.length - 1); paint(); e.preventDefault(); }
       else if (e.key === "ArrowUp") { cursor = Math.max(cursor - 1, 0); paint(); e.preventDefault(); }
-      else if (e.key === "Enter") { showApt(hits[cursor < 0 ? 0 : cursor].key); closeDrop(); e.preventDefault(); }
+      else if (e.key === "Enter") { focusApt(hits[cursor < 0 ? 0 : cursor].key); closeDrop(); e.preventDefault(); }
       else if (e.key === "Escape") closeDrop();
     });
 
     drop.addEventListener("click", function (e) {
       var b = e.target.closest("button[data-k]");
       if (!b) return;
-      showApt(b.dataset.k);
+      focusApt(b.dataset.k);
       closeDrop();
     });
 
@@ -2192,6 +2193,47 @@
      안 그러면 '최근 12개월'로 바꿔 놓고도 상세는 3개월치를 말한다. */
   var openAptKey = null;
 
+  /* 검색 때문에 자치구를 옮겼으면 그 구 이름. 화면에 밝혀 두려고 들고 있다. */
+  var scopeMoved = "";
+
+  /* 단지를 찾아 들어갈 때 화면 전체를 그 단지 쪽으로 돌린다.
+
+     고객이 "반포래미안트리니원 어때요" 하고 물으면 단지 상세만 열리고
+     위쪽 지도·지수·브리핑·TOP30은 여전히 서울시 전체였다. 한 화면에서
+     "이 단지"와 "서울 전체"를 섞어 읽게 되니 말이 꼬인다. 찾은 단지의
+     자치구로 상단 고정을 옮겨 아래를 전부 같은 지역으로 맞춘다.
+
+     법정동까지는 안 좁힌다 — 동으로 조이면 TOP30에 그 단지가 아예 안
+     남는 일이 생겨, 정작 견줄 것이 없어진다.
+
+     renderAll()이 openAptKey를 보고 상세를 다시 그리므로, 여기서는
+     openAptKey만 세워 두고 renderAll()에 맡긴다. showApt()를 직접
+     부르면 renderAll() 안에서 한 번 더 그려 두 번 일한다. */
+  function focusApt(key) {
+    var a = BY_APT[key];
+    if (!a || state.gu === a.gu) {
+      scopeMoved = "";
+      showApt(key);
+      return;
+    }
+    state.gu = a.gu;
+    state.dong = ALL;
+    guSelect.value = a.gu;
+    scopeMoved = a.gu;
+    openAptKey = key;
+    fillDong();
+    syncVolRankTab();
+    renderAll();
+    // 화면 전체가 다시 그려지며 높이가 달라진다. 찾은 단지가 화면 밖으로
+    // 밀려나면 "검색이 된 건가?" 싶으니, 상단 고정을 피해 그 자리로 옮긴다.
+    var card = document.getElementById("aptResult");
+    if (card && card.firstChild) {
+      var hi = (window.stickyH ? window.stickyH() : 90) + 12;
+      window.scrollTo({ top: card.getBoundingClientRect().top + window.scrollY - hi,
+                        behavior: "smooth" });
+    }
+  }
+
   function showApt(key) {
     var sum = aptSummary(key);
     var host = document.getElementById("aptResult");
@@ -2228,6 +2270,11 @@
             (a.y ? " · " + a.y + "년 준공" : "") +
             " · 신고 " + (sum.cnt.sale + sum.cnt.jeonse + sum.cnt.wolse).toLocaleString() + "건" +
             (sum.last ? " · 최근 " + dateText(sum.last) : "") + "</p>" +
+          (scopeMoved === a.gu
+            ? '<p class="scope-moved">상단 고정 자치구를 <b>' + esc(a.gu) +
+              "</b>로 맞췄음 — 아래 위치 지도·가격 지수·월별 브리핑·TOP30·입지분석도 모두 " +
+              esc(a.gu) + " 기준.</p>"
+            : "") +
         "</div>" +
 
         "<h4>평형별 시세</h4>" +

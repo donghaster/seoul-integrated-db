@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>금집부쌤의 서울시 통합 부동산 대시보드 — 아파트</title>
-  <link rel="stylesheet" href="../shared/app.css?v=669222680c" />
+  <link rel="stylesheet" href="../shared/app.css?v=be2964614e" />
   <!-- 색 테마를 첫 칠 전에 찍는다. brand.js는 본문 맨 아래라, 다크로 맞춰 둔
        폰에서 흰 화면이 한 번 번쩍인 뒤 어두워진다. -->
   <script>
@@ -75,6 +75,26 @@
     <label>법정동 <span class="dim-note">선택한 구 내</span></label>
     <div class="tab-row seg-sm chip-wrap" id="dongChips"></div>
   </div>
+  <!-- 집계 기준과 기간은 막대 오른쪽 끝에 둔다. 본문에 두었더니 화면을
+       내리는 순간 사라져, 아래 표를 보면서도 지금이 주간인지 월간인지
+       확인하려면 매번 맨 위로 올라가야 했다. -->
+  <div class="gran-group" aria-label="집계 조건">
+    <div class="ctl">
+      <label>집계 기준</label>
+      <div class="tab-row seg-sm" id="granTabs">
+        <button data-g="week">주간</button>
+        <button class="active" data-g="month">월간</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <label for="startDate">시작일</label>
+      <input type="date" id="startDate" />
+    </div>
+    <div class="ctl">
+      <label for="endDate">종료일</label>
+      <input type="date" id="endDate" />
+    </div>
+  </div>
 </section>
 
 <nav class="section-nav" aria-label="섹션 바로가기">
@@ -93,26 +113,6 @@
 
 <div class="wrap">
   <div id="printBanner" class="print-only print-page-banner"></div>
-
-  <!-- 한 번 맞춰 두고 잘 안 바꾸는 조건은 고정 막대에 두지 않는다.
-       브리핑 중에 바꾸는 건 자치구·법정동·기간뿐이다. -->
-  <section class="filter-bar" aria-label="집계 조건">
-    <div class="ctl">
-      <label>집계 기준</label>
-      <div class="tab-row seg-sm" id="granTabs">
-        <button data-g="week">주간</button>
-        <button class="active" data-g="month">월간</button>
-      </div>
-    </div>
-    <div class="ctl">
-      <label for="startDate">시작일</label>
-      <input type="date" id="startDate" />
-    </div>
-    <div class="ctl">
-      <label for="endDate">종료일</label>
-      <input type="date" id="endDate" />
-    </div>
-  </section>
 
   <!-- ─────────────── 핵심 요약 ─────────────── -->
   <section class="card-section" id="sec-kpi">
@@ -488,7 +488,7 @@
 <!-- 입지분석: 지하철·학교·공원·상권·인구(locinfo) + 개발 호재는 뉴타운 자료를 재사용 -->
 <script src="../data/locinfo.js?v=e97bc091b7"></script>
 <script src="../data/newtown.js?v=8ba14b3baf"></script>
-<script src="../shared/brand.js?v=3ab59876bc"></script>
-<script src="app.js?v=71a2ba2d58"></script>
+<script src="../shared/brand.js?v=717bc69d33"></script>
+<script src="app.js?v=f95fa457ef"></script>
 </body>
 </html>

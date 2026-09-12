@@ -211,6 +211,7 @@
   var sticky = document.getElementById("stickyTop");
 
   function stickyH() { return sticky ? sticky.getBoundingClientRect().height : 90; }
+  window.stickyH = stickyH;        // 대시보드 쪽에서도 이 높이를 피해 스크롤한다
 
   if (sticky) {
     // 조금만 내려가도 부제와 로고를 접어 막대를 한 단 낮춘다.

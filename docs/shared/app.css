@@ -746,6 +746,16 @@ section[data-tabpanel].is-on { display: block; }
   color: #9c3232; background: #fdefef; border: 1px solid #f0cfcf;
 }
 
+/* 찾아보기로 자치구가 옮겨졌음을 밝히는 줄. 화면이 통째로 바뀐 까닭을
+   여기서 말해 주지 않으면 "왜 갑자기 서초구지?" 하게 된다. */
+.scope-moved {
+  margin: 8px 0 0; font-size: 12.5px; line-height: 1.55;
+  color: var(--accent-2); background: var(--card-2);
+  border-left: 3px solid var(--accent); border-radius: 0 7px 7px 0;
+  padding: 7px 11px;
+}
+.scope-moved b { color: var(--accent); }
+
 /* ════════════════ 계산값 블록 — 실거래와 확실히 구분한다 ════════════════ */
 
 .calc-box {
@@ -1514,6 +1524,28 @@ html[data-theme="dark"] .mine-tag { background: #3a63bd; }
 .stickytop .filter-bar select { padding: 6px 10px; font-size: 13px; min-width: 120px; }
 .stickytop .filter-note { font-size: 11.5px; }
 
+/* 집계 기준·시작일·종료일 — 막대 오른쪽 끝에 붙인다.
+   본문에 두었더니 화면을 조금만 내려도 사라져, 아래 표를 보면서 '지금
+   주간인가 월간인가'를 확인하려면 매번 맨 위로 올라가야 했다.
+   기간 안내(periodNote)가 밀어내기(margin-left:auto)를 쓰고 있어, 둘이
+   같이 있으면 남는 자리를 반씩 나눠 가운데로 떠 버린다. 밀어내기는
+   이쪽 하나만 갖는다. */
+.stickytop .filter-bar .filter-note { margin-left: 0; }
+.stickytop .gran-group {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px;
+  margin-left: auto; flex: 0 0 auto;    /* 법정동 칩이 늘어나도 여기는 안 눌린다 */
+}
+.stickytop .gran-group .ctl { display: flex; flex-direction: row; align-items: center; gap: 7px; }
+.stickytop .gran-group label { font-size: 11.5px; font-weight: 700; color: var(--txt-mute); white-space: nowrap; }
+.stickytop .gran-group input[type="date"] {
+  font: inherit; font-size: 12.5px; font-weight: 700; color: var(--txt);
+  border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; background: var(--card);
+}
+.stickytop .gran-group input[type="date"]:focus {
+  outline: 2px solid var(--accent-light); border-color: var(--accent);
+}
+
+
 /* 상권분석의 '보는 범위'는 카드 안에 있던 것을 막대로 올렸다. 카드 테두리와
    배경을 그대로 두면 막대 안에 또 상자가 생겨 두꺼워진다. */
 .stickytop .scope-bar {
@@ -1623,6 +1655,14 @@ html[data-theme="dark"] .mine-tag { background: #3a63bd; }
   /* 법정동은 아래 한 줄을 통째로 쓰고, 칩이 많으면 그 안에서 옆으로 넘긴다.
      '선택한 구 내' 같은 덧말은 폰에서 자리만 먹으니 접는다. */
   .stickytop .filter-bar .ctl-full { flex: 1 0 100%; }
+  /* 집계 조건은 좁은 화면에서 제 줄을 갖는다. 한 줄에 붙여 두면 종료일이
+     화면 밖으로 밀려 나가 가로 스크롤이 생긴다. 날짜 칸도 함께 줄인다. */
+  .stickytop .gran-group { flex: 1 0 100%; margin-left: 0; gap: 6px 10px; }
+  .stickytop .gran-group .ctl { flex: 0 1 auto; min-width: 0; }
+  .stickytop .gran-group label { font-size: 11px; }
+  .stickytop .gran-group input[type="date"] {
+    font-size: 12px; padding: 4px 6px; min-width: 0; max-width: 126px;
+  }
   .stickytop .filter-bar .ctl-full label .dim-note { display: none; }
 }
 
