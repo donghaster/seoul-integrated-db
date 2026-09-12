@@ -3087,29 +3087,67 @@
     return end > cut;
   }
 
+  /* 국면은 '앞 절반 중위값'과 '뒤 절반 중위값'을 견준다.
+
+     첫 점과 끝 점만 보던 때는 집계 기준을 월간에서 주간으로 바꾸는 것만으로
+     결론이 뒤집혔다. 서울 전체 최근 6개월이 월간에서는 +5.8% 오름세,
+     주간에서는 +0.4% 보합이었다. 값이 달라져서가 아니라 끝점이 다른 자리에
+     떨어져서다 — 월간은 봉우리인 7월(4,590)에서 멈추는데, 7월 안쪽 주들은
+     이미 내려오는 중(07/06 4,680 → 08/03 4,310)이라 주간은 그 언덕을 네
+     걸음 더 내려간 자리에서 멈춘다. 평균끼리 견주면 같은 자료가 같은 답을
+     낸다 — 월간 +0.3%, 주간 −0.1%로 둘 다 보합.
+
+     한 구간의 중위 평당가는 그 구간에 어느 동네가 신고했느냐에 크게
+     흔들린다(강남이 많이 들어온 주는 서울 전체가 올라가 보인다). 그러니
+     끝 점 하나에 결론을 걸지 않는다.
+
+     기울기 변화도 같은 까닭으로 사분면 평균끼리 견준다. 한쪽은 평균으로
+     재고 다른 쪽은 끝점으로 재면 "+0.3%인데 13.6%p 느려짐"처럼 두 숫자가
+     서로 다른 말을 한다. */
+  /* 한쪽 끝이 유난할 때 끌려가지 않도록 평균이 아니라 중위값으로 견준다.
+     서울 전체 12개월을 주간으로 보면 25년 10/20 주가 평당 7,997만원이다.
+     그 주에 값이 두 배가 된 것이 아니라, 강남·서초 물량이 몰려 신고된
+     것뿐이다. 평균을 쓰면 이런 주 서넛이 앞 절반을 통째로 들어 올려
+     "−5.2% 약세"가 되고, 중위값을 쓰면 "+4.2% 보합"이 된다. */
+  function midOf(a) { return median(a); }
+
+  /* 고점과 저점의 격차도 가운데 80%만 보고 잰다.
+     구간 수가 많아질수록 양 끝의 별난 값을 만날 확률이 올라가, 같은 자료인데
+     주간으로 보면 107%, 월간으로 보면 19.7%가 나왔다. 가운데만 재면 19.6%와
+     12.5%로 모인다 — 그래야 집계 기준을 바꿔도 같은 말을 한다. */
+  function swingOf(v) {
+    var s = v.slice().sort(function (x, y) { return x - y; });
+    var cut = Math.floor(s.length / 10);
+    if (cut) s = s.slice(cut, s.length - cut);
+    return s[0] ? (s[s.length - 1] - s[0]) / s[0] * 100 : 0;
+  }
+
   function phaseOf(vals) {
     if (!vals || vals.length < 2) return null;
-    var a = vals[0], b = vals[vals.length - 1];
+    var h = Math.floor(vals.length / 2);
+    var a = midOf(vals.slice(0, h));                    // 앞 절반
+    var b = midOf(vals.slice(vals.length - h));         // 뒤 절반
     if (!a) return null;
     var r = (b - a) / a * 100;
 
-    // 뒤 절반이 앞 절반보다 빨라졌는지 느려졌는지
+    // 뒤 절반이 앞 절반보다 빨라졌는지 느려졌는지 — 사분면 중위값으로 잰다
     var accel = null;
     if (vals.length >= 4) {
-      var h = Math.floor(vals.length / 2);
-      var e1 = (vals[h - 1] - vals[0]) / vals[0] * 100;
-      var e2 = (vals[vals.length - 1] - vals[h]) / vals[h] * 100;
-      accel = e2 - e1;
+      var q = Math.floor(vals.length / 4);
+      var q1 = midOf(vals.slice(0, q));
+      var q2 = midOf(vals.slice(q, q * 2));
+      var q3 = midOf(vals.slice(vals.length - q * 2, vals.length - q));
+      var q4 = midOf(vals.slice(vals.length - q));
+      if (q1 && q3) accel = (q4 - q3) / q3 * 100 - (q2 - q1) / q1 * 100;
     }
-    var hi = Math.max.apply(null, vals), lo = Math.min.apply(null, vals);
-    var swing = lo ? (hi - lo) / lo * 100 : 0;
+    var swing = swingOf(vals);
 
     var tag, tone;
     if (swing >= 25) { tag = "흔들림이 큰 국면"; tone = "warn"; }
     else if (r >= 5) { tag = (accel !== null && accel < -2) ? "오름세가 둔화되는 국면" : "오름세 국면"; tone = "up"; }
     else if (r <= -5) { tag = (accel !== null && accel > 2) ? "내림세가 진정되는 국면" : "약세 국면"; tone = "down"; }
     else { tag = "보합 국면"; tone = "flat"; }
-    return { tag: tag, tone: tone, r: r, accel: accel, swing: swing };
+    return { tag: tag, tone: tone, r: r, accel: accel, swing: swing, front: a, back: b };
   }
 
   function conclHtml(tag, tone, lines, advice) {
@@ -3170,10 +3208,11 @@
       }
 
       var why = [];
-      why.push("<b>" + esc(lead.label) + "</b>가 조회 구간에서 <b>" +
+      why.push("<b>" + esc(lead.label) + "</b>는 조회 구간 <b>앞 절반 중위 " +
+        pyNum(ph.front) + "만원</b>에서 <b>뒤 절반 중위 " + pyNum(ph.back) + "만원</b>으로 <b>" +
         (ph.r >= 0 ? "+" : "\u2212") + Math.abs(ph.r).toFixed(1) + "%</b>.");
       if (ph.accel !== null && Math.abs(ph.accel) >= 2) {
-        why.push("뒤 절반이 앞 절반보다 <b>" + Math.abs(ph.accel).toFixed(1) + "%p " +
+        why.push("게다가 <b>뒤로 갈수록 " + Math.abs(ph.accel).toFixed(1) + "%p " +
           (ph.accel > 0 ? "빨라짐" : "느려짐") + "</b>.");
       }
       if (ph.swing >= 15) {
@@ -3835,8 +3874,8 @@
     var ph = phaseOf(vals);
     var a = use[0], b = use[use.length - 1];
 
-    var why = ["<b>매매 중위 평당가</b>가 " + moLabel(a.m) + " " + pyNum(a.sale.py) +
-      "만원에서 " + moLabel(b.m) + " " + pyNum(b.sale.py) + "만원으로 <b>" +
+    var why = ["<b>매매 중위 평당가</b>는 " + moLabel(a.m) + "~" + moLabel(b.m) +
+      " 구간에서 <b>앞 절반 중위 " + pyNum(ph.front) + "만원</b> → " + "<b>뒤 절반 중위 " + pyNum(ph.back) + "만원</b>으로 <b>" +
       (ph.r >= 0 ? "+" : "\u2212") + Math.abs(ph.r).toFixed(1) + "%</b>."];
 
     // 거래량 — 마감된 달끼리만
