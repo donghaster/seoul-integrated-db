@@ -520,6 +520,10 @@
   function volRankDefault() { return state.gu === ALL ? "gu" : "dong"; }
 
   function volScopeLabel() {
+    if (state.volRank === "bld") {
+      return state.dong !== ALL ? state.gu + " " + state.dong
+           : state.gu !== ALL ? state.gu : "서울 전체";
+    }
     if (state.volRank !== "dong") return "서울 자치구별";
     return (state.gu === ALL ? "서울" : state.gu) + " 법정동별";
   }
@@ -531,7 +535,36 @@
     });
   }
 
+  /* 오피스텔 건물별 — 구워 둔 서울 전체 목록을 고른 지역으로 걸러 쓴다. */
+  function offiBldList() {
+    var rows = (D.rankOffiBld || []).filter(function (x) {
+      if (state.gu !== ALL && x.gu !== state.gu) return false;
+      if (state.dong !== ALL && x.dg !== state.dong) return false;
+      return !!x.w[state.win];
+    });
+    var out = rows.map(function (x) {
+      var w = x.w[state.win];
+      return {
+        k: x.gu + "|" + x.dg + "|" + x.n,
+        label: state.dong !== ALL ? x.n
+             : state.gu !== ALL ? x.n + " (" + x.dg + ")"
+             : x.n + " (" + x.gu + " " + x.dg + ")",
+        sale: w.s, jeonse: w.j, wolse: w.o, med: w.med,
+        nrg: 0, offi: w.s + w.j + w.o,
+      };
+    });
+    out.sort(function (a, b) { return b.offi - a.offi; });
+    // 서울 전체면 4,500곳이 넘는다. 다 그리면 화면이 무거워지고, 500등짜리
+    // 건물을 상담에서 짚을 일도 없다. 상위 100곳만 놓고 나머지는 지역을
+    // 좁혀서 보시게 한다.
+    out.total = out.length;
+    var cut = out.slice(0, 100);
+    cut.total = out.length;
+    return cut;
+  }
+
   function volRankList() {
+    if (state.volRank === "bld") return offiBldList();
     if (state.volRank !== "dong") {
       // 자치구별은 구워 둔 순위를 그대로 쓴다(서울 전체)
       return D.rankGu[state.win].slice();
@@ -617,42 +650,80 @@
       data: {
         // 위 표의 순위와 짝이 맞게 번호를 붙인다
         labels: top.map(function (x, i) { return (i + 1) + ". " + x.label; }),
-        datasets: [
-          { label: "상가·업무용 매매", data: top.map(function (x) { return x.nrg; }), backgroundColor: "#4f7fe6", barThickness: 13 },
-          { label: "오피스텔 (매매+전월세)", data: top.map(function (x) { return x.offi; }), backgroundColor: "#4fada8", barThickness: 13 },
-        ],
+        datasets: state.volRank === "bld"
+          ? [
+            { label: "매매", data: top.map(function (x) { return x.sale; }), backgroundColor: "#4f7fe6", barThickness: 13 },
+            { label: "전세", data: top.map(function (x) { return x.jeonse; }), backgroundColor: "#4fada8", barThickness: 13 },
+            { label: "월세", data: top.map(function (x) { return x.wolse; }), backgroundColor: "#cf9a45", barThickness: 13 },
+          ]
+          : [
+            { label: "상가·업무용 매매", data: top.map(function (x) { return x.nrg; }), backgroundColor: "#4f7fe6", barThickness: 13 },
+            { label: "오피스텔 (매매+전월세)", data: top.map(function (x) { return x.offi; }), backgroundColor: "#4fada8", barThickness: 13 },
+          ],
       },
       options: {
         indexAxis: "y",
         responsive: true, maintainAspectRatio: false,
         plugins: {
           legend: { labels: { boxWidth: 12, font: { size: 11 } } },
-          title: { display: true, text: volScopeLabel() + " 실거래량 TOP 12 (" + win().label + ")",
+          title: { display: true,
+                   text: volScopeLabel() +
+                     (state.volRank === "bld" ? " 오피스텔 건물별 거래량" : " 실거래량") +
+                     " TOP 12 (" + win().label + ")",
                    font: { size: 13, weight: "bold" } },
         },
         scales: { x: { stacked: true, beginAtZero: true, title: { display: true, text: "건" } }, y: { stacked: true } },
       },
     });
 
-    // 25개 자치구를 다 담는다 — 표는 10행만 보이고 나머지는 펼쳐서 본다
-    document.getElementById("volRankHead").textContent =
-      state.volRank === "dong" ? "법정동" : "자치구";
-    document.getElementById("volDesc").innerHTML =
-      "선택 지역의 <b>월별 거래건수</b>와 <b>" + volScopeLabel() + " 거래량 순위</b>입니다." +
-      (state.volRank === "dong"
-        ? ' <span class="dim-note">자치구별 탭은 언제나 서울 25개 구를 보여 줍니다.</span>' : "");
+    var isBld = state.volRank === "bld";
 
-    var mineKey = state.volRank === "dong"
-      ? (state.dong === ALL ? null : state.gu + "|" + state.dong)
-      : (state.gu === ALL ? null : state.gu);
+    // 건물별은 상가 칸이 뜻이 없다(상가는 건물을 가를 수 없으므로 늘 0이다).
+    // 그래서 표 머리도 단위에 맞춰 갈아 끼운다.
+    document.getElementById("volRankThead").innerHTML = isBld
+      ? "<tr><th>순위</th><th>오피스텔 건물</th>" +
+        '<th>매매 <span class="th-sub">건</span></th>' +
+        '<th>전세 <span class="th-sub">건</span></th>' +
+        '<th>월세 <span class="th-sub">건</span></th>' +
+        "<th>합계</th><th>중위 매매가</th></tr>"
+      : "<tr><th>순위</th><th>" + (state.volRank === "dong" ? "법정동" : "자치구") + "</th>" +
+        '<th>상가·업무용 <span class="th-sub">건</span></th>' +
+        '<th>오피스텔 매매 <span class="th-sub">건</span></th>' +
+        '<th>오피스텔 전월세 <span class="th-sub">건</span></th>' +
+        "<th>상가 중위가</th><th>오피스텔 중위 매매가</th></tr>";
+
+    document.getElementById("volDesc").innerHTML = isBld
+      ? "<b>" + volScopeLabel() + "</b> 오피스텔 " +
+        (rank.total && rank.total > rank.length
+          ? "건물 " + rank.total.toLocaleString() + "곳 중 거래 많은 <b>100곳</b>"
+          : "건물 " + rank.length.toLocaleString() + "곳") + "입니다. " +
+        '<span class="dim-note">상가·업무용은 지번이 비공개(1**)이고 건물명도 오지 않아 ' +
+        "건물별로 가를 수 없습니다.</span>"
+      : "선택 지역의 <b>월별 거래건수</b>와 <b>" + volScopeLabel() + " 거래량 순위</b>입니다." +
+        (state.volRank === "dong"
+          ? ' <span class="dim-note">자치구별 탭은 언제나 서울 25개 구를 보여 줍니다.</span>' : "");
+
+    // 지금 보고 있는 지역은 표에서 짚어 준다 — 25줄에서 눈으로 찾게 두면 상담이 끊긴다
+    var mineKey = isBld ? null
+      : state.volRank === "dong"
+        ? (state.dong === ALL ? null : state.gu + "|" + state.dong)
+        : (state.gu === ALL ? null : state.gu);
 
     document.getElementById("volGuBody").innerHTML = rank.length ? rank.map(function (x, i) {
-      var reg = regionOf(x.k);
       var rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
-      // 지금 보고 있는 지역은 표에서 짚어 준다 — 25줄에서 눈으로 찾게 두면 상담이 끊긴다
-      return '<tr' + (x.k === mineKey ? ' class="rank-mine"' : "") + ">" +
+      var head = '<tr' + (x.k === mineKey ? ' class="rank-mine"' : "") + ">" +
         '<td><span class="rank-chip ' + rc + '">' + (i + 1) + "</span></td>" +
-        '<td class="rt-name">' + esc(x.label) + "</td>" +
+        '<td class="rt-name">' + esc(x.label) + "</td>";
+      if (isBld) {
+        return head +
+          '<td class="rt-price">' + x.sale.toLocaleString() + "건</td>" +
+          "<td>" + x.jeonse.toLocaleString() + "건</td>" +
+          "<td>" + x.wolse.toLocaleString() + "건</td>" +
+          "<td>" + x.offi.toLocaleString() + "건</td>" +
+          "<td>" + eokman(x.med) + "</td></tr>";
+      }
+      var reg = regionOf(x.k);
+      return head +
         '<td class="rt-price">' + x.nrg.toLocaleString() + "건</td>" +
         "<td>" + (reg.offiCnt.sale || 0).toLocaleString() + "건</td>" +
         "<td>" + ((reg.offiCnt.jeonse || 0) + (reg.offiCnt.wolse || 0)).toLocaleString() + "건</td>" +
@@ -660,7 +731,7 @@
         "<td>" + eokman(reg.med.offiSale) + "</td>" +
         "</tr>";
     }).join("") : '<tr class="empty-row"><td colspan="7">해당 기간 · 지역에 거래가 있는 ' +
-      (state.volRank === "dong" ? "법정동이" : "자치구가") + " 없습니다.</td></tr>";
+      (isBld ? "오피스텔 건물이" : state.volRank === "dong" ? "법정동이" : "자치구가") + " 없습니다.</td></tr>";
     if (window.wireScrollBoxes) window.wireScrollBoxes();
   }
 

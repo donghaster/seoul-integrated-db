@@ -1364,6 +1364,20 @@
 
   /* 위에서 고른 만큼 순위표도 따라 내려간다. 손으로 탭을 바꾸면 그 선택을
      존중하되, 지역이 바뀌면 다시 그 지역에 맞는 탭으로 되돌린다. */
+  /* 순위표에서 지금 보고 있는 곳의 이름.
+
+     "우리 동네 몇 위냐"는 상담에서 늘 나오는 질문인데, 25줄짜리 표에서 눈으로
+     찾게 두면 브리핑이 끊긴다. 단위(자치구·법정동·단지)에 맞는 이름을 돌려주고,
+     그 이름과 같은 줄에 표시를 붙인다. 단지별은 고른 단지가 따로 없으므로 없다. */
+  function mineName(unit) {
+    if (unit === "gu") return state.gu === ALL ? null : state.gu;
+    if (unit === "dong") {
+      if (state.dong === ALL) return null;
+      return state.gu === ALL ? state.gu + " " + state.dong : state.dong;
+    }
+    return null;
+  }
+
   function volRankDefault() {
     if (state.dong !== ALL) return "apt";
     if (state.gu !== ALL) return "dong";
@@ -1434,7 +1448,7 @@
       var reg = x.stat;
       var rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
       var name = rowName(x);
-      return "<tr>" +
+      return '<tr' + (name === mineName(mode) ? ' class="rank-mine"' : "") + ">" +
         '<td><span class="rank-chip ' + rc + '">' + (i + 1) + "</span></td>" +
         '<td class="rt-name">' + esc(name) + "</td>" +
         '<td class="rt-price">' + (x.c || 0).toLocaleString() + "건</td>" +
@@ -3170,9 +3184,10 @@
         " 거래가 " + (RANK_MIN[unit] || 3) + "건 이상인 " +
         (unit === "gu" ? "자치구가" : unit === "dong" ? "법정동이" : "단지가") + " 없습니다.</td></tr>";
     }
+    var mine = mineName(unit);
     return rows.map(function (r, i) {
       var rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
-      return "<tr>" +
+      return '<tr' + (r.n === mine ? ' class="rank-mine"' : "") + ">" +
         '<td><span class="rank-chip ' + rc + '">' + (i + 1) + "</span></td>" +
         '<td class="rt-name">' + esc(r.n) + "</td>" +
         '<td class="rt-price">' + pyNum(r.py) + "만원</td>" +
@@ -3245,11 +3260,12 @@
       return '<tr class="empty-row"><td colspan="6">전·후반부 모두 거래가 있는 ' + what +
         " 없습니다. 조회 기간을 늘려 보세요.</td></tr>";
     }
+    var mine = mineName(unit);
     return rows.map(function (r, i) {
       var rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
       var up = r.rate >= 0;
       var few = r.cnt <= 3;
-      return "<tr>" +
+      return '<tr' + (r.n === mine ? ' class="rank-mine"' : "") + ">" +
         '<td><span class="rank-chip ' + rc + '">' + (i + 1) + "</span></td>" +
         '<td class="rt-name">' + esc(r.n) + "</td>" +
         "<td>" + r.before.toLocaleString() + "만원</td>" +

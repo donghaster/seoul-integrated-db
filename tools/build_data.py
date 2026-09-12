@@ -561,6 +561,40 @@ def build_sangga(yms: list[str]) -> dict:
             )[:12] if "|" not in key else [],
         }
 
+    # 오피스텔 건물별 순위 — 상가는 못 만든다.
+    # 상업용 실거래는 국토부가 지번을 비공개(1**)로 주고 건물명 칸이 아예 없어
+    # 건물을 가를 방법이 없다. 오피스텔은 건물명이 오므로 이쪽만 만든다.
+    # 서울 전체를 한 벌로 굽고 화면에서 구·동으로 걸러 쓴다 — 지역마다 따로
+    # 구우면 같은 건물이 구·동·전체에 세 번씩 들어가 파일만 커진다.
+    bld: dict = {}
+    for r in offi_sale + offi_rent:
+        nm = (r.get("name") or "").strip()
+        if not nm:
+            continue
+        k = (r["gu"], r.get("dong") or "", nm)
+        b = bld.setdefault(k, {"c": {}, "v": {}})
+        for w in WINDOWS:
+            if ym_of(r) not in set(yms[-w:]):
+                continue
+            sw = str(w)
+            b["c"].setdefault(sw, {"sale": 0, "jeonse": 0, "wolse": 0})
+            b["c"][sw][r["t"]] += 1
+            if r["t"] == "sale":
+                b["v"].setdefault(sw, []).append(r["amount"])
+
+    rank_offi_bld = []
+    for (gu, dong, nm), b in bld.items():
+        row = {"gu": gu, "dg": dong, "n": nm, "w": {}}
+        for w in WINDOWS:
+            sw = str(w)
+            c = b["c"].get(sw)
+            if not c:
+                continue
+            row["w"][sw] = {"s": c["sale"], "j": c["jeonse"], "o": c["wolse"],
+                            "med": med(b["v"].get(sw) or [])}
+        if row["w"]:
+            rank_offi_bld.append(row)
+
     rank_gu = {}
     for w in WINDOWS:
         sw = str(w)
@@ -580,6 +614,7 @@ def build_sangga(yms: list[str]) -> dict:
         "gus": list(SEOUL_GU),
         "regions": out_regions,
         "rankGu": rank_gu,
+        "rankOffiBld": rank_offi_bld,
         "groupLabel": NRG_GROUP_LABEL,
         "jeonseRatio": offi_jeonse_ratio(offi_sale, offi_rent),
         "total": len(nrg) + len(offi_sale) + len(offi_rent),

@@ -237,11 +237,12 @@
     <div class="tab-row" id="volRankTabs" style="margin-top:22px;">
       <button class="active" data-r="gu">자치구별<span class="tab-tail"> 거래량 순위</span></button>
       <button data-r="dong">법정동별<span class="tab-tail"> 거래량 순위</span></button>
+      <button data-r="bld">오피스텔 건물별</button>
     </div>
     <div class="chart-box" style="height:340px; margin-top:14px;"><canvas id="volGuChart"></canvas></div>
     <div class="deal-scroll" style="--tbl-h:560px" style="margin-top:18px;">
       <table class="rank-table deal-table">
-        <thead><tr><th>순위</th><th id="volRankHead">자치구</th><th>상가·업무용 <span class="th-sub">건</span></th><th>오피스텔 매매 <span class="th-sub">건</span></th><th>오피스텔 전월세 <span class="th-sub">건</span></th><th>상가 중위가</th><th>오피스텔 중위 매매가</th></tr></thead>
+        <thead id="volRankThead"></thead>
         <tbody id="volGuBody"></tbody>
       </table>
     </div>
@@ -277,9 +278,9 @@
 
 <script src="../vendor/leaflet/leaflet.js"></script>
 <script src="../vendor/chart.umd.min.js"></script>
-<script src="../data/sangga.js?v=c0d12e1687"></script>
+<script src="../data/sangga.js?v=72fef7e7a2"></script>
 <script src="../data/geo.js?v=5f13ee09fd"></script>
 <script src="../shared/brand.js?v=e35116c24e"></script>
-<script src="app.js?v=046fd7f23a"></script>
+<script src="app.js?v=4b1a4ef364"></script>
 </body>
 </html>
