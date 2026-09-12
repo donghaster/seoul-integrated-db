@@ -29,6 +29,9 @@ jobs:
       # 러너에는 .cache가 없어 매번 12개월치를 새로 받는다. 429를 피하려고 천천히.
       WORKERS: "3"
       MIN_INTERVAL: "0.5"
+      # 국토부가 느린 날엔 90분 안에 받은 만큼만 쓰고 나머지는 다음 실행에 넘긴다.
+      # 통째로 취소돼 그날 갱신이 날아가는 것보다, 일부라도 갱신되는 편이 낫다.
+      TIME_BUDGET_MIN: "90"
       # 러너는 UTC라 그냥 두면 집계 기간이 한국보다 하루 뒤처진다.
       TZ: Asia/Seoul
 
@@ -82,6 +85,22 @@ jobs:
       - name: 집계
         run: python tools/build_data.py
 
+      # 몇 건이 들어갔는지 Actions 화면에 남긴다. 조용히 실패하면 며칠 지나도
+      # 모르는데(9월 10·11일이 그랬다), 요약이 있으면 한눈에 보인다.
+      - name: 요약 적기
+        if: always()
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import io, json
+          for f, name in (("docs/data/apt.js", "아파트"), ("docs/data/sangga.js", "상가·오피스텔")):
+              try:
+                  s = io.open(f, encoding="utf-8").read()
+                  d = json.loads(s[s.index("=") + 1:].strip().rstrip(";"))
+                  print(f"- {name} 실거래 **{d.get('total', 0):,}건** (구운 시각 {d.get('builtAt')})")
+              except Exception as exc:
+                  print(f"- {name} 읽기 실패: {exc}")
+          PY
+
       - name: 좌표 갱신
         run: python tools/build_geo.py
 
@@ -97,7 +116,21 @@ jobs:
           git add docs/data docs/index.html docs/*/index.html docs/trade
           if git diff --cached --quiet; then
             echo "변경 없음 — 커밋 건너뜀"
+            echo "갱신할 내용이 없었습니다." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           git commit -m "실거래 데이터 자동 갱신 ($(TZ=Asia/Seoul date '+%Y-%m-%d'))"
-          git push
+
+          # 사람이 같은 시간에 main에 밀어 넣으면 push가 거부된다(2026-09-11 실패 원인).
+          # 받아 온 자료는 남의 커밋과 겹칠 일이 없으므로, 원격을 당겨 얹고 다시 민다.
+          for i in 1 2 3 4 5; do
+            if git push; then
+              echo "푸시 성공 (시도 $i회)"
+              exit 0
+            fi
+            echo "푸시 거부 — 원격을 당겨 다시 얹는다 ($i/5)"
+            git pull --rebase origin main || exit 1
+            sleep $((i * 5))
+          done
+          echo "::error::다섯 번 시도했는데도 푸시하지 못했습니다."
+          exit 1

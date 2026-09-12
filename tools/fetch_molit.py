@@ -341,9 +341,28 @@ def main() -> None:
             print(f"  {done['n']}/{len(jobs)} …", flush=True)
         return len(rows)
 
+    # 국토부가 느린 날엔 1,800건을 다 받기 전에 러너 제한시간(150분)에 걸려 통째로
+    # 취소된다(2026-09-10). 그러면 그날 갱신이 통으로 날아간다. 그래서 스스로
+    # 시간을 재다가 정해 둔 몫을 넘기면 남은 건 다음 실행에 넘긴다 — 받아 둔 것은
+    # 캐시에 남으므로 다음 날 이어받는다.
+    budget = float(os.environ.get("TIME_BUDGET_MIN", "0")) * 60
     t0 = time.time()
+    gave_up = {"n": 0}
+
+    def guarded(job):
+        kind, gu, ym = job
+        # 시간이 찼어도, 캐시에 아예 없는 달은 건너뛰면 그 달이 통째로 빈다.
+        # 이미 가진 달(조금 묵었을 뿐인 것)만 다음으로 미룬다.
+        if budget and time.time() - t0 > budget and os.path.exists(_path(kind, SEOUL_GU[gu], ym)):
+            gave_up["n"] += 1
+            return 0
+        return work(job)
+
     with ThreadPoolExecutor(max_workers=int(os.environ.get("WORKERS", "4"))) as pool:
-        counts = list(pool.map(work, jobs))
+        counts = list(pool.map(guarded, jobs))
+
+    if gave_up["n"]:
+        print(f"시간이 차서 {gave_up['n']:,}건은 다음 실행으로 미뤘습니다.", flush=True)
 
     print(f"완료: {sum(counts):,}건 / {time.time() - t0:.0f}초", flush=True)
     if errors:
