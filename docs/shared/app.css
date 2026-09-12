@@ -1389,6 +1389,19 @@ html[data-theme="dark"] .est-tag { color: #e0bd72; background: #2b2412; border-c
 }
 .rank-table tbody tr.rank-mine td { font-weight: 700; }
 html[data-theme="dark"] .rank-table tbody tr.rank-mine { background: #1e2740; }
+/* 인근 유사 단지 표에서도 이 단지 줄을 같은 방식으로 짚는다 */
+.detail-deals tbody tr.rank-mine {
+  background: var(--accent-light);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.detail-deals tbody tr.rank-mine td { font-weight: 700; }
+html[data-theme="dark"] .detail-deals tbody tr.rank-mine { background: #1e2740; }
+.mine-tag {
+  display: inline-block; margin-left: 5px; padding: 1px 6px; border-radius: 999px;
+  font-size: 10px; font-weight: 800; letter-spacing: .02em;
+  background: var(--accent); color: #fff; vertical-align: middle;
+}
+html[data-theme="dark"] .mine-tag { background: #3a63bd; }
 
 /* 월별 브리핑 카드 안의 표 — 여섯 달만 펼치고 나머지는 스크롤.
    카드가 이미 테두리와 배경을 갖고 있어, 안에 또 상자를 그리면 겹쳐 보인다.

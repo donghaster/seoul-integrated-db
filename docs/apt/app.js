@@ -1880,6 +1880,27 @@
       "<b>실거래로 확인된 값이 아니니</b> 반드시 <b>참고 범위</b>로만 말씀하세요.</p></div>";
   }
 
+  /* 이 단지 자신을 인근 단지와 같은 방식으로 계산해 맨 윗줄에 세운다.
+     이 표는 '84㎡(34평) 기준'인데, 바로 위 평형별 시세 표에는 이 단지의
+     평형이 여러 줄 늘어서 있다. 그래서 인근의 34평 값을 위 표 첫 줄(가장
+     작은 평형)과 견주어 "우리가 9억 싸다"고 읽는 일이 생긴다.
+     같은 평형의 내 값을 같은 표 안에 같이 놓으면 그 오해가 생길 수 없다. */
+  function meRow(key, band) {
+    var me = BY_APT[key];
+    var same = me.deals.filter(function (x) {
+      return x.a && Math.abs(areaBand(x.a) - band) <= 2;
+    });
+    var sale = same.filter(function (x) { return x.t === "sale"; });
+    return {
+      apt: me, dist: 0, rows: same, saleN: sale.length,
+      py: median(sale.map(pyOf).filter(Boolean)),
+      medSale: median(sale.map(function (x) { return x.v; })),
+      medJeonse: median(same.filter(function (x) { return x.t === "jeonse"; })
+        .map(function (x) { return x.v; })),
+      mine: true,
+    };
+  }
+
   function similarHtml(key, band) {
     var sim = similarApts(key, band, 4);
     if (!sim.length) {
@@ -1890,11 +1911,12 @@
       "<th>단지</th><th>거리</th><th>준공</th><th>매매</th><th>중위 매매가</th>" +
       '<th>평당가<span class="th-sub">공급 · 아래 전용</span></th>' +
       "<th>전세</th><th>중위 보증금</th></tr></thead><tbody>" +
-      sim.map(function (x) {
-        return "<tr>" +
+      [meRow(key, band)].concat(sim).map(function (x) {
+        return '<tr' + (x.mine ? ' class="rank-mine"' : "") + ">" +
           '<td class="dl-name">' + esc(x.apt.n) +
+            (x.mine ? ' <span class="mine-tag">이 단지</span>' : "") +
             (x.apt.dg !== me.dg ? ' <span class="dim-note">' + esc(x.apt.dg) + "</span>" : "") + "</td>" +
-          "<td>" + (x.dist == null ? "-" : (x.dist < 1000 ? x.dist + "m" : (x.dist / 1000).toFixed(1) + "km")) + "</td>" +
+          "<td>" + (x.mine ? "-" : (x.dist == null ? "-" : (x.dist < 1000 ? x.dist + "m" : (x.dist / 1000).toFixed(1) + "km"))) + "</td>" +
           "<td>" + (x.apt.y ? x.apt.y + "년" : "-") + "</td>" +
           "<td>" + (x.saleN || "-") + "</td>" +
           "<td>" + (x.medSale ? eokman(x.medSale) : "-") + "</td>" +
