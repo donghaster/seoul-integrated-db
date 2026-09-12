@@ -2113,20 +2113,20 @@
     // 준공연도가 없으면 "있고" 다음이 비어 "있고입니다"가 됐다.
     // 분양권·입주권처럼 준공 전 단지가 그렇다.
     out.push("<b>" + esc(a.n) + "</b>" + josa(a.n, "은", "는") + " " + esc(a.gu) + " " + esc(a.dg) +
-      (a.y ? "에 있고 <b>" + a.y + "년 준공</b>입니다. " : "에 있습니다. ") +
+      (a.y ? "에 있고 <b>" + a.y + "년 준공</b>. " : "에 위치. ") +
       // 구운 자료 전체가 아니라 위에서 고른 기간을 말해야 한다.
       // 아래 표들과 같은 기간을 세면서 문장만 1년치를 말하면 서로 어긋난다.
       "조회 기간(" + state.start.slice(2).replace(/-/g, ".") + "~" + state.end.slice(2).replace(/-/g, ".") + ") 신고된 거래는 " +
       // 바로 뒤 합계는 '1,874건'인데 앞의 월세만 '1115건'이라 자릿점이 어긋났다
       "<b>매매 " + sum.cnt.sale.toLocaleString() + "건 · 전세 " + sum.cnt.jeonse.toLocaleString() +
       "건 · 월세 " + sum.cnt.wolse.toLocaleString() + "건</b>, " +
-      "모두 " + total.toLocaleString() + "건입니다.");
+      "모두 " + total.toLocaleString() + "건.");
 
     var sp = specialKind(sum);
     if (sp) out.push("⚠ " + sp.why);
 
     if (!mainBand) {
-      out.push("면적이 확인되는 거래가 없어 시세를 말씀드리기 어렵습니다.");
+      out.push("면적이 확인되는 거래가 없어 <b>시세를 말하기 어려움</b>.");
       return out;
     }
 
@@ -2136,18 +2136,18 @@
         " 매매 " + g.sale.length + "건, " +
         "<b>중위 " + eokman(g.medSale) + "</b>(평당 " +
         Math.round(g.py * (g.b / bs(g.b))).toLocaleString() +
-        "만원 · 전용 기준 " + pyNum(g.py) + "만원)입니다." +
+        "만원 · 전용 기준 " + pyNum(g.py) + "만원)." +
         (g.ratio ? " 전세는 중위 " + eokman(g.medJeonse) + josa(eokman(g.medJeonse), "으로", "로") +
-          " <b>전세가율 " + g.ratio + "%</b>입니다." : ""));
+          " <b>전세가율 " + g.ratio + "%</b>." : ""));
     } else if (g.sale.length) {
       out.push("<b>" + bandLabel(g.b, bs(g.b)) + "</b> 매매는 <b>" + g.sale.length + "건뿐</b>이라 " +
-        "이것만으로 시세를 말씀드리기 어렵습니다. " +
+        "이것만으로는 <b>시세를 말하기 어려움</b>. " +
         "가장 최근 거래는 " + dateText(g.sale[g.sale.length - 1].d) + " " +
-        eokman(g.sale[g.sale.length - 1].v) + "입니다. <b>아래 인근 유사 단지</b>를 함께 보고 말씀드리겠습니다.");
+        eokman(g.sale[g.sale.length - 1].v) + ".<br><b>아래 인근 유사 단지</b>를 함께 보고 말씀드리겠습니다.");
     } else {
       out.push("<b>" + bandLabel(g.b, bs(g.b)) + "</b>" + josa(bandLabel(g.b, bs(g.b)), "은", "는") +
-        " <b>매매 신고가 없습니다</b>. " +
-        (g.jeonse.length ? "전세는 " + g.jeonse.length + "건, 중위 " + eokman(g.medJeonse) + "입니다. " : "") +
+        " <b>매매 신고 없음</b>. " +
+        (g.jeonse.length ? "전세는 " + g.jeonse.length + "건, 중위 " + eokman(g.medJeonse) + ". " : "") +
         ((sp && sp.tag !== "표기 분리") ? "매매가 되는 물건인지부터 확인하셔야 합니다."
             : "매매 시세는 <b>아래 인근 유사 단지</b>로 가늠하셔야 합니다."));
     }
@@ -2155,14 +2155,14 @@
     if (!sum.cnt.jeonse && g.medSale) {
       var q = jeonseRatio(a.gu, a.dg, a.y);
       if (q) {
-        out.push("<b>전세는 신고된 거래가 없습니다.</b> 아래는 실거래가 아니라 " +
-          "<b>유사 실거래로 계산한 값</b>입니다 — " +
+        out.push("<b>전세는 신고된 거래 없음.</b> 아래는 실거래가 아니라 " +
+          "<b>유사 실거래로 계산한 값</b> — " +
           esc(q.basis) + "에서 같은 단지·같은 평형의 매매와 전세를 짝지어 낸 전세가율이 " +
           "<b>" + q.lo + "~" + q.hi + "%</b>(중위 " + q.mid + "%, 표본 " + q.n.toLocaleString() + "개 평형)라, " +
           bandLabel(g.b, bs(g.b)) + " 매매 중위 " + eokman(g.medSale) + "에 대보면 " +
           "<b>" + eokman(Math.round(g.medSale * q.lo / 100)) + " ~ " +
-          eokman(Math.round(g.medSale * q.hi / 100)) + "</b> 정도가 됩니다. " +
-          "<b>실거래로 확인된 값이 아니라는 점</b>을 고객께 꼭 함께 말씀하세요.");
+          eokman(Math.round(g.medSale * q.hi / 100)) + "</b> 수준.<br>" +
+          "<b>실거래로 확인된 값이 아님</b>.");
       }
     }
 
@@ -2176,15 +2176,15 @@
         /* x.py는 전용면적으로 나눈 값이다. 바로 윗줄은 '평당 11,403만원 ·
            전용 기준 15,179만원'이라 적으므로, 여기서도 그냥 '평당'이라고
            하면 공급 기준인 줄 알고 견주게 된다. 어느 기준인지 밝힌다. */
-        (band ? "<b>전용 평당 " + pyNum(band) + "만원</b> 수준입니다. " : "매매 표본이 없습니다. ") +
+        (band ? "<b>전용 평당 " + pyNum(band) + "만원</b> 수준.<br>" : "매매 표본 없음.<br>") +
         ((sp && sp.tag !== "표기 분리")
             ? "<b>다만 이 값은 일반 분양 단지 기준</b>이라 " + esc(a.n) + "에 그대로 적용하시면 안 됩니다."
             : "연식·동·향·층에 따라 차이가 나므로 <b>참고 범위</b>로만 말씀하세요."));
     }
 
     if (sum.cnt.sale < APT_MIN * 2) {
-      out.push("<b>이 단지는 원래 손바뀜이 드뭅니다.</b> 매물이 나오면 비교 대상이 적어 " +
-        "<b>호가와 실거래가 벌어지기 쉽습니다.</b> 계약 전 인근 시세를 꼭 함께 보세요.");
+      out.push("<b>이 단지는 원래 손바뀜이 드묾.</b> 매물이 나오면 비교 대상이 적어 " +
+        "<b>호가와 실거래가 벌어지기 쉬움.</b><br>계약 전 인근 시세를 꼭 함께 보세요.");
     }
     return out;
   }
