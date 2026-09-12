@@ -438,6 +438,18 @@
      주택형이 들어오는 일은 없다. */
   var AREA_TOL = 0.06;
 
+  /* 이 거래의 분양면적. 세 단계로 찾는다.
+
+     예전에는 전용면적이 대장 값과 0.06㎡ 안으로 맞을 때만 '확인'으로 쳤다.
+     그래서 같은 단지 같은 평형인데 한 줄은 확인, 한 줄은 어림이 되었다 —
+     래미안원베일리 168형이 대장에는 168.95 하나인데 실거래에는 168.93과
+     168.87로 들어온다. 앞은 0.02 차이라 맞고 뒤는 0.08 차이라 빗나간다.
+     둘은 같은 주택형이니 같은 값을 써야 한다. 평형대(전용 정수부)로 한 번 더
+     찾게 했다 — 화면의 다른 표들이 이미 같은 잣대를 쓰고 있다.
+
+     끝내 못 찾으면 전용률로 어림한다. 그 단지가 대장에 있으면 그 단지에서
+     잰 전용률로(ratioOf), 아예 없으면 서울 평균 76.9%로. 어림한 값에만 *를
+     붙인다. */
   function supplyOf(a, gu, dg, name) {
     var t = SUPPLY_TBL[gu + "|" + dg + "|" + name];
     if (t) {
@@ -448,9 +460,12 @@
         if (d <= gap) { gap = d; best = t[k]; }
       }
       if (best) return { v: best, exact: true };
-      if (t._ratio) return { v: a / t._ratio, exact: false };
+      var b = areaBand(a);
+      if (bandExact(b, gu, dg, name)) {
+        return { v: bandSupplyOf(b, gu, dg, name), exact: true };
+      }
     }
-    return { v: a / SUPPLY_RATIO, exact: false };
+    return { v: a / ratioOf(gu, dg, name), exact: false };
   }
   function supplyArea(a) { return a / SUPPLY_RATIO; }
 

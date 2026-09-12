@@ -1411,7 +1411,10 @@ html[data-theme="dark"] .find-go:hover { background: #4a76d4; }
    확인된 쪽에 '실제' 배지를 달던 것을 뒤집었다 — 대장을 채워 갈수록
    배지가 늘어 화면이 시끄러워지고, 정작 "이 값은 어림"이라는 경고가
    눈에 안 띄었다. 이제 표시가 붙은 칸이 줄어드는 쪽으로 간다. */
-.est-mark {
+/* 클래스를 두 번 적어 특정도를 올린다. '.sec-desc b { color: … }' 같은
+   칸 규칙이 (0,1,1)로 이겨 버려, 설명문 안의 *만 파랗게 나오고 표 안의 *는
+   빨갛게 나왔다. 같은 표시가 자리마다 색이 다르면 다른 뜻으로 읽힌다. */
+.est-mark.est-mark {
   color: var(--up); font-weight: 800; margin-left: 1px;
   cursor: help; vertical-align: 1px;
 }
