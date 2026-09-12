@@ -59,6 +59,7 @@ from collections import Counter, defaultdict
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CACHE = os.path.join(BASE_DIR, ".cache")
 STORE = os.path.join(CACHE, "supply-raw-v1.json")
+AUDIT = os.path.join(CACHE, "supply-audit-v1.json")
 BJDCD = os.path.join(CACHE, "bjdongcd-v1.json")
 OUT = os.path.join(BASE_DIR, "docs", "data", "supply.js")
 HAND = os.path.join(BASE_DIR, "tools", "supply_manual.json")
@@ -75,6 +76,7 @@ SPREAD_MAX = 0.05            # 같은 전용면적인데 호별 공급면적이 
 # 튀는 것은 정상이다(반포미도 전체폭 3.7%, 가운데 2.5%). 3% 전체폭으로 끊었더니
 # 멀쩡한 대단지가 통째로 버려졌다. 같은 지번에 다른 단지가 섞인 경우(상계주공
 # 15·16)는 차이가 이보다 훨씬 커서 가운데 80%로도 그대로 걸린다.
+AREA_TOL = 0.06              # 대시보드가 평형을 맞출 때 쓰는 폭과 같게 둔다
 RATIO_LO, RATIO_HI = 0.42, 0.86   # 이 범위를 벗어난 전용률은 대장 등재가 부실한 것
 # 아래쪽을 0.60에서 0.42로 내렸다. 서초이오빌 54%, 풍림아이원플러스 47%처럼
 # 도시형생활주택·오피스텔형으로 지어 실거래에는 아파트로 잡히는 단지가 있다.
@@ -193,6 +195,7 @@ def complexes():
     """실거래 캐시에서 (자치구, 법정동, 단지명, 지번, 거래건수)를 모은다."""
     n = Counter()
     jb = defaultdict(Counter)
+    ar = defaultdict(Counter)                        # 그 단지에서 실제 거래된 전용면적
     for f in (glob.glob(os.path.join(CACHE, "aptSale-*.json"))
               + glob.glob(os.path.join(CACHE, "aptRent-*.json"))):
         try:
@@ -207,8 +210,11 @@ def complexes():
             v = (r.get("jibun") or "").strip()
             if v:
                 jb[k][v] += 1
+            a = float(r.get("area") or 0)
+            if a > 0:
+                ar[k][round(a, 2)] += 1
     return [{"gu": k[0], "dong": k[1], "name": k[2],
-             "jibun": jb[k].most_common(1)[0][0], "n": c}
+             "jibun": jb[k].most_common(1)[0][0], "n": c, "areas": dict(ar[k])}
             for k, c in n.most_common() if jb[k]]
 
 
@@ -324,10 +330,115 @@ def pick(names, want):
     nd = re.sub(r"\d+", "", n)
     if len(nd) >= 2:
         hit = [b for b in names
-               if nd in re.sub(r"\d+", "", norm(b)) or re.sub(r"\d+", "", norm(b)) in nd]
+               if len(re.sub(r"\d+", "", norm(b))) >= 2
+               and (nd in re.sub(r"\d+", "", norm(b))
+                    or re.sub(r"\d+", "", norm(b)) in nd)]
         if len(hit) == 1:
             return hit[0]
     return None
+
+
+DONG_RE = re.compile(r"^(.*?)\s*제?\s*(\d+)\s*동$")
+TAIL_WORDS = ("아파트", "단지", "맨션", "빌라트", "주택")
+
+
+def cluster(blds):
+    """대장이 동별로 나눠 올린 건물을 단지 하나로 묶는다.
+
+    대장은 '대치아파트101동', '대치아파트 제209동'처럼 동마다 따로 등재한다.
+    그러면 단지명으로는 어느 것도 안 맞아 단지를 통째로 놓친다(개포동 12번지
+    성원대치2단지가 그랬다 — 거래 524건). 꼬리의 '…동'을 떼면 같은 단지끼리
+    모인다. 둘 이상 모일 때만 묶는다 — 하나뿐이면 그건 단지가 아니라 그냥
+    그 건물이고, 이미 pick()이 보던 것이다.
+    """
+    base = defaultdict(list)
+    for b in blds:
+        m = DONG_RE.match(b or "")
+        if m and len(norm(m.group(1))) >= 2:
+            base[m.group(1).strip()].append(b)
+    return {k: v for k, v in base.items() if len(v) >= 2}
+
+
+def core(s):
+    """이름에서 차수·숫자와 흔한 꼬리말을 떼고 남는 알맹이.
+
+    '선경1차'와 '선경2차'는 대장에서 '선경아파트 제8동'처럼 차수 없이 한 이름을
+    쓴다. 차수를 붙인 채로는 영영 안 맞는다.
+    """
+    t = re.sub(r"\d+차", "", norm(s))
+    t = re.sub(r"\d+", "", t)
+    for w in TAIL_WORDS:
+        t = t.replace(w, "")
+    return t
+
+
+def akin(a, b):
+    """두 알맹이가 같은 단지를 가리키는가.
+
+    글자 순서가 뒤집힌 것들이 있다 — 실거래 '한신(개포)'이 대장에서는
+    '개포한신아파트'다. 그래서 한쪽이 다른 쪽에 통째로 들어가거나,
+    쓰인 글자가 다른 쪽에 모두 들어 있으면 같은 것으로 본다.
+    """
+    if len(a) < 2 or len(b) < 2:
+        return False
+    if a in b or b in a:
+        return True
+    sa, sb = set(a), set(b)
+    return len(sa & sb) >= 2 and (sa <= sb or sb <= sa)
+
+
+def pick_cluster(groups, want):
+    """묶은 단지 중 실거래 단지명과 맞는 것. 딱 하나일 때만 고른다.
+
+    '성원대치2단지아파트'와 '대치아파트101동'은 글자로는 안 맞는다. 숫자와
+    '아파트·단지'를 떼면 '성원대치'와 '대치'가 되어 한쪽이 다른 쪽에 든다.
+    다만 한 지번에 '대청'과 '대치'가 같이 있는 일이 흔하므로, 이렇게 맞는
+    것이 둘 이상이면 고르지 않는다 — 가르지 못한 것이다.
+    """
+    n = core(want)
+    hit = [k for k in groups if akin(core(k), n)]
+    return hit[0] if len(hit) == 1 else None
+
+
+def covers(area, deal_areas, need=0.7):
+    """대장에서 얻은 평형이 실제 거래된 평형을 덮는가.
+
+    이름만으로 고르면 같은 지번의 엉뚱한 단지를 집을 수 있다. 화면에 틀린
+    평수가 뜨는 것은 *가 붙는 것보다 나쁘다. 그래서 마지막에 실거래를
+    맞대 본다 — 그 단지에서 실제로 거래된 전용면적이 대장 평형표 안에
+    있어야 한다. 거래 건수로 need만큼 못 덮으면 다른 단지를 집은 것으로 본다.
+
+    묶기로 얻은 것에만 씌운다. 이미 이름이 딱 맞아 들어온 것까지 다시
+    재면 멀쩡히 쓰던 값이 빠진다.
+    """
+    if not deal_areas:
+        return False, 0.0
+    keys = [float(k) for k in area]
+    ok = tot = 0
+    for a, cnt in deal_areas.items():
+        a = float(a)
+        tot += cnt
+        if any(abs(k - a) <= AREA_TOL or int(k) == int(a) for k in keys):
+            ok += cnt
+    if not tot:
+        return False, 0.0
+    rate = ok / tot
+    return rate >= need, rate
+
+
+def merge(blds, names):
+    """묶인 동들의 호별 면적을 한 단지로 합친다.
+
+    합친 뒤에 tidy()를 한 번 돌린다. 같은 전용면적인데 동마다 공급면적이
+    많이 갈리면 한 단지가 아니라는 뜻이라, 흩어짐 규칙이 알아서 버린다.
+    그래서 1차·2차가 한 이름으로 등재된 지번을 통째로 묶어도, 둘이 실제로
+    다른 평형은 저절로 빠지고 둘이 같은 평형만 남는다.
+    """
+    out = defaultdict(list)
+    for b in names:
+        for a, lst in blds[b].items():
+            out[a].extend(lst)
+    return out
 
 
 def believable(ex, sup):
@@ -445,7 +556,7 @@ def collect(budget=None, minutes=None, only=None, retry=False):
     progress(cs, store)
     print()
 
-    ok = bad = later = 0
+    ok = bad = later = tied = 0
     t0 = time.time()
     start = STATE["calls"]
     for (sig, cd, bun, ji), group in todo:
@@ -476,32 +587,63 @@ def collect(budget=None, minutes=None, only=None, retry=False):
             continue
 
         blds = by_building(raw)
+        groups = cluster(blds)
+        # 한 지번의 여러 단지가 같은 묶음을 가리키면 이름만으로는 못 가른다.
+        # 압구정 현대1차·2차가 대장에서는 둘 다 '현대아파트 제○동'이다.
+        # 그런 자리에서는 실거래 평형이 더 많이 맞아떨어져야 받아들인다.
+        claim = Counter(pick_cluster(groups, c["name"]) for c in group
+                        if pick(list(blds), c["name"]) is None)
         for c in group:
             k = "%s|%s|%s" % (c["gu"], c["dong"], c["name"])
             if k in store:
                 continue
             b = pick(list(blds), c["name"])
-            if b is None:
+            if b is not None:
+                area, dropped = tidy(blds[b])
+                if not area:
+                    store[k] = {"skip": "쓸 만한 면적 없음"}
+                    bad += 1
+                    continue
+                store[k] = {"bld": b, "area": area, "rows": total,
+                            "partial": len(raw) < total, "dropped": dropped,
+                            "ho": sum(len(v) for v in blds[b].values())}
+                ok += 1
+                continue
+
+            # 이름이 안 맞았다 — 대장이 동별로 올려 둔 것인지 본다.
+            g = pick_cluster(groups, c["name"])
+            if g is None:
                 store[k] = {"skip": "이름 못 맞춤"}
                 bad += 1
                 continue
-            area, dropped = tidy(blds[b])
+            tied_up = merge(blds, groups[g])
+            area, dropped = tidy(tied_up)
             if not area:
-                store[k] = {"skip": "쓸 만한 면적 없음"}
+                store[k] = {"skip": "묶었지만 쓸 만한 면적 없음"}
                 bad += 1
                 continue
-            store[k] = {"bld": b, "area": area, "rows": total,
-                        "partial": len(raw) < total, "dropped": dropped,
-                        "ho": sum(len(v) for v in blds[b].values())}
+            need = 0.9 if claim[g] > 1 else 0.7
+            fit, rate = covers(area, c.get("areas") or {}, need)
+            if not fit:
+                # 이름은 비슷한데 실거래 평형을 못 덮는다 — 같은 지번의 다른
+                # 단지를 집은 것이다. 틀린 평수를 적느니 *를 붙인다.
+                store[k] = {"skip": "묶었지만 실거래 평형과 안 맞음(%.0f%%)" % (rate * 100)}
+                bad += 1
+                continue
+            store[k] = {"bld": g, "dongs": sorted(groups[g]), "area": area,
+                        "rows": total, "partial": len(raw) < total,
+                        "dropped": dropped, "cover": round(rate, 3),
+                        "shared": claim[g], "ho": sum(len(v) for v in tied_up.values())}
             ok += 1
+            tied += 1
         json.dump(store, open(STORE, "w", encoding="utf-8"), ensure_ascii=False)
         if ok and ok % 50 == 0:
             print("   %5d단지 · 못 맞춤 %d · 남은 호출 %s · 간격 %.2f초 · %.0f분"
                   % (ok, bad, STATE["remain"], STATE["gap"], (time.time() - t0) / 60),
                   flush=True)
 
-    print("\n이번에 %d단지 확보 · %d단지 제외 · %d단지 미룸(서버가 안 줬다)"
-          % (ok, bad, later))
+    print("\n이번에 %d단지 확보(그중 동 묶기 %d) · %d단지 제외 · %d단지 미룸(서버가 안 줬다)"
+          % (ok, tied, bad, later))
     progress(cs, store)
     print("호출 %d번 · 429 %d번 · 오늘 남은 %s/%s · %.0f분"
           % (STATE["calls"] - start, STATE["throttled"], STATE["remain"],
@@ -614,12 +756,72 @@ def probe(word):
             print("     고르기: %s → %s" % (c["name"], pick(list(blds), c["name"]) or "못 맞춤"))
 
 
+def audit(only):
+    """'이름 못 맞춤'으로 빠진 단지들의 지번을 다시 물어 대장 건물명을 적어 둔다.
+
+    왜 따로 받아 두느냐 — 이름 맞추기 규칙을 고치려면 대장이 실제로 뭐라고
+    부르는지를 봐야 하는데, store에는 고른 결과만 남고 후보는 안 남는다.
+    한 지번에는 못 맞춘 단지와 이미 맞춘 단지가 같이 들어 있으므로, 여기
+    받아 둔 것으로 새 규칙이 기존 정답을 깨지 않는지도 함께 검사할 수 있다.
+    """
+    store = json.load(open(STORE, encoding="utf-8")) if os.path.exists(STORE) else {}
+    cs = complexes()
+    if only:
+        cs = [c for c in cs if c["gu"] in only]
+    miss = set()
+    for c in cs:
+        k = "%s|%s|%s" % (c["gu"], c["dong"], c["name"])
+        if store.get(k, {}).get("skip") == "이름 못 맞춤":
+            miss.add(k)
+    if not miss:
+        print("못 맞춘 단지가 없다")
+        return
+    want = defaultdict(set)
+    for c in cs:
+        want[GU_CD[c["gu"]]].add(c["dong"])
+    codes = bjdong_codes(want)
+    todo = [(sig, g) for sig, g in sites(cs, codes)
+            if any("%s|%s|%s" % (c["gu"], c["dong"], c["name"]) in miss for c in g)]
+    print("못 맞춘 단지 %d개 · 다시 물어볼 지번 %d곳" % (len(miss), len(todo)), flush=True)
+
+    out, done = [], 0
+    for (sig, cd, bun, ji), group in todo:
+        if STATE["remain"] is not None and STATE["remain"] < QUOTA_FLOOR:
+            print("※ 오늘 한도가 바닥이라 멈춘다")
+            break
+        try:
+            raw, total = fetch_site(sig, cd, bun, ji)
+        except Exception:                            # noqa: BLE001
+            continue
+        blds = by_building(raw)
+        rec = {"sig": sig, "cd": cd, "bun": bun, "ji": ji,
+               "rows": len(raw), "total": total,
+               "want": [{"key": "%s|%s|%s" % (c["gu"], c["dong"], c["name"]),
+                         "name": c["name"], "n": c["n"],
+                         "miss": "%s|%s|%s" % (c["gu"], c["dong"], c["name"]) in miss}
+                        for c in group],
+               "blds": {}}
+        for b in blds:
+            area, dropped = tidy(blds[b])
+            rec["blds"][b] = {"ho": sum(len(v) for v in blds[b].values()),
+                              "area": area, "dropped": dropped}
+        out.append(rec)
+        done += 1
+        if done % 20 == 0:
+            print("   %d/%d 지번 · 남은 호출 %s" % (done, len(todo), STATE["remain"]), flush=True)
+        json.dump(out, open(AUDIT, "w", encoding="utf-8"), ensure_ascii=False)
+    print("적어 뒀다: %s — 지번 %d곳" % (AUDIT, len(out)))
+
+
 def main():
+
     ap = argparse.ArgumentParser()
     ap.add_argument("--budget", type=int, default=None, help="이번에 쓸 호출 수")
     ap.add_argument("--minutes", type=int, default=None, help="이번에 쓸 시간(분)")
     ap.add_argument("--write", action="store_true", help="받지 않고 supply.js만 다시 굽는다")
     ap.add_argument("--gu", default="", help="이 자치구만 받는다(쉼표로 여럿)")
+    ap.add_argument("--audit", action="store_true",
+                    help="이름 못 맞춘 단지의 대장 건물명을 받아 적어 둔다")
     ap.add_argument("--probe", default="", help="이 이름이 든 단지만 대장 응답을 찍어 본다")
     ap.add_argument("--retry", action="store_true",
                     help="제외로 적어 둔 단지를 지우고 다시 물어본다(규칙을 고친 뒤)")
@@ -629,6 +831,9 @@ def main():
         return
     if a.probe:
         probe(a.probe)
+        return
+    if a.audit:
+        audit([g.strip() for g in a.gu.split(",") if g.strip()])
         return
     only = [g.strip() for g in a.gu.split(",") if g.strip()]
     write(collect(a.budget, a.minutes, only, a.retry))
