@@ -2229,11 +2229,16 @@
       "<a href='../newtown/index.html'>뉴타운 대시보드</a>에서 보실 수 있습니다. 계약 전 조합·구청 고시 확인이 필요합니다.</p>";
   }
 
+  /* 뉴타운 대시보드와 같은 단계를 같은 색으로 찍는다 — 두 화면을 오가며
+     보는 자리라 색이 어긋나면 다른 단계로 읽힌다. 다크 색도 그쪽과 맞춘다. */
   function ntStageColor(stage) {
-    if (stage >= 6) return "#4fada8";
-    if (stage >= 5) return "#4f7fe6";
-    if (stage >= 2) return "#cf9a45";
-    return "#bc3d3d";
+    var dark = document.documentElement.getAttribute("data-theme") === "dark";
+    var c = dark ? ["#e8756f", "#e0b168", "#7fa5f2", "#6fc9c3"]
+                 : ["#bc3d3d", "#cf9a45", "#4f7fe6", "#4fada8"];
+    if (stage >= 6) return c[3];
+    if (stage >= 5) return c[2];
+    if (stage >= 2) return c[1];
+    return c[0];
   }
 
   /* ── 구 안에서 동의 자리 ──

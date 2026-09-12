@@ -24,12 +24,29 @@
     return document.documentElement.getAttribute("data-theme") === "dark";
   }
 
+  function stageIdx(stage) {
+    if (stage >= 6) return 3;           // 준공·입주
+    if (stage >= 5) return 2;           // 착공
+    if (stage >= 2) return 1;           // 인가·이주·철거
+    return 0;                           // 초기
+  }
+
   function stageColor(stage) {
-    var c = isDark() ? STAGE_DARK : STAGE_LIGHT;
-    if (stage >= 6) return c[3];        // 준공·입주
-    if (stage >= 5) return c[2];        // 착공
-    if (stage >= 2) return c[1];        // 인가·이주·철거
-    return c[0];                        // 초기
+    return (isDark() ? STAGE_DARK : STAGE_LIGHT)[stageIdx(stage)];
+  }
+
+  /* 단계 알약('완료', '착공' …)은 색 위에 글씨를 얹는다. 지도 원에 쓰는 색을
+     그대로 깔고 흰 글씨를 올렸더니 파스텔 위의 흰 글씨라 거의 안 보였다
+     (다크 '완료' 1.94, 라이트 '인가' 2.35 — 11px 글씨에 4.5가 필요하다).
+     알약에는 알약용 색을 따로 쓴다. 라이트는 색을 눌러 흰 글씨를 얹고,
+     다크는 밝은 색 위에 검은 글씨를 얹는다. 어느 쪽이든 5 이상 나온다. */
+  var TAG_LIGHT = ["#b03636", "#9a6b1c", "#3a63bd", "#2f7f7a"];
+
+  function stageTag(stage) {
+    var i = stageIdx(stage);
+    return isDark()
+      ? { bg: STAGE_DARK[i], fg: "#12151c" }
+      : { bg: TAG_LIGHT[i],  fg: "#ffffff" };
   }
 
   var state = { gu: ALL, wave: ALL, status: ALL, zone: "noryangjin",
@@ -302,7 +319,8 @@
   function showDetail(d) {
     var st = dealStat(d);
     document.getElementById("ntDetail").innerHTML =
-      '<span class="zone-tag" style="background:' + stageColor(d.stage) + '">' + esc(d.status) + "</span>" +
+      '<span class="zone-tag" style="background:' + stageTag(d.stage).bg +
+        ";color:" + stageTag(d.stage).fg + '">' + esc(d.status) + "</span>" +
       "<h3>" + esc(d.name) + "</h3>" +
       "<table>" +
       "<tr><td>자치구</td><td>" + esc(d.gu) + "</td></tr>" +
@@ -624,7 +642,8 @@
 
   function showZone(z) {
     document.getElementById("zoneDetail").innerHTML =
-      '<span class="zone-tag" style="background:' + stageColor(z.stage) + '">' + STAGES[z.stage] + "</span>" +
+      '<span class="zone-tag" style="background:' + stageTag(z.stage).bg +
+        ";color:" + stageTag(z.stage).fg + '">' + STAGES[z.stage] + "</span>" +
       "<h3>" + esc(z.name) + " · " + esc(z.brand) + "</h3>" +
       "<table>" +
       "<tr><td>시공사</td><td>" + esc(z.builder) + "</td></tr>" +

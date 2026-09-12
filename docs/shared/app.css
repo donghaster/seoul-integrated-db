@@ -11,8 +11,11 @@
   --line: #dde2ea;
   --line-soft: #e7eaf1;
   --txt: #232a38;
-  --txt-dim: #667085;
-  --txt-mute: #6c7381;
+  /* 옅은 회색 칸(#e7eaf1) 위에서 4.08까지 떨어졌다. 한 단계 눌러 4.6으로. */
+  --txt-dim: #5f6878;
+  /* 옅은 회색 바탕(#eef1f6) 위에서 4.18까지 떨어져 표 머릿글·덧말이
+     흐렸다. 한 단계만 눌러 4.6으로 올린다. */
+  --txt-mute: #666d7a;
 
   --accent: #4670ca;
   --accent-2: #35569e;
@@ -213,7 +216,10 @@ table.rank-table tr:hover td { background: var(--accent-pale); }
 .rank-neutral .rank-chip { background: #e7eaf1; color: var(--txt-dim); }
 .rank-neutral .rank-chip.r1 { background: #232a38; color: #fff; }
 .rank-neutral .rank-chip.r2 { background: #626c7e; color: #fff; }
-.rank-neutral .rank-chip.r3 { background: #9aa3b2; color: #fff; }
+/* 3등 회색은 옅어서 흰 글씨가 얹히지 않는다(2.54). 더 어둡게 하면 2등과
+   구분이 사라지므로, 옅은 바탕은 그대로 두고 글씨를 검게 뒤집는다(6.8).
+   다크에서 이미 같은 식으로 뒤집어 쓰고 있다. */
+.rank-neutral .rank-chip.r3 { background: #9aa3b2; color: #12151c; }
 .rt-name { font-weight: 700; }
 .rt-name-clickable { cursor: pointer; color: var(--accent-2); text-decoration: underline dotted; }
 .rt-name-clickable:hover { color: var(--accent); }
@@ -863,7 +869,9 @@ section[data-tabpanel].is-on { display: block; }
 }
 .cc.up .cc-badge { background: var(--up); }
 .cc.down .cc-badge { background: var(--down); }
-.cc.warn .cc-badge { background: var(--gold); }
+/* 금색 위의 흰 글씨는 2.41밖에 안 나온다 — '결론' 배지가 상권분석에서
+   제일 먼저 읽혀야 할 자리라 글씨를 어둡게 뒤집는다(6.33). */
+.cc.warn .cc-badge { background: var(--gold); color: #2e2413; }
 .cc-why { font-size: 12.5px; color: var(--txt-dim); line-height: 1.8; margin: 0 0 9px; }
 .cc-why b { color: var(--txt); }
 .cc-do {
@@ -1153,6 +1161,7 @@ html[data-theme="dark"] .mini-btn.is-on,
 html[data-theme="dark"] .policy-card .date-chip,
 html[data-theme="dark"] .theme-toggle button.is-on,
 html[data-theme="dark"] .find-go,
+html[data-theme="dark"] .calc-badge,
 html[data-theme="dark"] .top-tab.is-on { background: #3a63bd; }
 html[data-theme="dark"] .find-go:hover { background: #4a76d4; }
 
