@@ -772,6 +772,19 @@ section[data-tabpanel].is-on { display: block; }
    판은 그대로 두고 글씨를 어둡게 뒤집는다(순위 칩에서 쓰던 수법). */
 html[data-theme="dark"] .gran-purpose b { color: #12151c; }
 
+/* 지역 비교에 얹을 곳을 고르는 줄. 보기·축 줄 바로 아래 붙는다. */
+.cmp-bar { margin-top: -6px; }
+.cmp-sel {
+  font: inherit; font-size: 13px; font-weight: 700; color: var(--txt);
+  background: var(--card); border: 1px solid var(--line); border-radius: 9px;
+  padding: 6px 10px; max-width: 210px; min-width: 0;
+}
+.cmp-sel:focus { outline: 2px solid var(--accent-light); border-color: var(--accent); }
+@media (max-width: 560px) {
+  .cmp-bar .view-ctl { flex-wrap: wrap; }
+  .cmp-sel { flex: 1 1 140px; max-width: none; }
+}
+
 /* ════════════════ 계산값 블록 — 실거래와 확실히 구분한다 ════════════════ */
 
 .calc-box {

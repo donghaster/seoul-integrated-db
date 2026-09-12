@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>금집부쌤의 서울시 통합 부동산 대시보드 — 아파트</title>
-  <link rel="stylesheet" href="../shared/app.css?v=a92f6448a9" />
+  <link rel="stylesheet" href="../shared/app.css?v=bb91eff56c" />
   <!-- 색 테마를 첫 칠 전에 찍는다. brand.js는 본문 맨 아래라, 다크로 맞춰 둔
        폰에서 흰 화면이 한 번 번쩍인 뒤 어두워진다. -->
   <script>
@@ -200,6 +200,19 @@
       </div>
       <div class="view-ctl view-ctl-end">
         <button type="button" class="mini-btn" id="idxOfficialBtn">공식(부동산원) 지수 겹쳐보기</button>
+      </div>
+    </div>
+
+    <!-- 지역 비교에서만 보인다. 지금 보는 곳 말고 견주고 싶은 곳을 둘까지 얹는다.
+         서울 전체는 점선 기준선으로 늘 남는다. -->
+    <div class="view-bar cmp-bar" id="idxCmpBar" hidden>
+      <div class="view-ctl">
+        <span class="view-label">함께 보기</span>
+        <select id="idxCmp1" class="cmp-sel" aria-label="비교 지역 1"></select>
+        <select id="idxCmp2" class="cmp-sel" aria-label="비교 지역 2"></select>
+      </div>
+      <div class="view-ctl view-ctl-end">
+        <span class="dim-note">서울 전체는 점선 기준선으로 늘 함께 나옴</span>
       </div>
     </div>
 
@@ -492,6 +505,6 @@
 <script src="../data/locinfo.js?v=e97bc091b7"></script>
 <script src="../data/newtown.js?v=8ba14b3baf"></script>
 <script src="../shared/brand.js?v=717bc69d33"></script>
-<script src="app.js?v=ab62d73473"></script>
+<script src="app.js?v=e499272fb3"></script>
 </body>
 </html>

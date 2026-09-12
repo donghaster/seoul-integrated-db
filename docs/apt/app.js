@@ -3000,7 +3000,49 @@
      자치구를 골랐으면 한국부동산원 공식 지수(분기)를 겹쳐 방향을 대조할 수 있다. */
 
   var idxChart = null;
-  var idxState = { view: "type", mode: "index", official: false };
+  var idxState = { view: "type", mode: "index", official: false, cmp: ["", ""] };
+
+  /* 지역 비교에 얹을 색. 지금 보는 동·구와 서울 전체는 이미 색을 쓰고 있어,
+     겹치지 않으면서 서로도 구별되는 둘을 고른다. */
+  var CMP_COLORS = ["#3f9e8c", "#a96fc4"];
+
+  /* 견주고 싶은 곳을 고르는 칸을 채운다.
+
+     구와 동을 한 칸에 같이 담는다. 고객은 "서초구랑 견줘 주세요"라고도 하고
+     "반포동이랑요"라고도 한다. 칸을 둘로 나누면(구 고르고 → 동 고르고) 손이
+     두 번 가고, 브리핑 중에는 그 한 번이 길다.
+
+     법정동은 수가 많아(400곳 넘는다) 자치구 이름을 앞에 붙여 적는다.
+     '신사동'만 적어 두면 강남구인지 은평구인지 알 수 없다. */
+  function fillCmpSelects() {
+    var opts = '<option value="">— 함께 볼 지역 고르기</option>' +
+      '<optgroup label="자치구">' +
+      D.gus.map(function (g) {
+        return '<option value="' + esc(g) + '">' + esc(g) + "</option>";
+      }).join("") + "</optgroup>" +
+      '<optgroup label="법정동">' +
+      D.gus.map(function (g) {
+        return (D.dongs[g] || []).map(function (d) {
+          return '<option value="' + esc(g + "|" + d) + '">' + esc(g + " " + d) + "</option>";
+        }).join("");
+      }).join("") + "</optgroup>";
+
+    [1, 2].forEach(function (n) {
+      var sel = document.getElementById("idxCmp" + n);
+      if (!sel) return;
+      sel.innerHTML = opts;
+      sel.value = idxState.cmp[n - 1] || "";
+      sel.addEventListener("change", function () {
+        idxState.cmp[n - 1] = sel.value;
+        renderIndex();
+      });
+    });
+  }
+
+  /* 고른 키를 화면에 적을 이름으로. "서초구|반포동" -> "서초구 반포동" */
+  function cmpName(key) {
+    return key.indexOf("|") >= 0 ? key.replace("|", " ") : key;
+  }
 
   function idxSeries(key) {
     if (!BY_REGION[key]) return null;
@@ -3362,6 +3404,12 @@
         targets.push({ key: state.gu + "|" + state.dong, name: state.dong, color: "#4f7fe6" });
       }
       if (state.gu !== ALL) targets.push({ key: state.gu, name: state.gu, color: "#cf9a45" });
+      // 골라 얹은 곳. 이미 그려지는 곳을 또 고르면 같은 선을 두 번 그리게 되니 건너뛴다.
+      idxState.cmp.forEach(function (k, i) {
+        if (!k || !BY_REGION[k]) return;
+        if (targets.some(function (t) { return t.key === k; })) return;
+        targets.push({ key: k, name: cmpName(k), color: CMP_COLORS[i] });
+      });
       targets.push({ key: ALL, name: "서울 전체", color: "#8a93a3" });
 
       targets.forEach(function (tg) {
@@ -3513,6 +3561,9 @@
       (isIdx ? "첫 구간 100 기준으로 지수화" : "만원/평 그대로") + "함. " +
       "<b>점 위에 마우스를 올리면</b> 그 구간의 표본 건수와 실제 거래된 단지가 나옴." +
       (state.gu === ALL ? " 자치구를 고르면 <b>공식(부동산원) 지수</b>와 겹쳐 볼 수 있음." : "");
+    var cmpBar = document.getElementById("idxCmpBar");
+    if (cmpBar) cmpBar.hidden = idxState.view !== "cmp";
+
     var btn = document.getElementById("idxOfficialBtn");
     btn.classList.toggle("is-on", idxState.official);
     btn.disabled = state.gu === ALL;
@@ -4108,6 +4159,7 @@
 
   fillGu();
   fillDong();
+  fillCmpSelects();
   applyPreset("3m");     // 기본 조회 기간 — 최근 3개월(달 단위)
   initMap();
   renderAll();
