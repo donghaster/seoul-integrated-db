@@ -343,7 +343,37 @@
     }
 
     out.sort(function (x, y) { return y.score - x.score; });
-    return out.slice(0, want || 4);
+
+    /* 값이 딴 세상인 단지는 뺀다.
+       래미안 리더스원 옆에 '서초동프레스티지아파트'가 전용 평당 4,423만원
+       (리더스원의 29%)으로 끼어 있었다. 전용 82㎡라 ±2㎡ 규칙에는 걸리지만
+       같은 급의 물건이 아니다. 손님이 "여긴 왜 11억이죠?" 하고 물으면
+       브리핑이 거기서 멈춘다.
+
+       기준은 이 단지의 같은 평형대 전용 평당가다. 분양면적은 추정이 섞이지만
+       전용면적은 신고값이라 흔들리지 않는다. 0.4~2.5배를 벗어나면 뺀다.
+       폭을 넉넉히 잡은 것은 헬리오시티처럼 새 단지 옆에 구축이 늘어선 곳이
+       있기 때문이다. 거기 인근은 이 단지의 51% 선인데 그건 시세 차이지
+       다른 물건이 아니다. 29%쯤 되어야 성격이 다른 물건이다.
+       이 단지에 매매가 없어 기준을 못 잡으면 후보들의 중위값을 대신 쓴다. */
+    var anchor = median(me.deals.filter(function (x) {
+      return x.t === "sale" && x.a && Math.abs(areaBand(x.a) - band) <= 2;
+    }).map(pyOf).filter(Boolean));
+    if (!anchor) {
+      anchor = median(out.map(function (x) { return x.py; }).filter(Boolean));
+    }
+
+    /* 점수순으로 내려가며 담는다. 다 채우기 전에 걸러 낸 곳만 이름을 남긴다 —
+       어차피 화면에 못 올라올 스무 곳까지 적으면 그게 더 시끄럽다. */
+    var n = want || 4, res = [], dropped = [];
+    for (var j = 0; j < out.length && res.length < n; j++) {
+      var c = out[j];
+      var off = anchor && c.py && (c.py < anchor * 0.4 || c.py > anchor * 2.5);
+      if (off) { dropped.push(c.apt.n); continue; }
+      res.push(c);
+    }
+    res.dropped = dropped;
+    return res;
   }
 
   /* ════════════════ 포맷 유틸 ════════════════ */
@@ -1924,7 +1954,12 @@
           "<td>" + x.rows.filter(function (r) { return r.t === "jeonse"; }).length + "</td>" +
           "<td>" + (x.medJeonse ? eokman(x.medJeonse) : "-") + "</td>" +
           "</tr>";
-      }).join("") + "</tbody></table></div>";
+      }).join("") + "</tbody></table></div>" +
+      // 뺐으면 뺐다고 적는다. 조용히 지우면 "왜 옆 단지가 안 나오지"가 된다
+      (sim.dropped && sim.dropped.length
+        ? '<p class="dim-note" style="margin-top:6px">같은 평형대지만 값이 크게 동떨어져 뺀 곳: ' +
+          sim.dropped.map(esc).join(", ") + "</p>"
+        : "");
   }
 
   /* 금집부쌤이 고객께 바로 읽어 드릴 문장 */
@@ -1996,7 +2031,10 @@
       out.push("인근 <b>" + sim.length + "곳</b>(" +
         sim.map(function (x) { return esc(x.apt.n) + (x.dist != null ? " " + (x.dist < 1000 ? x.dist + "m" : (x.dist / 1000).toFixed(1) + "km") : ""); }).join(", ") +
         ")의 같은 평형대 기준으로는 " +
-        (band ? "<b>평당 " + pyNum(band) + "만원</b> 수준입니다. " : "매매 표본이 없습니다. ") +
+        /* x.py는 전용면적으로 나눈 값이다. 바로 윗줄은 '평당 11,403만원 ·
+           전용 기준 15,179만원'이라 적으므로, 여기서도 그냥 '평당'이라고
+           하면 공급 기준인 줄 알고 견주게 된다. 어느 기준인지 밝힌다. */
+        (band ? "<b>전용 평당 " + pyNum(band) + "만원</b> 수준입니다. " : "매매 표본이 없습니다. ") +
         ((sp && sp.tag !== "표기 분리")
             ? "<b>다만 이 값은 일반 분양 단지 기준</b>이라 " + esc(a.n) + "에 그대로 적용하시면 안 됩니다."
             : "연식·동·향·층에 따라 차이가 나므로 <b>참고 범위</b>로만 말씀하세요."));
