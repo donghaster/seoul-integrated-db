@@ -1654,6 +1654,7 @@
 
   function initMap() {
     map = L.map("aptMap", { scrollWheelZoom: true }).setView([37.5535, 126.9905], 11);
+    if (window.watchMapSize) window.watchMapSize(map, document.getElementById("aptMap"));
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; OpenStreetMap contributors", maxZoom: 19,
     }).addTo(map);
@@ -1745,6 +1746,11 @@
     document.getElementById("mapMissNote").textContent =
       miss ? "좌표 미확인 " + miss + "곳은 지도에 표시되지 않습니다" : "";
 
+    /* 범위를 맞추기 전에 칸을 다시 잰다. 창 크기가 안 바뀌어도 옆 상세칸이
+       채워지거나 고정 막대가 줄면 지도 칸만 넓어지는데, Leaflet은 그걸 모른다.
+       예전 크기로 범위를 맞추면 서울 전체처럼 넓게 볼 때 오른쪽이 빈다.
+       칸 감시(watchMapSize)가 대개 먼저 잡아 주지만, 여기서도 한 번 짚는다. */
+    map.invalidateSize({ animate: false });
     if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.25), { maxZoom: 15 });
     else map.setView([37.5535, 126.9905], 11);
 

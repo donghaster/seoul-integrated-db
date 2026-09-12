@@ -860,6 +860,7 @@
 
   function initMap() {
     map = L.map("sgMap", { scrollWheelZoom: true }).setView([37.5535, 126.9905], 11);
+    if (window.watchMapSize) window.watchMapSize(map, document.getElementById("sgMap"));
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; OpenStreetMap contributors", maxZoom: 19,
     }).addTo(map);
@@ -912,6 +913,8 @@
     document.getElementById("mapMissNote").textContent =
       miss ? "좌표 미확인 " + miss + "곳은 표시되지 않습니다" : "";
 
+    // 범위를 맞추기 전에 칸을 다시 잰다 — 창이 아니라 칸만 넓어지는 경우가 있다
+    map.invalidateSize({ animate: false });
     if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.25), { maxZoom: 15 });
     else map.setView([37.5535, 126.9905], 11);
 

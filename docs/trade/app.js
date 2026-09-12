@@ -1572,6 +1572,7 @@
     if (!el || typeof L === "undefined") return;
     if (map) { map.remove(); map = null; }
     map = L.map(el, { scrollWheelZoom: false }).setView([t.lat, t.lng], 14);
+    if (window.watchMapSize) window.watchMapSize(map, el);
     map.attributionControl.setPrefix("");
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19, attribution: "&copy; OpenStreetMap contributors",

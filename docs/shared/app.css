@@ -87,10 +87,11 @@ a { color: var(--accent-2); }
   flex-shrink: 0;
 }
 .brand-plate .mascot { height: 60px; width: auto; display: block; filter: drop-shadow(0 2px 4px rgba(35, 45, 66, 0.16)); }
+/* 로고 그림은 라이트·다크 모두 쓰지 않는다 — 아래 '글자판' 주석 참고.
+   파일은 그대로 두고 규칙으로만 접는다(인쇄 워터마크 등 다른 쓰임이 있다). */
 .brand-plate .logo { height: 50px; width: auto; display: block; }
 .brand-plate .img-missing { display: none; }
-.brand-plate-fallback { display: none; font-size: 16px; font-weight: 800; color: #222; white-space: nowrap; letter-spacing: -0.01em; }
-.brand-plate-fallback b { color: #d64545; }
+.brand-plate-fallback { font-size: 16px; font-weight: 800; white-space: nowrap; letter-spacing: -0.01em; }
 .brand-plate .logo.img-missing ~ .brand-plate-fallback { display: inline-flex; align-items: center; gap: 2px; }
 
 .geumjib-badge { height: 64px; width: 64px; border-radius: 50%; display: block; flex-shrink: 0; filter: drop-shadow(0 2px 5px rgba(35, 45, 66, 0.18)); }
@@ -1161,16 +1162,17 @@ html[data-theme="dark"] .brief-thin { color: #f0918b; background: #2a1a1a; borde
    한 가지 바탕색으로는 둘 다 살릴 수 없다. 그림이라 글자색을 못 고치니,
    다크에서는 우리가 색을 쥘 수 있는 글자판으로 바꾼다. 라이트에서는
    지금처럼 로고 그림을 그대로 쓴다 — 흰 카드 위라 제대로 나온다. */
-html[data-theme="dark"] .brand-plate .logo { display: none; }
-html[data-theme="dark"] .brand-plate .logo ~ .brand-plate-fallback,
-html[data-theme="dark"] .brand-plate-fallback {
+.brand-plate .logo { display: none; }
+.brand-plate .logo ~ .brand-plate-fallback,
+.brand-plate-fallback {
   display: inline-flex; align-items: center; gap: 2px;
   color: var(--txt);
 }
 /* 글자 크기는 넓은 화면·폰 규칙을 그대로 따른다. 여기서 크기를 못 박으면
    폰 쪽 11.5px 규칙을 특정도로 눌러 버려 명판만 커진다. */
+.brand-plate-fallback b { color: #c8332f; }
+.brand-plate { background: var(--card-2); }
 html[data-theme="dark"] .brand-plate-fallback b { color: #f0918b; }
-html[data-theme="dark"] .brand-plate { background: var(--card-2); }
 /* 파란 알약 위 흰 글씨가 다소 흐렸다(3.25) — 채운 색만 한 단계 낮춘다 */
 html[data-theme="dark"] nav.section-nav button.active,
 html[data-theme="dark"] .tab-row button.active,

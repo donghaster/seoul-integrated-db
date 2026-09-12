@@ -86,6 +86,26 @@
   syncChartTheme();
   window.addEventListener("themechange", syncChartTheme);
 
+  /* ── 지도 칸이 바뀌면 지도에게 알려 준다 ──
+     Leaflet은 창 크기가 바뀔 때만 스스로 다시 잰다. 칸만 넓어지는 경우
+     — 옆 상세칸이 채워지거나, 고정 막대 높이가 달라지거나, 인쇄용으로
+     펼쳐지거나 — 예전 크기를 그대로 들고 있어 타일이 칸을 다 못 덮는다.
+     서울 전체로 줌아웃했을 때 지도 오른쪽이 검게 남던 게 이것이다
+     (칸 606→1114px인데 타일은 704px까지만 그려졌다).
+     칸을 지켜보다 바뀌면 다시 재라고 시킨다. */
+  window.watchMapSize = function (map, el) {
+    if (!map || !el || typeof ResizeObserver === "undefined") return;
+    if (el.dataset.sizeWatched) return;
+    el.dataset.sizeWatched = "1";
+    el._leafletMap = map;              // 칸에서 지도를 되짚을 수 있게 — 확인할 때 쓴다
+    var t = null;
+    new ResizeObserver(function () {
+      // 잇달아 들어오는 변화는 한 번으로 묶는다. 다시 재는 일이 무겁다.
+      clearTimeout(t);
+      t = setTimeout(function () { map.invalidateSize({ animate: false }); }, 80);
+    }).observe(el);
+  };
+
   /* ── 긴 표 접기 ──
      표를 10행쯤만 보이게 두고 나머지는 안에서 스크롤한다. 다만 한눈에
      훑거나 인쇄할 때가 있어, 넘치는 표에는 펼치기 단추를 자동으로 붙인다.
