@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>금집부쌤의 서울시 통합 부동산 대시보드 — 아파트</title>
-  <link rel="stylesheet" href="../shared/app.css?v=be2964614e" />
+  <link rel="stylesheet" href="../shared/app.css?v=b7e8ed2b3b" />
   <!-- 색 테마를 첫 칠 전에 찍는다. brand.js는 본문 맨 아래라, 다크로 맞춰 둔
        폰에서 흰 화면이 한 번 번쩍인 뒤 어두워진다. -->
   <script>
@@ -80,19 +80,21 @@
        확인하려면 매번 맨 위로 올라가야 했다. -->
   <div class="gran-group" aria-label="집계 조건">
     <div class="ctl">
-      <label>집계 기준</label>
+      <label class="lbl-full">집계 기준</label>
       <div class="tab-row seg-sm" id="granTabs">
         <button data-g="week">주간</button>
         <button class="active" data-g="month">월간</button>
       </div>
     </div>
-    <div class="ctl">
-      <label for="startDate">시작일</label>
+    <div class="ctl date-ctl">
+      <label for="startDate"><span class="lbl-full">시작일</span><span class="lbl-tiny">시</span></label>
       <input type="date" id="startDate" />
+      <span class="date-face" id="startFace" aria-hidden="true"></span>
     </div>
-    <div class="ctl">
-      <label for="endDate">종료일</label>
+    <div class="ctl date-ctl">
+      <label for="endDate"><span class="lbl-full">종료일</span><span class="lbl-tiny">종</span></label>
       <input type="date" id="endDate" />
+      <span class="date-face" id="endFace" aria-hidden="true"></span>
     </div>
   </div>
 </section>
@@ -489,6 +491,6 @@
 <script src="../data/locinfo.js?v=e97bc091b7"></script>
 <script src="../data/newtown.js?v=8ba14b3baf"></script>
 <script src="../shared/brand.js?v=717bc69d33"></script>
-<script src="app.js?v=f95fa457ef"></script>
+<script src="app.js?v=87681e4931"></script>
 </body>
 </html>

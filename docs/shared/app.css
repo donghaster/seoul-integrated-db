@@ -1536,6 +1536,7 @@ html[data-theme="dark"] .mine-tag { background: #3a63bd; }
   margin-left: auto; flex: 0 0 auto;    /* 법정동 칩이 늘어나도 여기는 안 눌린다 */
 }
 .stickytop .gran-group .ctl { display: flex; flex-direction: row; align-items: center; gap: 7px; }
+.gran-group .lbl-tiny, .gran-group .date-face { display: none; }
 .stickytop .gran-group label { font-size: 11.5px; font-weight: 700; color: var(--txt-mute); white-space: nowrap; }
 .stickytop .gran-group input[type="date"] {
   font: inherit; font-size: 12.5px; font-weight: 700; color: var(--txt);
@@ -1655,13 +1656,33 @@ html[data-theme="dark"] .mine-tag { background: #3a63bd; }
   /* 법정동은 아래 한 줄을 통째로 쓰고, 칩이 많으면 그 안에서 옆으로 넘긴다.
      '선택한 구 내' 같은 덧말은 폰에서 자리만 먹으니 접는다. */
   .stickytop .filter-bar .ctl-full { flex: 1 0 100%; }
-  /* 집계 조건은 좁은 화면에서 제 줄을 갖는다. 한 줄에 붙여 두면 종료일이
-     화면 밖으로 밀려 나가 가로 스크롤이 생긴다. 날짜 칸도 함께 줄인다. */
-  .stickytop .gran-group { flex: 1 0 100%; margin-left: 0; gap: 6px 10px; }
-  .stickytop .gran-group .ctl { flex: 0 1 auto; min-width: 0; }
+  /* 집계 조건은 좁은 화면에서 제 줄을 갖되, 그 한 줄 안에 다 들어가야 한다.
+     '집계 기준'은 주간·월간 단추가 이미 말해 주므로 지우고, 시작일·종료일은
+     '시·종'으로 줄이고, 날짜는 앞 두 자리를 뗀 25-10-01로 적는다.
+
+     네이티브 날짜 칸은 보이는 형식을 우리가 못 정한다 — 기기 설정을 따라
+     '2025. 10. 01.'처럼 길게 나온다. 그래서 글자는 우리가 따로 그리고(.date-face)
+     진짜 칸은 그 위에 투명하게 얹는다. 눌렀을 때 달력은 그대로 뜬다. */
+  .stickytop .gran-group { flex: 1 0 100%; margin-left: 0; gap: 6px 9px; }
+  .stickytop .gran-group .ctl { flex: 0 1 auto; min-width: 0; gap: 5px; }
   .stickytop .gran-group label { font-size: 11px; }
-  .stickytop .gran-group input[type="date"] {
-    font-size: 12px; padding: 4px 6px; min-width: 0; max-width: 126px;
+  .stickytop .gran-group .lbl-full { display: none; }
+  .stickytop .gran-group .lbl-tiny { display: inline; }
+  .stickytop .gran-group > .ctl:first-child > label { display: none; }
+
+  .stickytop .gran-group .date-ctl { position: relative; }
+  .stickytop .gran-group .date-ctl input[type="date"] {
+    position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+    opacity: 0; padding: 0; margin: 0; border: 0; min-width: 0; max-width: none;
+  }
+  .stickytop .gran-group .date-face {
+    display: inline-block; white-space: nowrap;
+    font: inherit; font-size: 12px; font-weight: 700; color: var(--txt);
+    border: 1px solid var(--line); border-radius: 8px; padding: 4px 7px;
+    background: var(--card);
+  }
+  .stickytop .gran-group .date-ctl:focus-within .date-face {
+    outline: 2px solid var(--accent-light); border-color: var(--accent);
   }
   .stickytop .filter-bar .ctl-full label .dim-note { display: none; }
 }

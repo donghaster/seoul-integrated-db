@@ -1097,9 +1097,18 @@
     syncControls();
   }
 
+  /* 휴대폰에서 날짜 칸에 덧씌우는 짧은 글자. 2026-09-12 → 26-09-12.
+     네이티브 칸은 보이는 형식이 기기 설정을 따라가 우리가 못 정한다. */
+  function paintDateFace(id, v) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = String(v || "").slice(2);
+  }
+
   function syncControls() {
     startInput.value = state.start;
     endInput.value = state.end;
+    paintDateFace("startFace", state.start);
+    paintDateFace("endFace", state.end);
     startInput.min = DATA_START; startInput.max = DATA_END;
     endInput.min = DATA_START; endInput.max = DATA_END;
     document.querySelectorAll("#granTabs button").forEach(function (b2) {
