@@ -1152,7 +1152,25 @@ html[data-theme="dark"] .spread-warn { background: #2b2412; border-color: #4a3d2
 html[data-theme="dark"] .brief-flag { color: #e0bd72; background: #2b2412; border-color: #4a3d22; }
 html[data-theme="dark"] .brief-thin { color: #f0918b; background: #2a1a1a; border-color: #5a3030; }
 /* 로고 이미지가 없을 때 나오는 대체 글씨 */
-html[data-theme="dark"] .brand-plate-fallback { color: var(--txt); }
+/* ── 다크에서는 상호 명판을 그림 대신 글자로 쓴다 ──
+   로고 그림 안에는 순백(254,254,254)과 순흑(1,1,1) 잉크가 거의 같은 양으로
+   들어 있다. '반포·공인중개사'가 흰 글자, '010'과 '2027'이 검은 글자다.
+   그래서 어두운 명판에서는 010·2027이 묻히고(대비 1.27), 흰 명판으로
+   바꾸면 이번엔 반포·공인중개사가 묻힌다(1.05). 가운데 회색도 답이 아니다
+   — 주황·금색 잉크가 그 근처라 오히려 더 나빠진다(1.35).
+   한 가지 바탕색으로는 둘 다 살릴 수 없다. 그림이라 글자색을 못 고치니,
+   다크에서는 우리가 색을 쥘 수 있는 글자판으로 바꾼다. 라이트에서는
+   지금처럼 로고 그림을 그대로 쓴다 — 흰 카드 위라 제대로 나온다. */
+html[data-theme="dark"] .brand-plate .logo { display: none; }
+html[data-theme="dark"] .brand-plate .logo ~ .brand-plate-fallback,
+html[data-theme="dark"] .brand-plate-fallback {
+  display: inline-flex; align-items: center; gap: 2px;
+  color: var(--txt);
+}
+/* 글자 크기는 넓은 화면·폰 규칙을 그대로 따른다. 여기서 크기를 못 박으면
+   폰 쪽 11.5px 규칙을 특정도로 눌러 버려 명판만 커진다. */
+html[data-theme="dark"] .brand-plate-fallback b { color: #f0918b; }
+html[data-theme="dark"] .brand-plate { background: var(--card-2); }
 /* 파란 알약 위 흰 글씨가 다소 흐렸다(3.25) — 채운 색만 한 단계 낮춘다 */
 html[data-theme="dark"] nav.section-nav button.active,
 html[data-theme="dark"] .tab-row button.active,
@@ -1468,6 +1486,8 @@ html[data-theme="dark"] .mine-tag { background: #3a63bd; }
 .stickytop .brand { gap: 10px; flex: 1 1 420px; }
 .stickytop .brand-plate { padding: 2px 10px; border-radius: 10px; margin: 0; }
 .stickytop .brand-plate .logo { height: 30px; }
+/* 금똑이는 명판 옆에 세운다. 로고보다 살짝 크게 둬야 얼굴이 산다 */
+.stickytop .brand-plate .mascot { height: 34px; }
 
 /* 지역 선택 — 카드가 아니라 막대 안의 한 줄로 눕힌다 */
 .stickytop .filter-bar {
@@ -1554,9 +1574,13 @@ html[data-theme="dark"] .mine-tag { background: #3a63bd; }
     min-width: 0; flex: 0 1 auto; overflow: hidden;
   }
   .stickytop .brand-plate .logo { display: none; }
+  /* 금똑이는 폰에서 접는다. 배지+상호전화+인쇄로 이미 343/351px을 쓰고 있어
+     34px이 더 들어오면 상호가 다시 잘린다. */
+  .stickytop .brand-plate .mascot { display: none; }
   .stickytop .brand-plate .brand-plate-fallback {
     display: inline-flex; align-items: center; gap: 2px; font-size: 11.5px;
   }
+  /* 다크 글자판 규칙(위)이 폰에도 그대로 먹는다 — 여기서 따로 덧쓰지 않는다 */
 
   /* 지역 선택 — 자치구·기간은 첫 줄에, 법정동 칩은 그 아래 한 줄에.
      nowrap으로 다 밀어붙이면 법정동 줄이 997px까지 뻗어 옆으로 긁어야

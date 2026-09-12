@@ -47,6 +47,7 @@ import json
 import os
 import re
 import ssl
+import statistics
 import sys
 import threading
 import time
@@ -69,8 +70,18 @@ QUOTA_FLOOR = 150            # 이만큼은 남겨 둔다
 # 이 일은 급하지 않다. 하루 한도를 다 태우면 그날 다른 볼일(단지 하나 확인,
 # 새 기능 시험)을 못 본다. 절반만 쓰고 나머지는 남겨 둔다.
 QUOTA_SHARE = float(os.environ.get("SUPPLY_QUOTA_SHARE", "0.5"))
-SPREAD_MAX = 0.03            # 같은 전용면적인데 호별 공급면적이 3% 넘게 흩어지면 버린다
-RATIO_LO, RATIO_HI = 0.60, 0.86   # 이 범위를 벗어난 전용률은 대장 등재가 부실한 것
+SPREAD_MAX = 0.05            # 같은 전용면적인데 호별 공급면적이 이보다 흩어지면 버린다
+# 흩어짐은 가운데 80%만 보고 잰다. 부대시설 몫이 동마다 조금씩 달라 한두 호가
+# 튀는 것은 정상이다(반포미도 전체폭 3.7%, 가운데 2.5%). 3% 전체폭으로 끊었더니
+# 멀쩡한 대단지가 통째로 버려졌다. 같은 지번에 다른 단지가 섞인 경우(상계주공
+# 15·16)는 차이가 이보다 훨씬 커서 가운데 80%로도 그대로 걸린다.
+RATIO_LO, RATIO_HI = 0.42, 0.86   # 이 범위를 벗어난 전용률은 대장 등재가 부실한 것
+# 아래쪽을 0.60에서 0.42로 내렸다. 서초이오빌 54%, 풍림아이원플러스 47%처럼
+# 도시형생활주택·오피스텔형으로 지어 실거래에는 아파트로 잡히는 단지가 있다.
+# 그쪽 전용률은 원래 그렇게 낮고, 대장 값이 실제 공급면적이 맞다. 이걸 버리면
+# 전용 36.66㎡를 76.9%로 어림해 47.7㎡라고 적게 되는데, 실제는 67.89㎡다 —
+# 버리는 쪽이 훨씬 크게 틀린다. 위쪽 0.86은 그대로 둔다. 신반포19의 90.7%는
+# 계단·복도가 대장에 안 올라간 것이라 그건 공급면적이 아니다.
 MIN_DWELL = 26.0             # 이보다 작은 전유면적은 주택이 아니라 상가·창고다
 
 # 전유부 주용도가 이 가운데 하나여야 사람이 사는 호로 친다.
@@ -305,7 +316,18 @@ def pick(names, want):
         nb = norm(b)
         if nb and n and (nb == n or nb in n or n in nb):
             return b
-    return next(iter(names)) if len(names) == 1 else None
+    if len(names) == 1:
+        return next(iter(names))
+    # 마지막 수단 — 숫자를 떼고 견준다. 실거래는 '신반포2'인데 대장은
+    # '신반포아파트'라 글자가 안 맞는 경우가 있다. 지번 하나 안에서만 보고,
+    # 그렇게 맞는 것이 딱 하나일 때만 고른다. 둘 이상이면 가르지 못한 것이다.
+    nd = re.sub(r"\d+", "", n)
+    if len(nd) >= 2:
+        hit = [b for b in names
+               if nd in re.sub(r"\d+", "", norm(b)) or re.sub(r"\d+", "", norm(b)) in nd]
+        if len(hit) == 1:
+            return hit[0]
+    return None
 
 
 def believable(ex, sup):
@@ -334,16 +356,21 @@ def tidy(area_lists):
     """
     out, dropped = {}, 0
     for ex, sup in area_lists.items():
-        avg = sum(sup) / len(sup)
-        if avg <= 0:
+        v = sorted(sup)
+        rep = statistics.median(v)               # 평균은 튄 호 하나에 끌려간다
+        if rep <= 0:
             continue
-        if (max(sup) - min(sup)) / avg > SPREAD_MAX:
+        if len(v) >= 10:                          # 가운데 80%만 본다
+            lo, hi = v[int(len(v) * 0.1)], v[int(len(v) * 0.9) - 1]
+        else:
+            lo, hi = v[0], v[-1]
+        if (hi - lo) / rep > SPREAD_MAX:
             dropped += 1
             continue
-        if not believable(float(ex), avg):
+        if not believable(float(ex), rep):
             dropped += 1
             continue
-        out[ex] = round(avg, 2)
+        out[ex] = round(rep, 2)
     return out, dropped
 
 
@@ -394,11 +421,21 @@ def progress(cs, store):
     print("  진행 " + " · ".join(line), flush=True)
 
 
-def collect(budget=None, minutes=None, only=None):
+def collect(budget=None, minutes=None, only=None, retry=False):
     store = json.load(open(STORE, encoding="utf-8")) if os.path.exists(STORE) else {}
     cs = complexes()
     if only:
         cs = [c for c in cs if c["gu"] in only]
+    if retry:
+        # 거르는 규칙을 고쳤으면 '제외'로 적어 둔 것을 다시 물어봐야 한다.
+        # 성공한 기록은 건드리지 않는다 — 그건 다시 받을 이유가 없다.
+        gone = 0
+        for c in cs:
+            k = "%s|%s|%s" % (c["gu"], c["dong"], c["name"])
+            if k in store and "skip" in store[k]:
+                del store[k]
+                gone += 1
+        print("제외로 적어 둔 %d단지를 지웠다 — 새 규칙으로 다시 물어본다" % gone)
     want = defaultdict(set)
     for c in cs:
         want[GU_CD[c["gu"]]].add(c["dong"])
@@ -547,12 +584,14 @@ def main():
     ap.add_argument("--minutes", type=int, default=None, help="이번에 쓸 시간(분)")
     ap.add_argument("--write", action="store_true", help="받지 않고 supply.js만 다시 굽는다")
     ap.add_argument("--gu", default="", help="이 자치구만 받는다(쉼표로 여럿)")
+    ap.add_argument("--retry", action="store_true",
+                    help="제외로 적어 둔 단지를 지우고 다시 물어본다(규칙을 고친 뒤)")
     a = ap.parse_args()
     if a.write:
         write(json.load(open(STORE, encoding="utf-8")))
         return
     only = [g.strip() for g in a.gu.split(",") if g.strip()]
-    write(collect(a.budget, a.minutes, only))
+    write(collect(a.budget, a.minutes, only, a.retry))
 
 
 if __name__ == "__main__":
