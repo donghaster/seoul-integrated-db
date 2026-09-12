@@ -13,12 +13,23 @@
   var STAGES = N.stages;
   var ALL = "all";
 
-  // 진행 단계별 색 — 지도 원과 카드 배지에 함께 쓴다
+  /* 진행 단계별 색 — 지도 원과 카드 배지에 함께 쓴다.
+     밝은 화면에 맞춘 색이라 다크에서는 '초기' 빨강이 어두운 카드에 묻혔다
+     (대비 3.04 — 12px 글씨에 필요한 4.5에 못 미친다). 다크에서는 네 색을
+     한 단계씩 올린다. 지도 원도 같이 밝아지는데, 어두운 바탕에서는 그 편이 낫다. */
+  var STAGE_LIGHT = ["#bc3d3d", "#cf9a45", "#4f7fe6", "#4fada8"];
+  var STAGE_DARK  = ["#e8756f", "#e0b168", "#7fa5f2", "#6fc9c3"];
+
+  function isDark() {
+    return document.documentElement.getAttribute("data-theme") === "dark";
+  }
+
   function stageColor(stage) {
-    if (stage >= 6) return "#4fada8";   // 준공·입주
-    if (stage >= 5) return "#4f7fe6";   // 착공
-    if (stage >= 2) return "#cf9a45";   // 인가·이주·철거
-    return "#bc3d3d";                    // 초기
+    var c = isDark() ? STAGE_DARK : STAGE_LIGHT;
+    if (stage >= 6) return c[3];        // 준공·입주
+    if (stage >= 5) return c[2];        // 착공
+    if (stage >= 2) return c[1];        // 인가·이주·철거
+    return c[0];                        // 초기
   }
 
   var state = { gu: ALL, wave: ALL, status: ALL, zone: "noryangjin",
@@ -41,17 +52,19 @@
     return "기타";
   }
 
-  /* ── 진행단계 묶음 — 중개 상담에서 실제로 구분해서 쓰는 4단계 ── */
+  /* ── 진행단계 묶음 — 중개 상담에서 실제로 구분해서 쓰는 4단계 ──
+     묶음 앞의 점은 지도 원과 같은 단계를 가리키므로 색도 같이 간다.
+     다크에서 한쪽만 밝히면 같은 단계가 두 색으로 보인다. */
   var STAGE_BUCKETS = [
-    { key: "build", name: "착공 — 곧 입주", color: "#4f7fe6",
+    { key: "build", name: "착공 — 곧 입주", color: "#4f7fe6", dark: "#7fa5f2",
       hint: "실물이 올라가는 중 · 분양권 상담 대상", test: function (s) { return s === 5; } },
-    { key: "move",  name: "이주·철거 중", color: "#7a9fe0",
+    { key: "move",  name: "이주·철거 중", color: "#7a9fe0", dark: "#9db9ee",
       hint: "이주비·철거 일정이 관건 · 입주권 매물", test: function (s) { return s === 4; } },
-    { key: "auth",  name: "인가 단계 (사업시행·관리처분)", color: "#cf9a45",
+    { key: "auth",  name: "인가 단계 (사업시행·관리처분)", color: "#cf9a45", dark: "#e0b168",
       hint: "사업이 확정돼 가는 구간 · 조합원 지위 양도 제한 확인", test: function (s) { return s === 2 || s === 3; } },
-    { key: "early", name: "초기 (구역지정·조합설립)", color: "#bc3d3d",
+    { key: "early", name: "초기 (구역지정·조합설립)", color: "#bc3d3d", dark: "#e8756f",
       hint: "변수가 가장 큰 구간 · 장기 투자 관점", test: function (s) { return s <= 1; } },
-    { key: "done",  name: "준공·입주 완료", color: "#4fada8",
+    { key: "done",  name: "준공·입주 완료", color: "#4fada8", dark: "#6fc9c3",
       hint: "이미 아파트가 된 곳 · 실거래 시세 비교용", test: function (s) { return s >= 6; } },
   ];
 
@@ -364,7 +377,7 @@
     if (state.group === "stage") {
       // 기본은 맨 앞(가장 임박한) 묶음만 펼치고 나머지는 접어 둔다 — 27개가 한꺼번에 쏟아지지 않게
       return STAGE_BUCKETS.map(function (b) {
-        return { key: b.key, name: b.name, color: b.color, hint: b.hint,
+        return { key: b.key, name: b.name, color: (isDark() && b.dark) || b.color, hint: b.hint,
                  items: list.filter(function (d) { return b.test(d.stage); }) };
       }).filter(function (g) { return g.items.length; })
         .map(function (g, i) { g.open = i === 0; return g; });
@@ -758,4 +771,8 @@
   initMap();
   initZoneMap();
   renderAll();
+
+  /* 단계 색이 테마에 따라 달라지므로, 라이트↔다크를 바꾸면 다시 그린다.
+     안 그리면 바뀌기 전 색이 지도 원과 카드에 그대로 남는다. */
+  window.addEventListener("themechange", function () { renderAll(); });
 })();

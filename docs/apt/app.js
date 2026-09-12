@@ -1781,6 +1781,17 @@
     }).join("");
   }
 
+  /* 위 '평형별 시세'는 기간 안의 모든 거래를 세는데 이 목록은 최근 6건만
+     보여 준다. 33.6평 5건인데 아래에 3줄만 보이는 까닭이 그것인데, 말해
+     주지 않으면 자료가 빠진 줄 안다. 머릿글에 몇 건 중 몇 건인지 적는다. */
+  function dealHead(label, rows, type, cap) {
+    var n = rows.filter(function (x) { return x.t === type; }).length;
+    var lim = cap || 6;
+    return "<h4>" + label +
+      (n > lim ? ' <span class="dim-note">' + n + "건 중 최근 " + lim + "건</span>" : "") +
+      "</h4>";
+  }
+
   function dealListHtml(rows, type, cap) {
     var v = rows.filter(function (x) { return x.t === type; })
       .sort(function (a, b) { return a.d < b.d ? 1 : -1; }).slice(0, cap || 6);
@@ -1965,8 +1976,8 @@
           '<th>전세</th><th>중위 보증금</th><th>전세가율</th><th>월세</th><th>보증금 / 월세</th>' +
         "</tr></thead><tbody>" + bandRowsHtml(sum) + "</tbody></table></div>" +
 
-        "<h4>최근 매매</h4>" + dealListHtml(a.deals, "sale") +
-        "<h4>최근 전세</h4>" +
+        dealHead("최근 매매", a.deals, "sale") + dealListHtml(a.deals, "sale") +
+        (sum.cnt.jeonse ? dealHead("최근 전세", a.deals, "jeonse") : "<h4>최근 전세</h4>") +
         (sum.cnt.jeonse ? dealListHtml(a.deals, "jeonse") : jeonseGuessHtml(sum, mainBand)) +
 
         (special ? '<p class="thin-note"><span>' + special.why + "</span></p>" : "") +

@@ -7,10 +7,19 @@
      설정이 바뀌면 같이 따라간다. 인쇄는 CSS에서 늘 밝은 색으로 돌린다. */
   var THEME_KEY = "geumjib-theme";
 
+  /* '자동'일 때 data-theme을 지우고 기기 설정에 맡기려 했는데, 어두운 색은
+     전부 html[data-theme="dark"]에만 걸려 있어(64군데) 딸려 오지 않았다.
+     다크로 맞춰 둔 폰에서도 화면이 계속 밝았던 까닭이다.
+     기기 설정을 여기서 읽어 dark/light 중 하나로 찍어 준다 — 기억하는 값은
+     그대로 'auto'라, 설정이 바뀌면 아래 listener가 다시 따라간다. */
+  function prefersDark() {
+    return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  }
+
   function applyTheme(mode) {
     var root = document.documentElement;
-    if (mode === "dark" || mode === "light") root.setAttribute("data-theme", mode);
-    else root.removeAttribute("data-theme");           // auto — 기기 설정을 따른다
+    var real = (mode === "dark" || mode === "light") ? mode : (prefersDark() ? "dark" : "light");
+    root.setAttribute("data-theme", real);
     document.querySelectorAll(".theme-toggle button").forEach(function (b) {
       b.classList.toggle("is-on", b.dataset.theme === (mode || "auto"));
     });

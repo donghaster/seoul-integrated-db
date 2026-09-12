@@ -5,6 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>금집부쌤의 서울시 통합 부동산 대시보드 — 상권분석</title>
   <link rel="stylesheet" href="../shared/app.css?v=796bcb707a" />
+  <!-- 색 테마를 첫 칠 전에 찍는다. brand.js는 본문 맨 아래라, 다크로 맞춰 둔
+       폰에서 흰 화면이 한 번 번쩍인 뒤 어두워진다. -->
+  <script>
+    (function () {
+      try {
+        var m = localStorage.getItem("geumjib-theme") || "auto";
+        if (m !== "dark" && m !== "light") {
+          m = window.matchMedia &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        document.documentElement.setAttribute("data-theme", m);
+      } catch (e) { /* 저장소를 못 읽어도 화면은 뜬다 */ }
+    })();
+  </script>
   <link rel="stylesheet" href="../vendor/leaflet/leaflet.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>📊</text></svg>" />
 </head>
@@ -97,7 +111,7 @@
 <script src="../data/trade.js?v=903fc3a06a"></script>
 <script src="../data/sangga.js?v=6c955e0a27"></script>
 <script src="../data/rent.js?v=4c7e01d298"></script>
-<script src="../shared/brand.js?v=ebef8cf1e9"></script>
+<script src="../shared/brand.js?v=79fcfd3556"></script>
 <script src="app.js?v=55b8c1cbdf"></script>
 </body>
 </html>
