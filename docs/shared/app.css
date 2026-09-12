@@ -1362,3 +1362,13 @@ html[data-theme="dark"] .exact-tag { color: #86d3a5; background: #17281e; border
   color: #8a6a1f; background: #fdf3dc; border: 1px solid #ecd9a8;
 }
 html[data-theme="dark"] .est-tag { color: #e0bd72; background: #2b2412; border-color: #4a3d22; }
+
+/* 순위표에서 지금 보고 있는 지역을 짚어 준다.
+   "우리 동네가 몇 위냐"는 상담에서 늘 나오는 질문인데, 25줄·8줄짜리 표에서
+   눈으로 찾게 두면 브리핑이 끊긴다. */
+.rank-table tbody tr.rank-mine {
+  background: var(--accent-light);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.rank-table tbody tr.rank-mine td { font-weight: 700; }
+html[data-theme="dark"] .rank-table tbody tr.rank-mine { background: #1e2740; }

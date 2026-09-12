@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>금집부쌤의 서울시 통합 부동산 대시보드 — 상가·오피스텔</title>
-  <link rel="stylesheet" href="../shared/app.css?v=6daf47f5e3" />
+  <link rel="stylesheet" href="../shared/app.css?v=1ae527c720" />
   <link rel="stylesheet" href="../vendor/leaflet/leaflet.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🏢</text></svg>" />
 </head>
@@ -229,15 +229,19 @@
       <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> <span id="volSecTitle">거래량 비교</span> (상가 vs 오피스텔)</h2>
       <button class="sec-print-btn" onclick="printSection('sec-volume')">이 섹션 인쇄</button>
     </div>
-    <p class="sec-desc">선택 지역의 <b>월별 거래건수</b>와, 서울 <b>자치구별 수익형 부동산 거래량 순위</b>입니다.</p>
+    <p class="sec-desc" id="volDesc">선택 지역의 <b>월별 거래건수</b>와 <b>수익형 부동산 거래량 순위</b>입니다.</p>
     <div class="chart-grid">
       <div class="chart-box"><canvas id="volMonthChart"></canvas></div>
       <div class="chart-box"><canvas id="volDonutChart"></canvas></div>
     </div>
-    <div class="chart-box" style="height:340px; margin-top:22px;"><canvas id="volGuChart"></canvas></div>
+    <div class="tab-row" id="volRankTabs" style="margin-top:22px;">
+      <button class="active" data-r="gu">자치구별<span class="tab-tail"> 거래량 순위</span></button>
+      <button data-r="dong">법정동별<span class="tab-tail"> 거래량 순위</span></button>
+    </div>
+    <div class="chart-box" style="height:340px; margin-top:14px;"><canvas id="volGuChart"></canvas></div>
     <div class="deal-scroll" style="--tbl-h:560px" style="margin-top:18px;">
       <table class="rank-table deal-table">
-        <thead><tr><th>순위</th><th>자치구</th><th>상가·업무용 <span class="th-sub">건</span></th><th>오피스텔 매매 <span class="th-sub">건</span></th><th>오피스텔 전월세 <span class="th-sub">건</span></th><th>상가 중위가</th><th>오피스텔 중위 매매가</th></tr></thead>
+        <thead><tr><th>순위</th><th id="volRankHead">자치구</th><th>상가·업무용 <span class="th-sub">건</span></th><th>오피스텔 매매 <span class="th-sub">건</span></th><th>오피스텔 전월세 <span class="th-sub">건</span></th><th>상가 중위가</th><th>오피스텔 중위 매매가</th></tr></thead>
         <tbody id="volGuBody"></tbody>
       </table>
     </div>
@@ -273,9 +277,9 @@
 
 <script src="../vendor/leaflet/leaflet.js"></script>
 <script src="../vendor/chart.umd.min.js"></script>
-<script src="../data/sangga.js?v=4a50da7f88"></script>
-<script src="../data/geo.js?v=b780edb52a"></script>
+<script src="../data/sangga.js?v=c0d12e1687"></script>
+<script src="../data/geo.js?v=5f13ee09fd"></script>
 <script src="../shared/brand.js?v=e35116c24e"></script>
-<script src="app.js?v=d47e0cf0e5"></script>
+<script src="app.js?v=046fd7f23a"></script>
 </body>
 </html>
