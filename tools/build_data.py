@@ -415,6 +415,64 @@ def band(area: float) -> int:
     return math.floor(area or 0)
 
 
+# ── 평형대 칸 ──
+# 화면(docs/sangga/app.js)과 같은 경계를 써야 "30평대"가 같은 뜻이 된다.
+SIZE_BANDS = [
+    ("u20", 0.0, 20.0),
+    ("20", 20.0, 30.0),
+    ("30", 30.0, 40.0),
+    ("40", 40.0, 50.0),
+    ("50", 50.0, 60.0),
+    ("60", 60.0, 70.0),
+    ("70", 70.0, 80.0),
+    ("80", 80.0, float("inf")),
+]
+
+
+def offi_ratio(a: float) -> float:
+    """오피스텔 전용률 — docs/sangga/app.js offiRatio와 같은 구간값."""
+    if not a:
+        return 0.53
+    if a < 40:
+        return 0.47
+    if a < 60:
+        return 0.53
+    if a < 85:
+        return 0.60
+    return 0.66
+
+
+def offi_pyeong(row: dict) -> float:
+    """오피스텔 분양(공급) 평수. 손님이 말씀하시는 평수는 이쪽이다."""
+    a = row.get("area") or 0
+    return (a / offi_ratio(a)) / PYEONG if a else 0.0
+
+
+def nrg_pyeong(row: dict) -> float:
+    """상가·업무용은 연면적 그대로 잰다. 이쪽은 분양면적이라는 개념이 없다."""
+    return (row.get("area") or 0) / PYEONG
+
+
+# 평형대 칸에 담는 행수. 전체 표는 30이지만 칸별은 10으로 끊는다.
+# 30으로 담아 봤더니 sangga.js가 10.2MB에서 22.6MB로 불었다. 435개 지역 ×
+# 3기간 × 6종류 × 8칸이라, 법정동 단위에서는 사실상 원본을 두 번 싣는 꼴이
+# 된다(그것만 8.5MB). 상담에서 한 평형대를 열 줄 넘게 내려갈 일은 없고,
+# 파일이 무거우면 폰에서 첫 화면이 늦어진다.
+BAND_N = 10
+
+
+def band_tops(rows: list[dict], pyeong, slimmer, n: int = BAND_N) -> dict:
+    """평형대별 금액 상위 n건. 비어 있는 칸은 담지 않는다 —
+    화면에서는 '없습니다'만 띄우면 되므로 굳이 실을 것이 없다."""
+    out = {}
+    for key, lo, hi in SIZE_BANDS:
+        sub = [r for r in rows if lo <= pyeong(r) < hi]
+        if not sub:
+            continue
+        out[key] = slimmer(sub, n)
+    return out
+
+
 def offi_jeonse_ratio(sale: list, rent: list) -> dict:
     """오피스텔 전세가율 — 전세 신고가 없는 지역에서 "얼마쯤 하느냐"를 답하는 기준.
 
@@ -555,9 +613,13 @@ def build_sangga(yms: list[str]) -> dict:
         nrg_rows = {g: reg["nrg"][g] for g in ("shop", "office", "etc")}
         offi_rows = reg["offi"]
 
-        def nrg_slim(rows):
+        def nrg_slim_n(rows, n):
+            """평형대 칸용 — 담는 행수를 밖에서 정한다."""
+            return nrg_slim(rows, n)
+
+        def nrg_slim(rows, n=TABLE_N):
             """상업용은 단지명이 없어 용도·지번으로 표시한다."""
-            ranked = sorted(rows, key=lambda r: r["amount"], reverse=True)[:TABLE_N]
+            ranked = sorted(rows, key=lambda r: r["amount"], reverse=True)[:n]
             return [{
                 "n": r.get("use") or "상업·업무용",
                 "bt": r.get("btype") or "",
@@ -581,6 +643,12 @@ def build_sangga(yms: list[str]) -> dict:
             per_window[str(w)] = {
                 "nrgTop": {g: nrg_slim(sub_nrg[g]) for g in ("shop", "office", "etc")},
                 "offiTop": {t: top_rows(sub_offi[t], TABLE_N) for t in ("sale", "jeonse", "wolse")},
+                # 평형대별 TOP30 — 금액 상위만 보면 표가 대형으로 덮여,
+                # 정작 손님이 찾는 20~30평대가 한 줄도 안 보이는 지역이 생긴다
+                "offiBand": {t: band_tops(sub_offi[t], offi_pyeong, top_rows)
+                             for t in ("sale", "jeonse", "wolse")},
+                "nrgBand": {g: band_tops(sub_nrg[g], nrg_pyeong, nrg_slim_n)
+                            for g in ("shop", "office", "etc")},
                 "nrgCnt": {g: len(sub_nrg[g]) for g in ("shop", "office", "etc")},
                 "offiCnt": {t: len(sub_offi[t]) for t in ("sale", "jeonse", "wolse")},
                 "med": {

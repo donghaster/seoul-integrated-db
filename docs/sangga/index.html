@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>금집부쌤의 서울시 통합 부동산 대시보드 — 상가·오피스텔</title>
-  <link rel="stylesheet" href="../shared/app.css?v=bf7566fe88" />
+  <link rel="stylesheet" href="../shared/app.css?v=1e0f55d591" />
   <!-- 색 테마를 첫 칠 전에 찍는다. brand.js는 본문 맨 아래라, 다크로 맞춰 둔
        폰에서 흰 화면이 한 번 번쩍인 뒤 어두워진다. -->
   <script>
@@ -177,7 +177,8 @@
       <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> <span id="nrgSecTitle">상가·업무용</span> 실거래가 TOP 30</h2>
       <button class="sec-print-btn" onclick="printSection('sec-nrg')">이 섹션 인쇄</button>
     </div>
-    <p class="sec-desc">국토교통부 <b>상업·업무용 부동산 매매</b> 실거래입니다.</p>
+    <p class="sec-desc">국토교통부 <b>상업·업무용 부동산 매매</b> 실거래입니다.<br />
+      아래 칸을 고르시면 그 규모 안에서 다시 줄을 세웁니다(칸별 <b>상위 10건</b>). 상가는 분양면적이라는 개념이 없어 <b>연면적 기준</b>으로 끊었습니다 &mdash; 아파트·오피스텔의 평형대와는 다른 잣대입니다.</p>
 
     <div class="read-guide">
       <h4>이 표를 읽는 법 — 세 가지만 기억하세요</h4>
@@ -195,6 +196,9 @@
       <button data-g="office">업무용 (사무실 등)</button>
       <button data-g="etc">기타 상업·업무용</button>
     </div>
+    <!-- 연면적 규모 칸은 JS에서 채운다(app.js SIZE_BANDS) -->
+    <div class="tab-row seg-sm band-tabs" id="nrgBandTabs" aria-label="연면적 규모" hidden></div>
+    <p class="band-note" id="nrgBandNote"></p>
     <div class="deal-scroll" style="--tbl-h:560px">
       <table class="rank-table deal-table">
         <thead><tr><th>순위</th><th>용도</th><th>소재지</th><th>연면적 <span class="th-sub">대지면적</span></th><th>층</th><th>거래가</th><th>평당가 <span class="th-sub">연면적 기준</span></th><th>거래일</th></tr></thead>
@@ -210,7 +214,8 @@
       <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> <span id="offiSecTitle">오피스텔</span> 실거래가 TOP 30</h2>
       <button class="sec-print-btn" onclick="printSection('sec-offi')">이 섹션 인쇄</button>
     </div>
-    <p class="sec-desc">오피스텔 <b>매매·전세·월세</b> 상위 30건입니다. 표에는 <b>10건만 보이고</b>, <b>펼치기</b>로 30위까지 봅니다. 건물명을 클릭하면 위 지도에 위치가 표시됩니다.</p>
+    <p class="sec-desc">오피스텔 <b>매매·전세·월세</b> 상위 30건입니다. 표에는 <b>10건만 보이고</b>, <b>펼치기</b>로 30위까지 봅니다. 건물명을 클릭하면 위 지도에 위치가 표시됩니다.<br />
+      아래 <b>평형대</b>를 고르시면 그 평형대 안에서 다시 줄을 세웁니다(칸별 <b>상위 10건</b>) &mdash; <b>분양 평수 기준</b>이라 손님이 말씀하시는 평수와 같습니다. 위 지도도 고른 평형대를 따라갑니다.</p>
 
     <div class="read-guide">
       <h4>이 표를 읽는 법 — 세 가지만 기억하세요</h4>
@@ -232,6 +237,9 @@
       <button data-t="jeonse">전세</button>
       <button data-t="wolse">월세</button>
     </div>
+    <!-- 평형대 칸은 JS에서 채운다(app.js SIZE_BANDS) -->
+    <div class="tab-row seg-sm band-tabs" id="offiBandTabs" aria-label="평형대" hidden></div>
+    <p class="band-note" id="offiBandNote"></p>
     <div class="deal-scroll" style="--tbl-h:560px">
       <table class="rank-table rank-neutral deal-table">
         <thead><tr><th>순위</th><th>건물명</th><th>분양면적 <span class="th-sub">㎡ (평) · 아래 전용</span></th><th>층</th><th id="offiPriceHead">거래가</th><th>평당가 <span class="th-sub">공급 기준 · 아래 전용</span></th><th>거래일</th></tr></thead>
@@ -298,9 +306,9 @@
 
 <script src="../vendor/leaflet/leaflet.js"></script>
 <script src="../vendor/chart.umd.min.js"></script>
-<script src="../data/sangga.js?v=6c955e0a27"></script>
+<script src="../data/sangga.js?v=76c93e8604"></script>
 <script src="../data/geo.js?v=5f13ee09fd"></script>
 <script src="../shared/brand.js?v=79fcfd3556"></script>
-<script src="app.js?v=062b2dcf70"></script>
+<script src="app.js?v=1eaaf42d16"></script>
 </body>
 </html>

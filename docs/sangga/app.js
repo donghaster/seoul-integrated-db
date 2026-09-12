@@ -25,6 +25,7 @@
   var OFFI_COLOR = { sale: "#4f7fe6", jeonse: "#4fada8", wolse: "#cf9a45" };
 
   var state = { gu: ALL, dong: ALL, win: D.defaultWindow, nrgGroup: "shop", offiType: "sale",
+    offiBand: "all", nrgBand: "all",   // 평형대 칸 — build_data.py SIZE_BANDS와 같은 경계
     volRank: "gu",              // 거래량 순위를 자치구별로 볼지 법정동별로 볼지
   };
 
@@ -155,6 +156,7 @@
   var EMPTY = {
     nrgTop: { shop: [], office: [], etc: [] },
     offiTop: { sale: [], jeonse: [], wolse: [] },
+    nrgBand: {}, offiBand: {},
     nrgVol: { shop: [], office: [], etc: [] },
     offiVol: { sale: [], jeonse: [], wolse: [] },
     nrgCnt: { shop: 0, office: 0, etc: 0 },
@@ -171,6 +173,7 @@
     var w = reg.w[state.win] || EMPTY;
     return {
       nrgTop: w.nrgTop, offiTop: w.offiTop,
+      nrgBand: w.nrgBand || {}, offiBand: w.offiBand || {},
       nrgCnt: w.nrgCnt, offiCnt: w.offiCnt, med: w.med,
       dongCnt: reg.dongCnt || [],
       nrgVol: {
@@ -315,9 +318,90 @@
     }).join("");
   }
 
+  /* ── 평형대 칸 ──
+     build_data.py SIZE_BANDS와 같은 경계다. 칸별 상위 10건씩 미리 구워 두고
+     (파일이 무거워지지 않게 30이 아니라 10으로 끊었다) 여기서는 고르기만 한다.
+
+     오피스텔은 분양(공급) 평수로 끊는다 — 손님은 "24평"이라고 말씀하시지
+     "전용 39㎡"라고 하지 않는다. 상가·업무용은 연면적 그대로다. 그쪽은
+     분양면적이라는 개념이 없고 한 채를 통으로 사고파는 자리라,
+     '평형대'가 아니라 '연면적 규모'라고 불러야 말이 맞는다. */
+  var SIZE_BANDS = [
+    { k: "all", name: "전체" },
+    { k: "u20", name: "20평 미만" },
+    { k: "20",  name: "20평대" },
+    { k: "30",  name: "30평대" },
+    { k: "40",  name: "40평대" },
+    { k: "50",  name: "50평대" },
+    { k: "60",  name: "60평대" },
+    { k: "70",  name: "70평대" },
+    { k: "80",  name: "80평 이상" },
+  ];
+
+  function bandName(k) {
+    for (var i = 0; i < SIZE_BANDS.length; i++) {
+      if (SIZE_BANDS[i].k === k) return SIZE_BANDS[i].name;
+    }
+    return "전체";
+  }
+
+  /* 칸을 그린다. 그 지역·기간에 아예 없는 칸은 단추도 만들지 않는다 —
+     눌러 봤자 "없습니다"만 나오는 단추가 여덟 개 늘어서 있으면 고르기 나쁘다. */
+  function fillBandTabs(hostId, pool, cur, onPick) {
+    var host = document.getElementById(hostId);
+    if (!host) return;
+    var have = SIZE_BANDS.filter(function (b) {
+      return b.k === "all" || (pool && pool[b.k] && pool[b.k].length);
+    });
+    if (have.length <= 1) { host.innerHTML = ""; host.hidden = true; return; }
+    host.hidden = false;
+    host.innerHTML = have.map(function (b) {
+      var n = b.k === "all" ? "" : ' <span class="band-n">' + pool[b.k].length + "</span>";
+      return '<button data-b="' + b.k + '"' + (b.k === cur ? ' class="active"' : "") +
+        ">" + b.name + n + "</button>";
+    }).join("");
+    if (!host.dataset.wired) {
+      host.dataset.wired = "1";
+      host.addEventListener("click", function (e) {
+        var btn = e.target.closest("button[data-b]");
+        if (btn) onPick(btn.dataset.b);
+      });
+    }
+  }
+
+  /* 고른 칸이 지역·기간을 바꾸면서 사라질 수 있다. 그러면 전체로 되돌린다 */
+  function keepBand(pool, cur) {
+    if (cur === "all") return "all";
+    return (pool && pool[cur] && pool[cur].length) ? cur : "all";
+  }
+
+  function nrgRowsOf(g) {
+    var pool = (region().nrgBand || {})[g] || {};
+    return state.nrgBand === "all"
+      ? (region().nrgTop[g] || [])
+      : (pool[state.nrgBand] || []);
+  }
+
   function renderNrg() {
     var r = region();
-    document.getElementById("nrgBody").innerHTML = nrgRowsHtml(r.nrgTop[state.nrgGroup] || [], state.nrgGroup);
+    var pool = (r.nrgBand || {})[state.nrgGroup] || {};
+    state.nrgBand = keepBand(pool, state.nrgBand);
+    fillBandTabs("nrgBandTabs", pool, state.nrgBand, function (k) {
+      state.nrgBand = k;
+      renderNrg();
+    });
+
+    var rows = nrgRowsOf(state.nrgGroup);
+    document.getElementById("nrgBody").innerHTML = rows.length
+      ? nrgRowsHtml(rows, state.nrgGroup)
+      : '<tr><td colspan="8" class="placeholder">' + esc(regionLabel()) + " · " +
+        esc(bandName(state.nrgBand)) + "에는 이 기간 신고된 거래가 없습니다.</td></tr>";
+    var nn = document.getElementById("nrgBandNote");
+    if (nn) {
+      nn.innerHTML = state.nrgBand === "all" ? "" :
+        "<b>" + esc(bandName(state.nrgBand)) + "</b> " + rows.length + "건" +
+        ' <span class="dim-note">연면적 기준 · 칸별로는 상위 10건까지 보여 드립니다</span>';
+    }
     if (window.wireScrollBoxes) window.wireScrollBoxes();
 
     document.getElementById("nrgPrintAll").innerHTML = NRG_GROUPS
@@ -325,7 +409,7 @@
       .map(function (g) {
         return '<h3 style="margin:18px 0 8px; font-size:15px;">' + regionLabel() + " · " + NRG_LABEL[g] + " 실거래가 TOP 10</h3>" +
           '<table class="rank-table"><thead><tr><th>순위</th><th>용도</th><th>소재지</th><th>연면적</th><th>층</th><th>거래가</th><th>평당가</th><th>거래일</th></tr></thead><tbody>' +
-          nrgRowsHtml(r.nrgTop[g] || [], g) + "</tbody></table>";
+          nrgRowsHtml(nrgRowsOf(g), g) + "</tbody></table>";
       }).join("");
   }
 
@@ -428,15 +512,37 @@
     }).join("");
   }
 
+  function offiRowsOf(t) {
+    var pool = (region().offiBand || {})[t] || {};
+    return state.offiBand === "all"
+      ? (region().offiTop[t] || [])
+      : (pool[state.offiBand] || []);
+  }
+
   function renderOffi() {
     var r = region();
     var type = state.offiType;
+    var pool = (r.offiBand || {})[type] || {};
+    state.offiBand = keepBand(pool, state.offiBand);
+    fillBandTabs("offiBandTabs", pool, state.offiBand, function (k) {
+      state.offiBand = k;
+      renderOffi();
+      renderMap();
+    });
+
+    var rows = offiRowsOf(type);
     document.getElementById("offiPriceHead").textContent = type === "wolse" ? "보증금 / 월세" : "거래가";
-    document.getElementById("offiBody").innerHTML = offiRowsHtml(r.offiTop[type] || [], type, true);
+    document.getElementById("offiBody").innerHTML = offiRowsHtml(rows, type, true);
+    var on = document.getElementById("offiBandNote");
+    if (on) {
+      on.innerHTML = (state.offiBand === "all" || !rows.length) ? "" :
+        "<b>" + esc(bandName(state.offiBand)) + "</b> " + rows.length + "건" +
+        ' <span class="dim-note">분양 평수 기준 · 칸별로는 상위 10건까지 보여 드립니다</span>';
+    }
     if (window.wireScrollBoxes) window.wireScrollBoxes();
 
     // 전세만 비어 있으면 "없습니다"로 끝내지 말고 계산 범위를 짚어 준다
-    var empty = !(r.offiTop[type] || []).length;
+    var empty = !rows.length;
     document.getElementById("offiGuess").innerHTML =
       (empty && type === "jeonse") ? jeonseGuessHtml()
         : (empty ? '<p class="placeholder">해당 기간 · 지역에 오피스텔 ' + OFFI_LABEL[type] + " 신고가 없습니다.</p>" : "");
@@ -447,7 +553,7 @@
         return '<h3 style="margin:18px 0 8px; font-size:15px;">' + regionLabel() + " · 오피스텔 " + OFFI_LABEL[t] + " TOP 10</h3>" +
           '<table class="rank-table"><thead><tr><th>순위</th><th>건물명</th><th>전용면적</th><th>층</th><th>' +
           (t === "wolse" ? "보증금 / 월세" : "거래가") + "</th><th>평당가</th><th>거래일</th></tr></thead><tbody>" +
-          offiRowsHtml(r.offiTop[t] || [], t, false) + "</tbody></table>";
+          offiRowsHtml(offiRowsOf(t), t, false) + "</tbody></table>";
       }).join("");
 
     document.querySelectorAll("#offiBody .rt-name-clickable").forEach(function (el, i) {
@@ -764,7 +870,9 @@
     if (!map) return;
     markerLayer.clearLayers();
     markers = {};
-    var rows = (region().offiTop[state.offiType] || []).slice(0, 10);   // 지도는 TOP10만
+    // 표가 평형대로 좁혀져 있으면 지도도 같이 좁힌다 — 서로 다른 목록을 들고
+    // 있으면 표에서 건물 이름을 눌렀을 때 그 건물이 지도에 없다
+    var rows = offiRowsOf(state.offiType).slice(0, 10);   // 지도는 TOP10만
     var pts = [], miss = 0;
 
     // 같은 건물이 호실만 달리해 여러 번 오르면 좌표가 똑같아 마커가 겹친다.
