@@ -1078,15 +1078,18 @@
     return t;
   }
 
+  /* 전월비. 단위(%)는 머리글이 지고, 소수점은 떼어 낸다.
+     달마다 표본이 몇 건뿐이라 +12.3과 +12를 가를 만한 정밀도가 애초에 없다.
+     자릿수만 늘어나 칸을 넓히고 눈을 붙든다. */
   function deltaHtml(cur, prev, nCur, nPrev, hot) {
     if (!cur || !prev) return '<span class="dim-note">-</span>';
-    var r = (cur - prev) / prev * 100, sign = r > 0 ? "+" : "";
+    var r = Math.round((cur - prev) / prev * 100), sign = r > 0 ? "+" : "";
     if (nCur < MIN_N || nPrev < MIN_N || hot) {
       return '<span class="d-weak" title="표본이 적어 시세 변동으로 보기 어렵습니다">' +
-             sign + r.toFixed(1) + '<sup>*</sup></span>';
+             sign + r + '<sup>*</sup></span>';
     }
     var cls = Math.abs(r) < 1 ? "d-flat" : (r > 0 ? "d-up" : "d-down");
-    return '<span class="' + cls + '">' + sign + r.toFixed(1) + "</span>";
+    return '<span class="' + cls + '">' + sign + r + "</span>";
   }
 
   // 머리글을 두 줄로 — 단어 중간에서 끊기는 걸 막는다
