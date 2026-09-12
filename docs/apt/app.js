@@ -1853,12 +1853,12 @@
   function specialKind(sum) {
     var n = sum.apt.n;
     if (/토지임대부/.test(n)) {
-      return { tag: "토지임대부", why: "<b>토지임대부 주택</b>입니다. 건물만 사고 대지는 빌리는 구조라 " +
-        "<b>일반 아파트 시세와 직접 비교할 수 없습니다.</b> 인근 단지 값을 그대로 갖다 붙이지 마세요." };
+      return { tag: "토지임대부", why: "<b>토지임대부 주택</b>. 건물만 사고 대지는 빌리는 구조라 " +
+        "<b>일반 아파트 시세와 직접 비교 불가</b>.<br>인근 단지 값을 그대로 갖다 붙이면 안 됨." };
     }
     if (/임대|행복주택|청년주택|공공지원/.test(n)) {
-      return { tag: "임대주택", why: "이름에 <b>임대</b> 표기가 있습니다. 분양이 아닌 임대 물량이면 " +
-        "<b>매매 자체가 안 되는 것이 정상</b>이라, 인근 단지 매매 시세를 이 단지 시세로 말씀하시면 안 됩니다." };
+      return { tag: "임대주택", why: "이름에 <b>임대</b> 표기 있음. 분양이 아닌 임대 물량이면 " +
+        "<b>매매 자체가 안 되는 것이 정상</b>.<br>인근 단지 매매 시세를 이 단지 시세로 말하면 안 됨." };
     }
     var rent = sum.cnt.jeonse + sum.cnt.wolse;
     if (sum.cnt.sale === 0 && rent >= 30) {
@@ -1867,12 +1867,11 @@
       if (sib.length) {
         return { tag: "표기 분리", why: "이 이름으로는 매매 신고가 없지만, 같은 자리에 <b>" +
           sib.map(function (x) { return esc(x.apt.n) + "(매매 " + x.sale + "건)"; }).join(", ") +
-          "</b>으로 따로 신고된 거래가 있습니다. <b>한 단지를 표기만 나눠 신고한 것</b>이니 " +
-          "그쪽도 함께 보셔야 합니다." };
+          "</b>으로 따로 신고된 거래 있음. <b>한 단지를 표기만 나눠 신고한 것</b>.<br>그쪽도 함께 볼 것." };
       }
       return { tag: "매매 없음", why: "전월세는 <b>" + rent.toLocaleString() + "건</b>인데 " +
-        "<b>매매 신고가 한 건도 없습니다.</b> 임대주택·공공지원 민간임대처럼 " +
-        "<b>매매가 안 되는 유형일 수 있으니</b> 등기부·모집공고로 반드시 확인하세요." };
+        "<b>매매 신고가 한 건도 없음.</b> 임대주택·공공지원 민간임대처럼 " +
+        "<b>매매가 안 되는 유형일 수 있음</b>.<br>등기부·모집공고로 반드시 확인." };
     }
     return null;
   }
@@ -2033,7 +2032,7 @@
     var A = sum.apt;
     var rows = sum.bands.filter(function (g) { return g.medSale; });
     if (!rows.length) {
-      return base + " 매매도 없어 계산할 기준이 없습니다. 아래 <b>인근 유사 단지</b>를 보세요.</p>";
+      return base + " 매매도 없어 계산할 기준 없음.<br>아래 <b>인근 유사 단지</b> 참고.</p>";
     }
 
     return '<div class="calc-box">' + head + '<div class="table-wrap"><table class="detail-deals"><thead><tr>' +
@@ -2143,13 +2142,13 @@
       out.push("<b>" + bandLabel(g.b, bs(g.b)) + "</b> 매매는 <b>" + g.sale.length + "건뿐</b>이라 " +
         "이것만으로는 <b>시세를 말하기 어려움</b>. " +
         "가장 최근 거래는 " + dateText(g.sale[g.sale.length - 1].d) + " " +
-        eokman(g.sale[g.sale.length - 1].v) + ".<br><b>아래 인근 유사 단지</b>를 함께 보고 말씀드리겠습니다.");
+        eokman(g.sale[g.sale.length - 1].v) + ".<br><b>아래 인근 유사 단지</b>를 함께 볼 것.");
     } else {
       out.push("<b>" + bandLabel(g.b, bs(g.b)) + "</b>" + josa(bandLabel(g.b, bs(g.b)), "은", "는") +
         " <b>매매 신고 없음</b>. " +
         (g.jeonse.length ? "전세는 " + g.jeonse.length + "건, 중위 " + eokman(g.medJeonse) + ". " : "") +
-        ((sp && sp.tag !== "표기 분리") ? "매매가 되는 물건인지부터 확인하셔야 합니다."
-            : "매매 시세는 <b>아래 인근 유사 단지</b>로 가늠하셔야 합니다."));
+        ((sp && sp.tag !== "표기 분리") ? "매매가 되는 물건인지부터 확인할 것."
+            : "매매 시세는 <b>아래 인근 유사 단지</b>로 가늠."));
     }
 
     if (!sum.cnt.jeonse && g.medSale) {
@@ -2178,13 +2177,13 @@
            하면 공급 기준인 줄 알고 견주게 된다. 어느 기준인지 밝힌다. */
         (band ? "<b>전용 평당 " + pyNum(band) + "만원</b> 수준.<br>" : "매매 표본 없음.<br>") +
         ((sp && sp.tag !== "표기 분리")
-            ? "<b>다만 이 값은 일반 분양 단지 기준</b>이라 " + esc(a.n) + "에 그대로 적용하시면 안 됩니다."
+            ? "<b>다만 이 값은 일반 분양 단지 기준</b>이라 " + esc(a.n) + "에 그대로 적용 불가."
             : "연식·동·향·층에 따라 차이가 나므로 <b>참고</b>."));
     }
 
     if (sum.cnt.sale < APT_MIN * 2) {
       out.push("<b>이 단지는 원래 손바뀜이 드묾.</b> 매물이 나오면 비교 대상이 적어 " +
-        "<b>호가와 실거래가 벌어지기 쉬움.</b><br>계약 전 인근 시세를 꼭 함께 보세요.");
+        "<b>호가와 실거래가 벌어지기 쉬움.</b><br>계약 전 인근 시세를 꼭 함께 볼 것.");
     }
     return out;
   }
@@ -2983,8 +2982,8 @@
     if (state.gran === "week") return "매매는 <b>월간</b>으로 바꾸시면 훨씬 안정적으로 보입니다.";
     var days = (new Date(state.end) - new Date(state.start)) / 86400000;
     if (days < 175) return "조회 기간을 <b>6개월 이상</b>으로 넓히시면 표본이 늘어납니다.";
-    if (state.dong !== ALL) return "이 법정동은 원래 거래가 드뭅니다. <b>법정동을 ‘전체’로</b> 놓고 자치구 단위로 보시거나, 아래 <b>월별 브리핑 표</b>의 숫자를 쓰세요.";
-    return "이 지역은 원래 거래가 드뭅니다. 아래 <b>월별 브리핑 표</b>의 건수를 함께 보고 말씀하세요.";
+    if (state.dong !== ALL) return "이 법정동은 원래 거래가 드묾.<br><b>법정동을 ‘전체’로</b> 놓고 자치구 단위로 보거나, 아래 <b>월별 브리핑 표</b>의 숫자를 쓸 것.";
+    return "이 지역은 원래 거래가 드묾.<br>아래 <b>월별 브리핑 표</b>의 건수를 함께 볼 것.";
   }
 
   var HOT_COLOR = "#bc3d3d";
@@ -3104,47 +3103,47 @@
         var why0 = [];
         if (cut.length) {
           why0.push("<b>" + cut.map(function (x) { return labels[x.i]; }).join("·") +
-            "은 아직 신고를 받는 중</b>이라 뺐습니다(신고 기한 계약일+30일).");
+            "은 아직 신고를 받는 중</b>이라 제외(신고 기한 계약일+30일).");
         }
         why0.push("남은 " + unit + "이 <b>" + v.length + "곳뿐</b>이라 " +
-          "이 표본으로 흐름을 말씀드리면 <b>틀릴 가능성이 큽니다</b>.");
+          "이 표본으로 흐름을 말하면 <b>틀릴 가능성 큼</b>.");
         concl = conclHtml("아직 흐름을 말하기 이른 구간", "flat", why0,
-          "<b>조회 기간을 12개월</b>로 놓으시면 확정된 달이 늘어 제대로 보입니다. " +
-          "그전에는 위 <b>표의 건수</b>와 <b>개별 단지</b>로 설명하세요.");
+          "<b>조회 기간을 12개월</b>로 놓으면 확정된 달이 늘어 제대로 보임.<br>" +
+          "그전에는 위 <b>표의 건수</b>와 <b>개별 단지</b>로 설명.");
         return;
       }
 
       var why = [];
       why.push("<b>" + esc(lead.label) + "</b>가 조회 구간에서 <b>" +
-        (ph.r >= 0 ? "+" : "\u2212") + Math.abs(ph.r).toFixed(1) + "%</b>입니다.");
+        (ph.r >= 0 ? "+" : "\u2212") + Math.abs(ph.r).toFixed(1) + "%</b>.");
       if (ph.accel !== null && Math.abs(ph.accel) >= 2) {
         why.push("뒤 절반이 앞 절반보다 <b>" + Math.abs(ph.accel).toFixed(1) + "%p " +
-          (ph.accel > 0 ? "빨라졌습니다" : "느려졌습니다") + "</b>.");
+          (ph.accel > 0 ? "빨라짐" : "느려짐") + "</b>.");
       }
       if (ph.swing >= 15) {
         why.push("다만 고점과 저점이 <b>" + Math.round(ph.swing) + "%</b> 벌어져 <b>" + unit +
-          "마다 크게 출렁입니다</b>.");
+          "마다 크게 출렁임</b>.");
       }
-      if (thin) why.push("표본이 얇은 " + unit + "이 " + thin + "/" + drawn + "곳 있습니다.");
+      if (thin) why.push("표본이 얇은 " + unit + "이 " + thin + "/" + drawn + "곳.");
       var pend = usable(lead).filter(function (x) { return bucketPending(keys[x.i]); });
       if (pend.length) {
         why.push("<b>" + pend.map(function (x) { return labels[x.i]; }).join("·") +
-          "은 신고가 덜 들어와 결론에서 뺐습니다.</b>");
+          "은 신고가 덜 들어와 결론에서 제외.</b>");
       }
 
       var advice;
       if (ph.tone === "warn") {
-        advice = "<b>지금 수치 하나로 시세를 못박지 마세요.</b> 관심 단지의 <b>같은 평형 최근 거래</b>를 직접 확인해 드리는 편이 안전합니다.";
+        advice = "<b>지금 수치 하나로 시세를 못박지 말 것.</b><br>관심 단지의 <b>같은 평형 최근 거래</b>를 직접 확인하는 편이 안전.";
       } else if (ph.tone === "up") {
         advice = ph.tag.indexOf("둔화") >= 0
-          ? "<b>오르고는 있지만 속도는 줄었습니다.</b> 급하게 결정하실 상황은 아니되, 방향이 꺾인 것도 아니라고 말씀하세요."
-          : "<b>수요가 붙어 있는 구간</b>입니다. 매수 쪽이면 미루실수록 부담이 커질 수 있다고 짚어 주세요.";
+          ? "<b>오르고는 있지만 속도는 줄어듦.</b><br>급하게 결정할 상황은 아니되, 방향이 꺾인 것도 아님."
+          : "<b>수요가 붙어 있는 구간</b>.<br>매수 쪽이면 미룰수록 부담이 커질 수 있음.";
       } else if (ph.tone === "down") {
         advice = ph.tag.indexOf("진정") >= 0
-          ? "<b>내림폭이 줄고 있습니다.</b> 바닥을 단정하지 마시고 <b>거래량이 함께 도는지</b> 확인하시라고 하세요."
-          : "<b>매도 쪽이면 서두르실 이유</b>가, 매수 쪽이면 <b>기다리실 여유</b>가 있는 구간입니다.";
+          ? "<b>내림폭이 줄어드는 중.</b><br>바닥을 단정하지 말고 <b>거래량이 함께 도는지</b> 확인."
+          : "<b>매도 쪽이면 서두를 이유</b>가, 매수 쪽이면 <b>기다릴 여유</b>가 있는 구간.";
       } else {
-        advice = "<b>값이 크게 움직이지 않는 구간</b>입니다. 시세보다 <b>매물 상태·층·향</b>으로 협상하시는 편이 낫습니다.";
+        advice = "<b>값이 크게 움직이지 않는 구간</b>.<br>시세보다 <b>매물 상태·층·향</b>으로 협상하는 편이 나음.";
       }
       concl = conclHtml(ph.tag, ph.tone, why, advice);
     })();
@@ -3160,8 +3159,8 @@
       var v = usable(d);
       if (v.length < 2) {
         out.push("<b>" + esc(d.label) + "</b>" + josa(d.label, "은", "는") + " " + total.toLocaleString() + "건인데, " +
-          "쓸 만한 " + unit + "이 " + v.length + "곳뿐이라 <b>흐름을 말씀드리기 어렵습니다</b>. " +
-          (state.gran === "week" ? "<b>월간</b>으로 바꾸시면" : "<b>기간을 넓히시면</b>") + " 나아집니다.");
+          "쓸 만한 " + unit + "이 " + v.length + "곳뿐이라 <b>흐름을 말하기 어려움</b>.<br>" +
+          (state.gran === "week" ? "<b>월간</b>으로 바꾸면" : "<b>기간을 넓히면</b>") + " 나아짐.");
         return;
       }
       var a = v[0], b = v[v.length - 1];
@@ -3204,9 +3203,9 @@
     // 월세는 환산보증금이라 오해하기 쉽다
     var w = sets.filter(function (d) { return d.label === TYPE_LABEL.wolse && d._stats; })[0];
     if (w && usable(w).length >= 2) {
-      out.push("<b>월세선은 환산보증금(보증금 + 월세\u00d7100)</b> 기준입니다. " +
-        "보증금을 올리고 월세를 낮춘 준전세로 옮겨가도 이 선은 <b>똑같이 올라갑니다</b>. " +
-        "월세가 올랐는지는 <b>아래 월별 브리핑의 중위 월세</b> 칸에서 확인하세요.");
+      out.push("<b>월세선은 환산보증금(보증금 + 월세\u00d7100)</b> 기준. " +
+        "보증금을 올리고 월세를 낮춘 준전세로 옮겨가도 이 선은 <b>똑같이 상승</b>.<br>" +
+        "월세가 올랐는지는 <b>아래 월별 브리핑의 중위 월세</b> 칸에서 확인.");
     }
 
     // 공식지수를 켰으면 방향이 맞는지 짚는다
@@ -3815,7 +3814,7 @@
     var pend = mo.filter(function (x) { return isPending(x.m); });
     if (pend.length) {
       why.push("<b>" + pend.map(function (x) { return moLabel(x.m); }).join("·") +
-        "은 신고가 덜 들어와 결론에서 뺐습니다.</b>");
+        "은 신고가 덜 들어와 결론에서 제외.</b>");
     }
 
     var advice;
