@@ -92,6 +92,14 @@
     return comma(man) + "만원";
   }
 
+  /* 억 단위 숫자만. 단위는 머리글이 지고 칸에는 숫자만 놓는다 — 표를 스물,
+     백 줄 늘어놓을 때 단위를 매번 다시 읽게 하지 않는다. */
+  function eokNum(man) {
+    if (!man) return "-";
+    var v = man / 10000;
+    return v >= 100 ? comma(v) : v.toFixed(1).replace(/\.0$/, "");
+  }
+
   function qLabel(code) {
     if (!code || code.length < 5) return "-";
     return code.slice(0, 4) + "년 " + code.slice(4) + "분기";
@@ -1154,7 +1162,9 @@
         "건 · 최근 순 · 표 안에서 스크롤하세요</span></h4>" +
       '<div class="deal-scroll"><table class="rank-table deal-table"><thead><tr>' +
         "<th>거래일</th><th>소재지</th><th>용도</th><th>유형</th>" +
-        "<th>면적(㎡)</th><th>층</th><th>거래금액</th><th>평당가</th><th>준공</th>" +
+        '<th>면적 <span class="th-sub">(㎡)</span></th><th>층</th>' +
+        '<th>거래금액 <span class="th-sub">(억)</span></th>' +
+        '<th>평당가 <span class="th-sub">(만원)</span></th><th>준공</th>' +
       "</tr></thead><tbody>" +
       q.rows.map(function (r) {
         var k = (D.dongs[r[0]] || "").split("|");
@@ -1164,8 +1174,8 @@
           "<td>" + esc(D.uses[r[3]] || "-") + "</td>" +
           "<td>" + comma(r[4]) + "</td>" +
           "<td>" + esc(r[5] || "-") + "</td>" +
-          '<td class="rt-price">' + money(r[6]) + "</td>" +
-          "<td>" + (r[7] ? comma(r[7]) + "만" : "-") + "</td>" +
+          '<td class="rt-price">' + eokNum(r[6]) + "</td>" +
+          "<td>" + (r[7] ? comma(r[7]) : "-") + "</td>" +
           "<td>" + (r[9] ? r[9] : "-") + "</td></tr>";
       }).join("") + "</tbody></table></div>" +
       '<p class="dim-note" style="margin-top:8px">평당가는 <b>연면적 기준</b>이라 아파트 전용면적 ' +
@@ -1496,7 +1506,10 @@
         (rows.length > 10 ? " · 표 안에서 스크롤하세요" : "") + "</span></h4>" +
       '<div class="deal-scroll" style="--tbl-h:420px"><table class="rank-table tr-list deal-table"><thead><tr>' +
       (single ? "<th>거리</th>" : "<th>순위</th>") +
-      "<th>상권</th><th>유형</th><th>행정동</th><th>일평균 유동인구</th><th>점포</th><th>추정 월매출</th>" +
+      '<th>상권</th><th>유형</th><th>행정동</th>' +
+      '<th>일평균 유동인구 <span class="th-sub">(명)</span></th>' +
+      '<th>점포 <span class="th-sub">(개)</span></th>' +
+      '<th>추정 월매출 <span class="th-sub">(억)</span></th>' +
       "</tr></thead><tbody>" +
       (rows.length ? "" :
         // 반경 안에 이웃 상권이 없으면 머리글만 남아 표가 고장난 듯 보였다.
@@ -1510,9 +1523,9 @@
           '<td><span class="tr-tag" style="background:' + (TYPE_COLOR[x.t.t] || "#8a93a3") +
             ";color:" + inkOn(TYPE_COLOR[x.t.t] || "#8a93a3") + '">' + esc(x.t.t) + "</span></td>" +
           "<td>" + esc(x.t.dong) + "</td>" +
-          '<td class="rt-price">' + comma(perDay(val(x.t, "fp"))) + "명</td>" +
+          '<td class="rt-price">' + comma(perDay(val(x.t, "fp"))) + "</td>" +
           "<td>" + comma(val(x.t, "st")) + "</td>" +
-          "<td>" + (x.t.sl ? money(Math.round(x.t.sl.amt / 3)) : "-") + "</td></tr>";
+          "<td>" + (x.t.sl ? eokNum(Math.round(x.t.sl.amt / 3)) : "-") + "</td></tr>";
       }).join("") + "</tbody></table></div>" +
       (!single && near.length > 120 ? '<p class="dim-note" style="margin-top:8px">유동인구 상위 120곳만 표시했습니다(전체 ' +
         comma(near.length) + "곳). 범위를 <b>행정동</b>까지 좁히시면 다 보입니다.</p>" : "");

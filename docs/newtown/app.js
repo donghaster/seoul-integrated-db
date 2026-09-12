@@ -61,6 +61,15 @@
     });
   }
 
+  /* 억 단위 숫자만. 단위는 머리글이 지고 칸에는 숫자만 놓는다 —
+     "23억 8,000만원"을 스물일곱 줄 늘어놓으면 눈이 단위를 매번 다시 읽고
+     칸도 그만큼 넓어진다. 정확한 금액은 아파트 대시보드에 그대로 있다. */
+  function eokNum(man) {
+    if (!man) return "-";
+    var v = man / 10000;
+    return v >= 100 ? Math.round(v).toLocaleString() : v.toFixed(1).replace(/\.0$/, "");
+  }
+
   function eokman(man) {
     if (!man) return "-";
     var eok = Math.floor(man / 10000), rest = Math.round(man % 10000);
@@ -645,9 +654,9 @@
         "<td>" + esc(x.d.gu) + "</td>" +
         '<td><span class="stage-dot" style="background:' + stageColor(x.d.stage) + '"></span>' +
           STAGES[x.d.stage] + "</td>" +
-        '<td class="rt-price">' + eokman(x.st.medSale) + "</td>" +
-        '<td class="rt-price">' + x.st.medPy.toLocaleString() + "만원" +
-          '<div class="rt-sub">공급 환산 ' + toSupply(x.st.medPy).toLocaleString() + "만원</div></td>" +
+        '<td class="rt-price">' + eokNum(x.st.medSale) + "</td>" +
+        '<td class="rt-price">' + x.st.medPy.toLocaleString() +
+          '<div class="rt-sub">공급 ' + toSupply(x.st.medPy).toLocaleString() + "</div></td>" +
         "<td>" + x.st.sale.toLocaleString() + "</td>" +
         "<td>" + x.st.jeonse.toLocaleString() + "</td>" +
         "<td>" + x.st.wolse.toLocaleString() + "</td>" +
