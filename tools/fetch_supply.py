@@ -242,6 +242,16 @@ def bjdong_codes(want):
     return got
 
 
+# 먼저 채울 자치구 순서. 상담이 실제로 일어나는 곳부터 끝낸다 —
+# 서울 25개 구를 고르게 훑으면 어느 구도 "다 됐다"고 말할 수 없다.
+# 여기 없는 구는 뒤에 붙고, 그 안에서는 지금처럼 거래 많은 지번부터 간다.
+GU_ORDER = ["서초구", "강남구", "동작구", "송파구", "용산구", "마포구", "성동구"]
+
+
+def gu_rank(gu):
+    return GU_ORDER.index(gu) if gu in GU_ORDER else len(GU_ORDER)
+
+
 def sites(cs, codes):
     """지번 한 곳 = 요청 한 묶음. 같은 지번의 여러 단지를 한 번에 채운다."""
     grp = defaultdict(list)
@@ -257,7 +267,8 @@ def sites(cs, codes):
             continue
         grp[(GU_CD[c["gu"]], cd, bun, ji)].append(c)
     out = list(grp.items())
-    out.sort(key=lambda kv: -sum(c["n"] for c in kv[1]))
+    # 우선순위 구 먼저, 그 안에서는 거래 많은 지번 먼저
+    out.sort(key=lambda kv: (gu_rank(kv[1][0]["gu"]), -sum(c["n"] for c in kv[1])))
     return out
 
 
@@ -364,15 +375,38 @@ def fetch_site(sig, cd, bun, ji, cap=PAGE_CAP):
 
 
 # ── 받기 ───────────────────────────────────────────────────────────────────
-def collect(budget=None, minutes=None):
+def progress(cs, store):
+    """우선순위 구가 얼마나 찼는지 한눈에. '서초구 다 됐다'를 말할 수 있어야 한다."""
+    tot, got = defaultdict(int), defaultdict(int)
+    for c in cs:
+        tot[c["gu"]] += 1
+        if "%s|%s|%s" % (c["gu"], c["dong"], c["name"]) in store:
+            got[c["gu"]] += 1
+    line = []
+    for g in GU_ORDER:
+        if not tot[g]:
+            continue
+        line.append("%s %d/%d(%.0f%%)" % (g, got[g], tot[g], got[g] / tot[g] * 100))
+    rest_t = sum(v for k, v in tot.items() if k not in GU_ORDER)
+    rest_g = sum(v for k, v in got.items() if k not in GU_ORDER)
+    if rest_t:
+        line.append("나머지 %d/%d" % (rest_g, rest_t))
+    print("  진행 " + " · ".join(line), flush=True)
+
+
+def collect(budget=None, minutes=None, only=None):
     store = json.load(open(STORE, encoding="utf-8")) if os.path.exists(STORE) else {}
     cs = complexes()
+    if only:
+        cs = [c for c in cs if c["gu"] in only]
     want = defaultdict(set)
     for c in cs:
         want[GU_CD[c["gu"]]].add(c["dong"])
     codes = bjdong_codes(want)
     todo = sites(cs, codes)
     print("단지 %d개 → 지번 %d곳, 이미 받아 둔 단지 %d개\n" % (len(cs), len(todo), len(store)))
+    progress(cs, store)
+    print()
 
     ok = bad = later = 0
     t0 = time.time()
@@ -431,6 +465,7 @@ def collect(budget=None, minutes=None):
 
     print("\n이번에 %d단지 확보 · %d단지 제외 · %d단지 미룸(서버가 안 줬다)"
           % (ok, bad, later))
+    progress(cs, store)
     print("호출 %d번 · 429 %d번 · 오늘 남은 %s/%s · %.0f분"
           % (STATE["calls"] - start, STATE["throttled"], STATE["remain"],
              STATE["limit"], (time.time() - t0) / 60))
@@ -511,11 +546,13 @@ def main():
     ap.add_argument("--budget", type=int, default=None, help="이번에 쓸 호출 수")
     ap.add_argument("--minutes", type=int, default=None, help="이번에 쓸 시간(분)")
     ap.add_argument("--write", action="store_true", help="받지 않고 supply.js만 다시 굽는다")
+    ap.add_argument("--gu", default="", help="이 자치구만 받는다(쉼표로 여럿)")
     a = ap.parse_args()
     if a.write:
         write(json.load(open(STORE, encoding="utf-8")))
         return
-    write(collect(a.budget, a.minutes))
+    only = [g.strip() for g in a.gu.split(",") if g.strip()]
+    write(collect(a.budget, a.minutes, only))
 
 
 if __name__ == "__main__":

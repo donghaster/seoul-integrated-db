@@ -159,9 +159,17 @@
   }
 
   /* 표 칸용 — 분양면적을 크게, 전용 ㎡를 그 아래 옅게 (TOP30 표와 같은 형식) */
-  function bandBoth(b, sup) {
+  /* 대장에서 확인 안 된 분양면적에 붙이는 표시.
+     확인된 쪽에 배지를 달던 것을 뒤집었다 — 채워 갈수록 배지가 늘어 화면이
+     시끄러워지고, 정작 "이 값은 어림"이라는 경고가 눈에 안 띄었다. */
+  function estMark(exact) {
+    return exact ? "" :
+      '<span class="est-mark" title="건축물대장에서 확인하지 못해 전용률로 어림한 분양면적입니다. 실제와 1~2평 차이 날 수 있습니다.">*</span>';
+  }
+
+  function bandBoth(b, sup, exact) {
     var sa = sup || b / SUPPLY_RATIO;
-    return sa.toFixed(1) + "㎡ (" + (sa / PYEONG).toFixed(1) + "평)" +
+    return sa.toFixed(1) + "㎡ (" + (sa / PYEONG).toFixed(1) + "평)" + estMark(exact) +
       '<div class="rt-sub">전용 ' + b + "㎡</div>";
   }
 
@@ -477,6 +485,19 @@
      35.1평이 나오는데, 그 단지 84㎡의 실제 공급면적은 110.1㎡ — 33.3평이다.
      그래서 그 평형대에 실제로 있는 타입들만 골라 평균한다.
      (평형대는 전용면적의 정수 부분이다 — areaBand 참고) */
+  /* 이 평형대의 분양면적이 건축물대장에서 확인된 것인지.
+     확인된 곳은 아무 표시도 하지 않고, 확인 안 된 곳에만 *를 붙인다 —
+     서초구부터 대장을 채워 나가는 중이라, 표시가 붙은 칸이 점점 줄어든다. */
+  function bandExact(b, gu, dg, name) {
+    var t = SUPPLY_TBL[gu + "|" + dg + "|" + name];
+    if (!t) return false;
+    for (var k in t) {
+      if (k.charAt(0) === "_") continue;
+      if (areaBand(parseFloat(k)) === b) return true;
+    }
+    return false;
+  }
+
   function bandSupplyOf(b, gu, dg, name) {
     var t = SUPPLY_TBL[gu + "|" + dg + "|" + name], sum = 0, n = 0;
     if (t) {
@@ -527,8 +548,7 @@
   function areaBoth(a, row) {
     if (!a) return "-";
     var r = row ? supplyOf(a, row.gu, row.dg, row.n) : { v: supplyArea(a), exact: false };
-    return r.v.toFixed(1) + "㎡ (" + (r.v / PYEONG).toFixed(1) + "평)" +
-      (r.exact ? ' <span class="exact-tag" title="건축물대장에서 잰 실제 공급면적(전유+주거공용). 어림한 값이 아니다.">실제</span>' : "") +
+    return r.v.toFixed(1) + "㎡ (" + (r.v / PYEONG).toFixed(1) + "평)" + estMark(r.exact) +
       '<div class="rt-sub">전용 ' + a.toFixed(2) + "㎡</div>";
   }
 
@@ -1915,7 +1935,8 @@
     return sum.bands.map(function (g) {
       var thin = g.sale.length < APT_MIN;
       return "<tr>" +
-        "<td><b>" + bandBoth(g.b, bandSupplyOf(g.b, A.gu, A.dg, A.n)) + "</b></td>" +
+        "<td><b>" + bandBoth(g.b, bandSupplyOf(g.b, A.gu, A.dg, A.n),
+                             bandExact(g.b, A.gu, A.dg, A.n)) + "</b></td>" +
         "<td>" + (g.sale.length ? g.sale.length + "건" : "-") +
           (thin && g.sale.length ? ' <span class="brief-thin">적음</span>' : "") + "</td>" +
         "<td>" + (g.medSale ? eokman(g.medSale) : "-") + "</td>" +
@@ -2000,7 +2021,8 @@
       '<th>분양면적<span class="th-sub">㎡ (평) · 아래 전용</span></th>' +
       "<th>중위 매매가</th><th>추정 전세</th><th>중위 기준</th></tr></thead><tbody>" +
       rows.map(function (g) {
-        return "<tr><td>" + bandBoth(g.b, bandSupplyOf(g.b, A.gu, A.dg, A.n)) + "</td>" +
+        return "<tr><td>" + bandBoth(g.b, bandSupplyOf(g.b, A.gu, A.dg, A.n),
+                                    bandExact(g.b, A.gu, A.dg, A.n)) + "</td>" +
           '<td class="rt-price">' + eokman(g.medSale) + "</td>" +
           "<td><b>" + eokman(Math.round(g.medSale * q.lo / 100)) + " ~ " +
             eokman(Math.round(g.medSale * q.hi / 100)) + "</b></td>" +
