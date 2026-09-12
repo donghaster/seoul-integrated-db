@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>금집부쌤의 서울시 통합 부동산 대시보드 — 상가·오피스텔</title>
-  <link rel="stylesheet" href="../shared/app.css?v=87cecb11ab" />
+  <link rel="stylesheet" href="../shared/app.css?v=00e8ed7194" />
   <link rel="stylesheet" href="../vendor/leaflet/leaflet.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🏢</text></svg>" />
 </head>
@@ -16,26 +16,29 @@
   <span class="wm-text">반포114공인중개사 · 010-9442-2027</span>
 </div>
 
+<!-- 상단 고정 막대 — 제목 · 지역 · 바로가기를 한 덩어리로 붙여 둔다.
+     고객과 화면을 같이 보며 아래로 내리다 보면 "지금 어느 구를 보고 있는지",
+     "다음 항목으로 어떻게 가는지"가 화면 밖으로 사라졌다. 브리핑이 끊기는
+     자리라 셋을 묶어 늘 보이게 했다. 대신 높이를 아껴야 하므로 반포114
+     명패는 오른쪽으로 옮기고 캐릭터는 뺐다. -->
+<div class="stickytop" id="stickyTop">
 <header class="topbar">
   <div class="brand">
     <div class="brand-left">
       <img class="geumjib-badge" src="../assets/geumjib-logo.png" alt="금집부쌤"
            onerror="this.classList.add('img-missing')" />
       <div class="brand-titles">
-        <h1><a href="../index.html">금집부쌤의 서울시 통합 부동산 대시보드</a><br /><span class="brand-scope">🏢 상가·오피스텔</span> <span class="brand-tag">서울 25개 자치구</span></h1>
+        <h1><a href="../index.html">금집부쌤의 서울시 통합 부동산 대시보드</a> <span class="brand-scope">🏢 상가·오피스텔</span></h1>
         <p class="brand-sub">국토교통부 상업·업무용 매매 및 오피스텔 매매·전월세 실거래가 · 서울시 25개 자치구 전역</p>
       </div>
     </div>
-    <span class="brand-sep" aria-hidden="true"></span>
+  </div>
+  <div class="topbar-right">
     <div class="brand-plate">
       <img class="logo" src="../assets/banpo114-logo.png" alt="반포114공인중개사 · 010-9442-2027"
            onerror="this.classList.add('img-missing')" />
       <span class="brand-plate-fallback">반포<b>114</b>공인중개사 · 010-9442-2027</span>
-      <img class="mascot" src="../assets/geumddogi.png" alt="반포114공인중개사 캐릭터 금똑이"
-           onerror="this.classList.add('img-missing')" />
     </div>
-  </div>
-  <div class="topbar-right">
     <div id="themeToggle"></div>
     <a class="home-link" href="../index.html">← 대시보드 모음</a>
     <button type="button" id="printAllBtn" class="print-btn">🖨️ 전체 인쇄</button>
@@ -43,35 +46,36 @@
   </div>
 </header>
 
+<section class="filter-bar" aria-label="지역 선택">
+  <div class="ctl">
+    <label for="guSelect">자치구</label>
+    <select id="guSelect"></select>
+  </div>
+  <div class="ctl">
+    <label for="dongSelect">법정동</label>
+    <select id="dongSelect"></select>
+  </div>
+  <div class="ctl">
+    <label>조회 기간</label>
+    <div class="tab-row" id="windowTabs" style="margin-bottom:0;"></div>
+  </div>
+  <div class="filter-note" id="periodNote"></div>
+</section>
+
+<nav class="section-nav" aria-label="섹션 바로가기">
+  <button data-target="sec-kpi">핵심 요약</button>
+  <button data-target="sec-map">실거래 지도</button>
+  <button data-target="sec-brief">월별 브리핑</button>
+  <button data-target="sec-nrg">상가·업무용 TOP30</button>
+  <button data-target="sec-offi">오피스텔 TOP30</button>
+  <button data-target="sec-volume">거래량 비교</button>
+  <button data-target="sec-location">수익형 입지분석</button>
+  <button data-target="sec-policy">상가·오피스텔 정책</button>
+</nav>
+</div>
+
 <div class="wrap">
   <div id="printBanner" class="print-only print-page-banner"></div>
-
-  <section class="filter-bar" aria-label="지역 선택">
-    <div class="ctl">
-      <label for="guSelect">자치구</label>
-      <select id="guSelect"></select>
-    </div>
-    <div class="ctl">
-      <label for="dongSelect">법정동</label>
-      <select id="dongSelect"></select>
-    </div>
-    <div class="ctl">
-      <label>조회 기간</label>
-      <div class="tab-row" id="windowTabs" style="margin-bottom:0;"></div>
-    </div>
-    <div class="filter-note" id="periodNote"></div>
-  </section>
-
-  <nav class="section-nav" aria-label="섹션 바로가기">
-    <button data-target="sec-kpi">핵심 요약</button>
-    <button data-target="sec-map">실거래 지도</button>
-    <button data-target="sec-brief">월별 브리핑</button>
-    <button data-target="sec-nrg">상가·업무용 TOP30</button>
-    <button data-target="sec-offi">오피스텔 TOP30</button>
-    <button data-target="sec-volume">거래량 비교</button>
-    <button data-target="sec-location">수익형 입지분석</button>
-    <button data-target="sec-policy">상가·오피스텔 정책</button>
-  </nav>
 
   <!-- 상가·오피스텔 둘 다 거래가 없는 지역일 때만 나온다 -->
   <p class="sec-desc empty-note" id="noDataNote" hidden></p>
@@ -280,7 +284,7 @@
 <script src="../vendor/chart.umd.min.js"></script>
 <script src="../data/sangga.js?v=6c955e0a27"></script>
 <script src="../data/geo.js?v=5f13ee09fd"></script>
-<script src="../shared/brand.js?v=e35116c24e"></script>
+<script src="../shared/brand.js?v=ebef8cf1e9"></script>
 <script src="app.js?v=ab8ebe15fb"></script>
 </body>
 </html>

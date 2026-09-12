@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>금집부쌤의 서울시 통합 부동산 대시보드 — 아파트</title>
-  <link rel="stylesheet" href="../shared/app.css?v=87cecb11ab" />
+  <link rel="stylesheet" href="../shared/app.css?v=00e8ed7194" />
   <link rel="stylesheet" href="../vendor/leaflet/leaflet.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🏘️</text></svg>" />
 </head>
@@ -16,26 +16,25 @@
   <span class="wm-text">반포114공인중개사 · 010-9442-2027</span>
 </div>
 
+<!-- 상단 고정 막대 — 제목 · 지역 · 바로가기를 한 덩어리로 붙여 늘 보이게 한다 -->
+<div class="stickytop" id="stickyTop">
 <header class="topbar">
   <div class="brand">
     <div class="brand-left">
       <img class="geumjib-badge" src="../assets/geumjib-logo.png" alt="금집부쌤"
            onerror="this.classList.add('img-missing')" />
       <div class="brand-titles">
-        <h1><a href="../index.html">금집부쌤의 서울시 통합 부동산 대시보드</a><br /><span class="brand-scope">🏘️ 아파트</span> <span class="brand-tag">서울 25개 자치구</span></h1>
+        <h1><a href="../index.html">금집부쌤의 서울시 통합 부동산 대시보드</a> <span class="brand-scope">🏘️ 아파트</span></h1>
         <p class="brand-sub">국토교통부 아파트 매매·전월세 실거래가 · 서울시 25개 자치구 전역 · 구/법정동 단위 조회</p>
       </div>
     </div>
-    <span class="brand-sep" aria-hidden="true"></span>
+  </div>
+  <div class="topbar-right">
     <div class="brand-plate">
       <img class="logo" src="../assets/banpo114-logo.png" alt="반포114공인중개사 · 010-9442-2027"
            onerror="this.classList.add('img-missing')" />
       <span class="brand-plate-fallback">반포<b>114</b>공인중개사 · 010-9442-2027</span>
-      <img class="mascot" src="../assets/geumddogi.png" alt="반포114공인중개사 캐릭터 금똑이"
-           onerror="this.classList.add('img-missing')" />
     </div>
-  </div>
-  <div class="topbar-right">
     <div id="themeToggle"></div>
     <a class="home-link" href="../index.html">← 대시보드 모음</a>
     <button type="button" id="printAllBtn" class="print-btn">🖨️ 전체 인쇄</button>
@@ -43,14 +42,45 @@
   </div>
 </header>
 
-<div class="wrap">
-
-  <!-- 인쇄 1페이지 상단에만 나오는 "어느 지역 리포트인지" 배너 -->
-  <div id="printBanner" class="print-only print-page-banner"></div>
-
   <!-- ─────────────── 조회 조건 ─────────────── -->
   <!-- 조회 조건 — 세로로 쌓지 않고 한눈에 들어오도록 가로로 편다 -->
-  <section class="filter-bar filter-wide" aria-label="조회 조건">
+<section class="filter-bar" aria-label="지역 선택">
+  <div class="ctl">
+    <label for="guSelect">자치구</label>
+    <select id="guSelect"></select>
+  </div>
+  <div class="ctl ctl-grow">
+    <label>빠른 기간</label>
+    <div class="tab-row seg-sm" id="windowTabs"></div>
+  </div>
+  <div class="filter-note" id="periodNote"></div>
+  <!-- 법정동은 개수가 많아 칩으로 펼친다(선택한 구 안에서만) -->
+  <div class="ctl ctl-full">
+    <label>법정동 <span class="dim-note">선택한 구 내</span></label>
+    <div class="tab-row seg-sm chip-wrap" id="dongChips"></div>
+  </div>
+</section>
+
+<nav class="section-nav" aria-label="섹션 바로가기">
+  <button data-target="sec-kpi">핵심 요약</button>
+  <button data-target="sec-finder">단지 찾기</button>
+  <button data-target="sec-map">실거래 지도</button>
+  <button data-target="sec-index">가격지수</button>
+  <button data-target="sec-brief">월별 브리핑</button>
+  <button data-target="sec-top10">실거래가 TOP30</button>
+  <button data-target="sec-compare">매매·전세·월세 비교</button>
+  <button data-target="sec-volume">실거래량</button>
+  <button data-target="sec-location">입지분석</button>
+  <button data-target="sec-policy">부동산 정책</button>
+</nav>
+</div>
+
+<div class="wrap">
+  <div id="printBanner" class="print-only print-page-banner"></div>
+
+  <!-- 한 번 맞춰 두고 잘 안 바꾸는 조건은 고정 막대에 두지 않는다.
+       브리핑 중에 바꾸는 건 자치구·법정동·기간뿐이다. -->
+  <section class="filter-bar" aria-label="집계 조건">
     <div class="ctl">
       <label>집계 기준</label>
       <div class="tab-row seg-sm" id="granTabs">
@@ -66,35 +96,7 @@
       <label for="endDate">종료일</label>
       <input type="date" id="endDate" />
     </div>
-    <div class="ctl">
-      <label for="guSelect">자치구</label>
-      <select id="guSelect"></select>
-    </div>
-    <div class="ctl ctl-grow">
-      <label>빠른 기간</label>
-      <div class="tab-row seg-sm" id="windowTabs"></div>
-    </div>
-    <div class="filter-note" id="periodNote"></div>
-
-    <!-- 법정동은 개수가 많아 칩으로 펼친다(선택한 구 안에서만) -->
-    <div class="ctl ctl-full">
-      <label>법정동 <span class="dim-note">선택한 구 내</span></label>
-      <div class="tab-row seg-sm chip-wrap" id="dongChips"></div>
-    </div>
   </section>
-
-  <nav class="section-nav" aria-label="섹션 바로가기">
-    <button data-target="sec-kpi">핵심 요약</button>
-    <button data-target="sec-finder">단지 찾기</button>
-    <button data-target="sec-map">실거래 지도</button>
-    <button data-target="sec-index">가격지수</button>
-    <button data-target="sec-brief">월별 브리핑</button>
-    <button data-target="sec-top10">실거래가 TOP30</button>
-    <button data-target="sec-compare">매매·전세·월세 비교</button>
-    <button data-target="sec-volume">실거래량</button>
-    <button data-target="sec-location">입지분석</button>
-    <button data-target="sec-policy">부동산 정책</button>
-  </nav>
 
   <!-- ─────────────── 핵심 요약 ─────────────── -->
   <section class="card-section" id="sec-kpi">
@@ -461,7 +463,7 @@
 <!-- 입지분석: 지하철·학교·공원·상권·인구(locinfo) + 개발 호재는 뉴타운 자료를 재사용 -->
 <script src="../data/locinfo.js?v=e97bc091b7"></script>
 <script src="../data/newtown.js?v=8ba14b3baf"></script>
-<script src="../shared/brand.js?v=e35116c24e"></script>
+<script src="../shared/brand.js?v=ebef8cf1e9"></script>
 <script src="app.js?v=ff51b255ce"></script>
 </body>
 </html>

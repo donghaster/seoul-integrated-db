@@ -708,9 +708,31 @@
     initCompare(list);
     window.wireScrollBoxes();
 
+    buildNav();
+
     document.getElementById("printBanner").innerHTML =
       "<b>" + esc(scopeName()) + "</b> 상권분석 · 상권 " + comma(list.length) + "곳 · " +
       qLabel(T.quarter.flpop) + " 기준 · 반포114공인중개사 010-9442-2027";
+  }
+
+  /* 바로가기 탭 — 섹션을 JS로 그리니 탭도 그릴 때마다 다시 채운다.
+     고객과 화면을 같이 보며 "다음은 매출 보시죠" 하고 바로 건너뛰는 자리다.
+     제목의 아이콘(이모지)은 빼고 이름만 남긴다 — 탭이 좁다. */
+  function buildNav() {
+    var nav = document.querySelector("nav.section-nav");
+    if (!nav) return;
+    var secs = document.querySelectorAll("#trResult section.card-section[id]");
+    if (!secs.length) { nav.innerHTML = ""; return; }
+    var html = "";
+    Array.prototype.forEach.call(secs, function (sec) {
+      var h2 = sec.querySelector(".sec-head h2");
+      if (!h2) return;
+      var name = h2.textContent.replace(/[^가-힣A-Za-z0-9·\s]/g, "").trim();
+      if (!name) return;
+      html += '<button type="button" data-target="' + sec.id + '">' + esc(name) + "</button>";
+    });
+    nav.innerHTML = html;
+    if (window.wireSectionNav) window.wireSectionNav();
   }
 
   function section(id, ico, title, desc, body) {

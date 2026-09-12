@@ -154,11 +154,36 @@
       : "화면 열람: " + now;
   }
 
-  /* ── 섹션 내비게이션(부드러운 스크롤 + 현재 위치 표시) ── */
-  var nav = document.querySelector("nav.section-nav");
-  if (nav) {
+  /* ── 상단 고정 막대 ── */
+  var sticky = document.getElementById("stickyTop");
+
+  function stickyH() { return sticky ? sticky.getBoundingClientRect().height : 90; }
+
+  if (sticky) {
+    // 조금만 내려가도 부제와 로고를 접어 막대를 한 단 낮춘다.
+    // 고정 막대가 두꺼우면 정작 볼 내용이 좁아진다.
+    var shrink = function () {
+      sticky.classList.toggle("is-scrolled", window.scrollY > 40);
+    };
+    window.addEventListener("scroll", shrink, { passive: true });
+    shrink();
+  }
+
+  /* ── 섹션 내비게이션(부드러운 스크롤 + 현재 위치 표시) ──
+
+     상권분석은 섹션을 JS로 그리므로 탭도 그릴 때마다 다시 채운다. 그래서
+     배선을 함수로 빼 두고 밖에서도 부를 수 있게 했다(wireSectionNav). */
+  var navScroll = null;
+
+  window.wireSectionNav = function () {
+    var nav = document.querySelector("nav.section-nav");
+    if (!nav) return;
     var btns = Array.prototype.slice.call(nav.querySelectorAll("button[data-target]"));
+    if (!btns.length) return;
+
     btns.forEach(function (b) {
+      if (b.dataset.wired) return;          // 다시 그린 탭만 새로 배선한다
+      b.dataset.wired = "1";
       b.addEventListener("click", function () {
         var el = document.getElementById(b.dataset.target);
         if (!el) return;
@@ -167,24 +192,39 @@
           var tab = document.querySelector('.top-tab[data-tab="' + el.dataset.tabpanel + '"]');
           if (tab) tab.click();
         }
-        var top = el.getBoundingClientRect().top + window.scrollY - 90;
+        // 고정 막대에 가려지지 않게 그 높이만큼 덜 내려간다. 90px로 못박아
+        // 두면 막대가 두세 줄일 때 섹션 제목이 막대 뒤로 숨는다.
+        var top = el.getBoundingClientRect().top + window.scrollY - stickyH() - 12;
+        var was = window.scrollY;
         window.scrollTo({ top: top, behavior: "smooth" });
+        // 부드러운 스크롤이 먹지 않는 화면이 있다(상권분석에서 확인). 눌러도
+        // 아무 일이 없으면 고장으로 보이므로, 안 움직였으면 그냥 건너뛴다.
+        setTimeout(function () {
+          if (Math.abs(window.scrollY - was) < 4 && Math.abs(top - was) > 8) {
+            window.scrollTo(0, top);
+          }
+        }, 350);
       });
     });
 
     var sections = btns
       .map(function (b) { return document.getElementById(b.dataset.target); })
       .filter(Boolean);
-    var onScroll = function () {
-      var y = window.scrollY + 140, cur = null;
+
+    if (navScroll) window.removeEventListener("scroll", navScroll);
+    navScroll = function () {
+      // 고정 막대 바로 아래에 걸친 섹션을 "지금 보는 곳"으로 친다
+      var y = window.scrollY + stickyH() + 24, cur = null;
       sections.forEach(function (s) {
         if (s.offsetParent !== null && s.offsetTop <= y) cur = s.id;
       });
       btns.forEach(function (b) { b.classList.toggle("active", b.dataset.target === cur); });
     };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-  }
+    window.addEventListener("scroll", navScroll, { passive: true });
+    navScroll();
+  };
+
+  window.wireSectionNav();
 
   /* ── 섹션별 인쇄 ── */
   window.printSection = function (id) {

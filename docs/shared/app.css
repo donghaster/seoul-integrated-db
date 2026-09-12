@@ -1390,3 +1390,115 @@ html[data-theme="dark"] .rank-table tbody tr.rank-mine { background: #1e2740; }
 }
 /* 카드 안에서는 펼치기 단추도 한 단계 작게 */
 .brief-card .expand-btn { font-size: 11.5px; padding: 6px 0; margin-top: 5px; }
+
+/* ═══════════════ 상단 고정 막대 ═══════════════
+   제목 · 지역 선택 · 바로가기를 한 덩어리로 붙여 늘 보이게 한다.
+
+   왜 묶었나 — 고객과 화면을 같이 보며 아래로 내리다 보면 "지금 어느 구를
+   보고 있는지"와 "다음 항목으로 어떻게 가는지"가 화면 밖으로 사라졌다.
+   브리핑이 끊기는 자리다. 대신 고정 막대가 두꺼우면 정작 볼 내용이 좁아지니,
+   높이를 아끼는 쪽으로 짰다 — 반포114 명패는 오른쪽 줄로 옮기고, 캐릭터는
+   뺐고, 스크롤을 내리면 부제와 로고가 접혀 한 단 더 낮아진다. */
+.stickytop {
+  position: sticky; top: 0; z-index: 500;
+  background: var(--topbar); backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 2px 10px rgba(35, 45, 66, .05);
+}
+.stickytop .topbar {
+  position: static; border-bottom: 0; backdrop-filter: none; background: none;
+  padding: 10px 26px 6px; gap: 8px 18px;
+}
+.stickytop .geumjib-badge { height: 40px; width: 40px; }
+.stickytop .topbar h1 { font-size: 16px; }
+.stickytop .brand-sub { font-size: 11.5px; margin-top: 2px; }
+.stickytop .brand { gap: 10px; flex: 1 1 420px; }
+.stickytop .brand-plate { padding: 2px 10px; border-radius: 10px; margin: 0; }
+.stickytop .brand-plate .logo { height: 30px; }
+
+/* 지역 선택 — 카드가 아니라 막대 안의 한 줄로 눕힌다 */
+.stickytop .filter-bar {
+  background: none; border: 0; box-shadow: none; border-radius: 0;
+  margin: 0; padding: 0 26px 8px; gap: 8px 16px; align-items: center;
+}
+.stickytop .filter-bar .ctl { flex-direction: row; align-items: center; gap: 7px; }
+.stickytop .filter-bar label { white-space: nowrap; }
+.stickytop .filter-bar select { padding: 6px 10px; font-size: 13px; min-width: 120px; }
+.stickytop .filter-note { font-size: 11.5px; }
+
+/* 상권분석의 '보는 범위'는 카드 안에 있던 것을 막대로 올렸다. 카드 테두리와
+   배경을 그대로 두면 막대 안에 또 상자가 생겨 두꺼워진다. */
+.stickytop .scope-bar {
+  background: none; border: 0; border-radius: 0; padding: 0; gap: 7px;
+}
+.stickytop .scope-sel { padding: 6px 10px; }
+
+/* 법정동 칩은 구마다 3~37개로 들쭉날쭉하다. 접히게 두면 종로구에서 두 줄이
+   되어 고정 막대가 264px까지 부푼다. 한 줄로 눕히고 가로로 넘긴다 — 고정
+   막대의 높이는 어느 구를 골라도 같아야 화면이 덜컹거리지 않는다. */
+.stickytop .filter-bar .ctl-full { flex: 1 1 320px; min-width: 0; }
+.stickytop .chip-wrap {
+  max-height: none; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: thin; padding-bottom: 2px;
+}
+.stickytop .chip-wrap button { flex: none; }
+
+/* 바로가기 — 가운데가 아니라 왼쪽부터, 한 줄을 넘지 않게 가로로 넘긴다 */
+.stickytop nav.section-nav {
+  justify-content: flex-start; gap: 6px; margin: 0;
+  padding: 0 26px 9px; flex-wrap: nowrap; overflow-x: auto;
+  scrollbar-width: thin;
+}
+.stickytop nav.section-nav button {
+  padding: 6px 13px; font-size: 12.5px; white-space: nowrap; flex: none;
+}
+/* 스크롤을 내리면 한 단 낮춘다 — 볼 내용에 자리를 돌려준다 */
+.stickytop.is-scrolled .brand-sub,
+.stickytop.is-scrolled .fetched { display: none; }
+.stickytop.is-scrolled .geumjib-badge { height: 30px; width: 30px; }
+.stickytop.is-scrolled .topbar { padding: 6px 26px 4px; }
+.stickytop.is-scrolled .topbar h1 { font-size: 14.5px; }
+
+/* 휴대폰 — 고정 막대가 화면의 88%를 먹던 것을 눌러 둔다.
+   좁은 화면에서는 제목 글줄과 조회시각이 겹겹이 접혀 420px까지 부풀었다.
+   손님과 폰으로 볼 때 정작 필요한 건 '어느 동네를 보는지'와 '어디로 갈지'다.
+   나머지(제목 글줄·조회시각·대시보드 모음)는 접는다 — 맨 위로 올리면 다 있다. */
+@media (max-width: 760px) {
+  .stickytop .topbar,
+  .stickytop .filter-bar,
+  .stickytop nav.section-nav { padding-left: 12px; padding-right: 12px; }
+
+  .stickytop .topbar { padding-top: 7px; padding-bottom: 5px; flex-wrap: nowrap; }
+  /* 좁은 화면 기본 규칙이 둘 다 100% 너비로 만들어 위아래로 쌓았다.
+     고정 막대 안에서는 한 줄로 붙인다. */
+  .stickytop .brand { flex: 0 0 auto; flex-basis: auto; min-width: 0; }
+  .stickytop .brand-titles, .stickytop .brand-sub { display: none; }
+  .stickytop .geumjib-badge { height: 28px; width: 28px; }
+  .stickytop .topbar-right {
+    flex: 1 1 auto; flex-basis: auto; gap: 7px; flex-wrap: nowrap;
+    overflow: hidden; justify-content: flex-end;
+  }
+  .stickytop .fetched, .stickytop .home-link { display: none; }
+  .stickytop .print-btn { padding: 6px 10px; font-size: 12px; }
+
+  /* 상호·전화는 폰에서도 남긴다 — 손님께 보여 주는 화면이다.
+     다만 로고 그림은 자리를 먹으니 글자만 쓴다. */
+  .stickytop .brand-plate {
+    display: inline-flex; padding: 2px 8px; border-radius: 8px; min-width: 0;
+  }
+  .stickytop .brand-plate .logo { display: none; }
+  .stickytop .brand-plate .brand-plate-fallback {
+    display: inline-flex; align-items: center; gap: 2px; font-size: 11.5px;
+  }
+
+  /* 지역 선택은 한 줄에 눕힌다 */
+  .stickytop .filter-bar { padding-bottom: 6px; gap: 6px 10px; flex-wrap: nowrap; overflow-x: auto; }
+  .stickytop .filter-bar > .ctl { flex: none; }
+  .stickytop .filter-bar select { min-width: 96px; font-size: 12.5px; }
+  .stickytop .filter-bar label { font-size: 11px; }
+  .stickytop .filter-note { display: none; }
+  /* 법정동 칩은 아래 한 줄을 통째로 쓴다 */
+  .stickytop .filter-bar .ctl-full { flex: 1 0 100%; }
+}
+
+@media print { .stickytop { position: static; box-shadow: none; border: 0; } }

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>금집부쌤의 서울시 통합 부동산 대시보드 — 상권분석</title>
-  <link rel="stylesheet" href="../shared/app.css?v=87cecb11ab" />
+  <link rel="stylesheet" href="../shared/app.css?v=00e8ed7194" />
   <link rel="stylesheet" href="../vendor/leaflet/leaflet.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>📊</text></svg>" />
 </head>
@@ -16,32 +16,45 @@
   <span class="wm-text">반포114공인중개사 · 010-9442-2027</span>
 </div>
 
+<!-- 상단 고정 막대 — 제목 · 보는 범위 · 바로가기를 한 덩어리로 붙여 늘 보이게 한다 -->
+<div class="stickytop" id="stickyTop">
 <header class="topbar">
   <div class="brand">
     <div class="brand-left">
       <img class="geumjib-badge" src="../assets/geumjib-logo.png" alt="금집부쌤"
            onerror="this.classList.add('img-missing')" />
       <div class="brand-titles">
-        <h1><a href="../index.html">금집부쌤의 서울시 통합 부동산 대시보드</a><br /><span class="brand-scope">📊 상권분석</span> <span class="brand-tag">서울 1,650개 상권</span></h1>
+        <h1><a href="../index.html">금집부쌤의 서울시 통합 부동산 대시보드</a> <span class="brand-scope">📊 상권분석</span></h1>
         <p class="brand-sub">서울시 상권분석서비스 유동인구·점포·추정매출 · 국토교통부 상업업무용 실거래가 연동</p>
       </div>
     </div>
-    <span class="brand-sep" aria-hidden="true"></span>
+  </div>
+  <div class="topbar-right">
     <div class="brand-plate">
       <img class="logo" src="../assets/banpo114-logo.png" alt="반포114공인중개사 · 010-9442-2027"
            onerror="this.classList.add('img-missing')" />
       <span class="brand-plate-fallback">반포<b>114</b>공인중개사 · 010-9442-2027</span>
-      <img class="mascot" src="../assets/geumddogi.png" alt="반포114공인중개사 캐릭터 금똑이"
-           onerror="this.classList.add('img-missing')" />
     </div>
-  </div>
-  <div class="topbar-right">
     <div id="themeToggle"></div>
     <a class="home-link" href="../index.html">← 대시보드 모음</a>
     <button type="button" id="printAllBtn" class="print-btn">🖨️ 전체 인쇄</button>
     <div class="fetched" id="fetchedAt"></div>
   </div>
 </header>
+
+<section class="filter-bar" aria-label="보는 범위">
+  <div class="scope-bar">
+    <span class="scope-label">보는 범위</span>
+    <select id="selGu" class="scope-sel"></select>
+    <select id="selDong" class="scope-sel"></select>
+    <select id="selTrade" class="scope-sel"></select>
+    <span class="scope-now" id="pickNote"></span>
+  </div>
+</section>
+
+<!-- 섹션이 JS로 그려지므로 바로가기도 그릴 때마다 채운다(app.js buildNav) -->
+<nav class="section-nav" aria-label="섹션 바로가기"></nav>
+</div>
 
 <div class="wrap">
   <div id="printBanner" class="print-only print-page-banner"></div>
@@ -68,13 +81,6 @@
     </div>
     <p class="dim-note" id="trAddrNote"></p>
 
-    <div class="scope-bar">
-      <span class="scope-label">보는 범위</span>
-      <select id="selGu" class="scope-sel"></select>
-      <select id="selDong" class="scope-sel"></select>
-      <select id="selTrade" class="scope-sel"></select>
-      <span class="scope-now" id="pickNote"></span>
-    </div>
   </section>
 
   <div id="trResult"></div>
@@ -91,7 +97,7 @@
 <script src="../data/trade.js?v=903fc3a06a"></script>
 <script src="../data/sangga.js?v=6c955e0a27"></script>
 <script src="../data/rent.js?v=4c7e01d298"></script>
-<script src="../shared/brand.js?v=e35116c24e"></script>
-<script src="app.js?v=ef72ab29ff"></script>
+<script src="../shared/brand.js?v=ebef8cf1e9"></script>
+<script src="app.js?v=837a44c5d6"></script>
 </body>
 </html>

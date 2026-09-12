@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>금집부쌤의 서울시 통합 부동산 대시보드 — 뉴타운</title>
-  <link rel="stylesheet" href="../shared/app.css?v=87cecb11ab" />
+  <link rel="stylesheet" href="../shared/app.css?v=00e8ed7194" />
   <link rel="stylesheet" href="../vendor/leaflet/leaflet.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🏙️</text></svg>" />
 </head>
@@ -16,35 +16,31 @@
   <span class="wm-text">반포114공인중개사 · 010-9442-2027</span>
 </div>
 
+<!-- 상단 고정 막대 — 제목 · 지역 · 바로가기를 한 덩어리로 붙여 늘 보이게 한다 -->
+<div class="stickytop" id="stickyTop">
 <header class="topbar">
   <div class="brand">
     <div class="brand-left">
       <img class="geumjib-badge" src="../assets/geumjib-logo.png" alt="금집부쌤"
            onerror="this.classList.add('img-missing')" />
       <div class="brand-titles">
-        <h1><a href="../index.html">금집부쌤의 서울시 통합 부동산 대시보드</a><br /><span class="brand-scope">🏙️ 뉴타운</span> <span class="brand-tag">서울 재정비촉진지구 전역</span></h1>
+        <h1><a href="../index.html">금집부쌤의 서울시 통합 부동산 대시보드</a> <span class="brand-scope">🏙️ 뉴타운</span></h1>
         <p class="brand-sub">서울시 1~3차 뉴타운(재정비촉진지구) 및 한강변 전략정비구역 · 구역별 진행상황 · 실거래 연동</p>
       </div>
     </div>
-    <span class="brand-sep" aria-hidden="true"></span>
+  </div>
+  <div class="topbar-right">
     <div class="brand-plate">
       <img class="logo" src="../assets/banpo114-logo.png" alt="반포114공인중개사 · 010-9442-2027"
            onerror="this.classList.add('img-missing')" />
       <span class="brand-plate-fallback">반포<b>114</b>공인중개사 · 010-9442-2027</span>
-      <img class="mascot" src="../assets/geumddogi.png" alt="반포114공인중개사 캐릭터 금똑이"
-           onerror="this.classList.add('img-missing')" />
     </div>
-  </div>
-  <div class="topbar-right">
     <div id="themeToggle"></div>
     <a class="home-link" href="../index.html">← 대시보드 모음</a>
     <button type="button" id="printAllBtn" class="print-btn">🖨️ 전체 인쇄</button>
     <div class="fetched" id="fetchedAt"></div>
   </div>
 </header>
-
-<div class="wrap">
-  <div id="printBanner" class="print-only print-page-banner"></div>
 
   <section class="filter-bar" aria-label="지역 선택">
     <div class="ctl">
@@ -80,6 +76,11 @@
     <button data-target="sec-deal">뉴타운 실거래</button>
     <button data-target="sec-policy">재개발 체크포인트</button>
   </nav>
+</div>
+
+<div class="wrap">
+  <div id="printBanner" class="print-only print-page-banner"></div>
+
 
   <!-- ─────────────── 핵심 요약 ─────────────── -->
   <section class="card-section" id="sec-kpi">
@@ -247,7 +248,7 @@
 <script src="../vendor/chart.umd.min.js"></script>
 <script src="../data/newtown.js?v=8ba14b3baf"></script>
 <script src="../data/apt.js?v=3fe0e5e748"></script>
-<script src="../shared/brand.js?v=e35116c24e"></script>
+<script src="../shared/brand.js?v=ebef8cf1e9"></script>
 <script src="app.js?v=bfcd4f1da3"></script>
 </body>
 </html>
