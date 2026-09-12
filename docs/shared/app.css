@@ -1323,7 +1323,9 @@ html[data-theme="dark"] .find-go:hover { background: #4a76d4; }
   /* 좁은 화면에서는 조금 낮춘다. 다만 --tbl-h(10행 높이)를 계산해 둔 표는
      그것을 넘지 않게만 하고, 값 자체를 덮어쓰지 않는다 — 덮어쓰면 10행이
      5행으로 줄어 "10행 보임"이 무너진다. */
-  .deal-scroll { max-height: min(var(--tbl-h, 400px), 340px); }
+  /* 340px이면 6행짜리 표가 5.8행에서 잘려, PC는 6줄인데 폰만 마지막 줄이
+     반쯤 걸친다. 12px만 올려 6행이 딱 떨어지게 한다. */
+  .deal-scroll { max-height: min(var(--tbl-h, 400px), 352px); }
 }
 @media print {
   .deal-scroll { max-height: none; overflow: visible; }

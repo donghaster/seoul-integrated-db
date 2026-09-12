@@ -1809,17 +1809,20 @@
 
   /* 예전에는 최근 6건만 잘라 보여 줬다. 위에서 '최근 12개월'을 골라 놓고도
      아래에 6줄뿐이라 자료가 빠진 줄 아셨다. 이제 고른 기간의 거래를 모두
-     담고, 화면에는 7줄만 두고 나머지는 이 안에서 굴려 본다 —
+     담고, 화면에는 6줄만 두고 나머지는 이 안에서 굴려 본다 —
      다른 표들과 같은 장치다(wireScrollBoxes).
      이 목록은 "이 대시보드가 진짜 실거래를 보고 있다"를 보이는 자리지
      끝까지 읽는 자리가 아니다. 매매·전세·월세 셋이 나란히 서니 10줄씩이면
-     상세 한 화면이 너무 길어져, 정작 아래 브리핑까지 못 내려간다. */
+     상세 한 화면이 너무 길어져, 정작 아래 브리핑까지 못 내려간다.
+     6줄로 맞춘 까닭은 폰이 그 언저리(340px 상한에 약 6줄)이기 때문이다.
+     PC와 폰이 같은 줄 수를 보여야, 상담 중에 어느 화면으로 보여 드리든
+     "일곱 번째 줄" 같은 말이 어긋나지 않는다. 월별 브리핑 표도 6줄이다. */
   function dealListHtml(rows, type) {
     var v = rows.filter(function (x) { return x.t === type; })
       .sort(function (a, b) { return a.d < b.d ? 1 : -1; })
       .slice(0, DETAIL_CAP);
     if (!v.length) return '<p class="placeholder">신고된 거래가 없습니다.</p>';
-    return '<div class="table-wrap deal-scroll" data-rows="7">' +
+    return '<div class="table-wrap deal-scroll" data-rows="6">' +
       '<table class="detail-deals"><thead><tr>' +
       '<th>거래일</th><th>분양면적<span class="th-sub">㎡ (평) · 아래 전용</span></th><th>층</th><th>' +
       (type === "wolse" ? "보증금/월세" : "금액") +
