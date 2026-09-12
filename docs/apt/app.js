@@ -3000,7 +3000,7 @@
      자치구를 골랐으면 한국부동산원 공식 지수(분기)를 겹쳐 방향을 대조할 수 있다. */
 
   var idxChart = null;
-  var idxState = { view: "type", mode: "index", official: false, cmp: ["", ""] };
+  var idxState = { view: "type", mode: "index", official: false, cmp: ["", ""], cmpType: "sale" };
 
   /* 지역 비교에 얹을 색. 지금 보는 동·구와 서울 전체는 이미 색을 쓰고 있어,
      겹치지 않으면서 서로도 구별되는 둘을 고른다. */
@@ -3268,19 +3268,28 @@
           "은 신고가 덜 들어와 결론에서 제외.</b>");
       }
 
+      /* 첨언은 무엇을 보고 있느냐에 따라 달라야 한다. 지역 비교에서 전세를
+         골라 놓고 "매수 쪽이면 미룰수록 부담"이라고 적으면 엉뚱한 말이 된다. */
+      var rent = lead._type && lead._type !== "sale";
       var advice;
       if (ph.tone === "warn") {
         advice = "<b>지금 수치 하나로 시세를 못박지 말 것.</b><br>관심 단지의 <b>같은 평형 최근 거래</b>를 직접 확인하는 편이 안전.";
       } else if (ph.tone === "up") {
         advice = ph.tag.indexOf("둔화") >= 0
           ? "<b>오르고는 있지만 속도는 줄어듦.</b><br>급하게 결정할 상황은 아니되, 방향이 꺾인 것도 아님."
-          : "<b>수요가 붙어 있는 구간</b>.<br>매수 쪽이면 미룰수록 부담이 커질 수 있음.";
+          : rent
+            ? "<b>보증금 부담이 커지는 구간</b>.<br>재계약이면 <b>인상분</b>을, 신규면 <b>대출 한도</b>를 미리 짚을 것."
+            : "<b>수요가 붙어 있는 구간</b>.<br>매수 쪽이면 미룰수록 부담이 커질 수 있음.";
       } else if (ph.tone === "down") {
         advice = ph.tag.indexOf("진정") >= 0
           ? "<b>내림폭이 줄어드는 중.</b><br>바닥을 단정하지 말고 <b>거래량이 함께 도는지</b> 확인."
-          : "<b>매도 쪽이면 서두를 이유</b>가, 매수 쪽이면 <b>기다릴 여유</b>가 있는 구간.";
+          : rent
+            ? "<b>임차인에게는 유리한 구간</b>.<br>집주인 쪽이면 <b>역전세</b>로 보증금을 돌려줄 여력을 먼저 볼 것."
+            : "<b>매도 쪽이면 서두를 이유</b>가, 매수 쪽이면 <b>기다릴 여유</b>가 있는 구간.";
       } else {
-        advice = "<b>값이 크게 움직이지 않는 구간</b>.<br>시세보다 <b>매물 상태·층·향</b>으로 협상하는 편이 나음.";
+        advice = rent
+          ? "<b>보증금이 크게 움직이지 않는 구간</b>.<br>값보다 <b>계약 조건·수리 범위</b>로 맞추는 편이 나음."
+          : "<b>값이 크게 움직이지 않는 구간</b>.<br>시세보다 <b>매물 상태·층·향</b>으로 협상하는 편이 나음.";
       }
       concl = conclHtml(ph.tag, ph.tone, why, advice);
     })();
@@ -3392,13 +3401,16 @@
         sets.push(Object.assign({
           label: TYPE_LABEL[t],
           data: isIdx ? toIndex(raw) : raw,
-          _stats: stats,
+          _stats: stats, _type: t,
           borderColor: TYPE_COLOR[t], backgroundColor: TYPE_COLOR[t] + "22",
           borderWidth: 2.5, tension: 0.3, spanGaps: true,
         }, pointStyleOf(stats, TYPE_COLOR[t])));
       });
     } else {
-      // 지역 비교 — 지금 보는 곳 / 그 자치구 / 서울 전체를 매매 기준으로 겹친다
+      /* 지역 비교 — 지금 보는 곳 / 그 자치구 / 골라 얹은 곳 / 서울 전체를 겹친다.
+         유형은 하나만 고른다. 세 유형 × 네 지역이면 선이 열둘이라 아무것도
+         안 보인다. "전세는 어떤가요"는 유형을 바꿔 물으면 될 일이다. */
+      var cmpT = idxState.cmpType;
       var targets = [];
       if (state.gu !== ALL && state.dong !== ALL) {
         targets.push({ key: state.gu + "|" + state.dong, name: state.dong, color: "#4f7fe6" });
@@ -3414,15 +3426,15 @@
 
       targets.forEach(function (tg) {
         if (!BY_REGION[tg.key]) return;
-        var stats = pyStats(tg.key, "sale");
+        var stats = pyStats(tg.key, cmpT);
         // 차트는 전용 기준 하나로 말한다(축 이름에 그렇게 적는다). 표처럼
         // 공급·전용을 위아래로 같이 적을 자리가 없고, 여러 단지가 섞인
         // 지역 평균이라 단지별 공급면적으로 환산할 수도 없다.
         var raw = stats.map(function (x) { return x.v; });
         sets.push(Object.assign({
-          label: tg.name + " (매매)",
+          label: tg.name + " (" + TYPE_LABEL[cmpT] + ")",
           data: isIdx ? toIndex(raw) : raw,
-          _stats: stats,
+          _stats: stats, _type: cmpT,
           borderColor: tg.color, backgroundColor: tg.color + "22",
           borderWidth: tg.key === ALL ? 2 : 2.8,
           borderDash: tg.key === ALL ? [6, 4] : [],
@@ -3569,6 +3581,15 @@
     btn.disabled = state.gu === ALL;
     btn.title = state.gu === ALL ? "자치구를 선택하면 공식 지수를 겹쳐 볼 수 있음" : "";
   }
+
+  document.querySelectorAll("#idxCmpTypeTabs button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("#idxCmpTypeTabs button").forEach(function (x) { x.classList.remove("active"); });
+      b.classList.add("active");
+      idxState.cmpType = b.dataset.t;
+      renderIndex();
+    });
+  });
 
   document.querySelectorAll("#idxViewTabs button").forEach(function (b) {
     b.addEventListener("click", function () {

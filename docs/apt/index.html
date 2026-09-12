@@ -207,6 +207,14 @@
          서울 전체는 점선 기준선으로 늘 남는다. -->
     <div class="view-bar cmp-bar" id="idxCmpBar" hidden>
       <div class="view-ctl">
+        <span class="view-label">유형</span>
+        <div class="tab-row seg-sm" id="idxCmpTypeTabs">
+          <button class="active" data-t="sale">매매</button>
+          <button data-t="jeonse">전세</button>
+          <button data-t="wolse">월세(환산)</button>
+        </div>
+      </div>
+      <div class="view-ctl">
         <span class="view-label">함께 보기</span>
         <select id="idxCmp1" class="cmp-sel" aria-label="비교 지역 1"></select>
         <select id="idxCmp2" class="cmp-sel" aria-label="비교 지역 2"></select>
@@ -505,6 +513,6 @@
 <script src="../data/locinfo.js?v=e97bc091b7"></script>
 <script src="../data/newtown.js?v=8ba14b3baf"></script>
 <script src="../shared/brand.js?v=717bc69d33"></script>
-<script src="app.js?v=e499272fb3"></script>
+<script src="app.js?v=fd9eb2e47b"></script>
 </body>
 </html>
