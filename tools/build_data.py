@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import statistics
 from datetime import date
@@ -135,7 +136,7 @@ def top_rows(rows: list[dict], n: int = TOP_N) -> list[dict]:
     ranked = sorted(rows, key=value_of, reverse=True)
     picked, seen = [], defaultdict(int)
     for r in ranked:
-        key = (r["name"], round(r["area"]))
+        key = (r["name"], band(r["area"]))
         if seen[key] >= 3:          # 같은 단지·평형은 최대 3건까지만
             continue
         seen[key] += 1
@@ -175,7 +176,7 @@ def py_top_rows(rows: list[dict], n: int = TOP_N) -> list[dict]:
     scored.sort(key=lambda x: x[0], reverse=True)
     picked, seen = [], defaultdict(int)
     for p, r in scored:
-        k = (r["name"], round(r["area"]))
+        k = (r["name"], band(r["area"]))
         if seen[k] >= 3:
             continue
         seen[k] += 1
@@ -403,6 +404,17 @@ def monthly_stats(nrg_rows: dict, offi_rows: dict, yms: list[str]) -> dict:
     return out
 
 
+def band(area: float) -> int:
+    """평형대 — 전용면적의 정수 부분.
+
+    주택형 이름은 전용면적을 버린 값으로 붙는다. 84.91㎡는 84형이지 85형이
+    아니다. 반올림하면 이름이 틀릴 뿐 아니라 100.49와 100.52처럼 한 주택형이
+    100과 101로 갈려 짝짓기 표본이 쪼개진다. 화면(docs/apt/app.js areaBand)과
+    같은 규칙이어야 "같은 평형"이라는 말이 앞뒤가 맞는다.
+    """
+    return math.floor(area or 0)
+
+
 def offi_jeonse_ratio(sale: list, rent: list) -> dict:
     """오피스텔 전세가율 — 전세 신고가 없는 지역에서 "얼마쯤 하느냐"를 답하는 기준.
 
@@ -421,14 +433,14 @@ def offi_jeonse_ratio(sale: list, rent: list) -> dict:
 
     bag: dict = {}
     for r in sale:
-        k = (r["gu"], r.get("dong") or "", r.get("name") or "", round(r["area"]))
+        k = (r["gu"], r.get("dong") or "", r.get("name") or "", band(r["area"]))
         b = bag.setdefault(k, {"s": [], "j": [], "y": 0})
         b["s"].append(r["amount"])
         b["y"] = max(b["y"], r.get("build") or 0)
     for r in rent:
         if r["t"] != "jeonse":
             continue
-        k = (r["gu"], r.get("dong") or "", r.get("name") or "", round(r["area"]))
+        k = (r["gu"], r.get("dong") or "", r.get("name") or "", band(r["area"]))
         b = bag.setdefault(k, {"s": [], "j": [], "y": 0})
         b["j"].append(r["deposit"])
         b["y"] = max(b["y"], r.get("build") or 0)

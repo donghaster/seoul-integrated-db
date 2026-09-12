@@ -223,7 +223,10 @@
     for (var i = 0; i < DEALS.length; i++) {
       var x = DEALS[i];
       if (x.t === "wolse" || !x.a || !x.dg) continue;
-      var k = x.gu + "|" + x.dg + "|" + x.n + "|" + Math.round(x.a);
+      // 평형대는 areaBand로 잡는다. 여기만 반올림하면 화면은 84㎡라 하면서
+      // 짝은 85㎡로 묶는 꼴이 된다 — 브리핑 문장이 "같은 평형"이라 말하므로
+      // 보여 주는 평형과 같은 규칙이어야 한다.
+      var k = x.gu + "|" + x.dg + "|" + x.n + "|" + areaBand(x.a);
       var b = bag[k] || (bag[k] = { s: [], j: [], gu: x.gu, dg: x.dg, y: 0 });
       (x.t === "sale" ? b.s : b.j).push(x.v);
       if (x.y > b.y) b.y = x.y;
