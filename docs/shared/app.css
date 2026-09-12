@@ -1304,6 +1304,12 @@ html[data-theme="dark"] .find-go:hover { background: #4a76d4; }
   padding: 9px 10px; white-space: nowrap;
 }
 .deal-scroll .deal-table td { padding: 8px 10px; white-space: nowrap; }
+/* 단지 상세의 실거래 목록도 같은 상자를 쓴다. 200줄을 굴리는 동안 머릿글이
+   같이 올라가 버리면 어느 칸이 금액이고 어느 칸이 평당가인지 잃는다. */
+.deal-scroll .detail-deals th {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--card-2); border-bottom: 2px solid var(--line);
+}
 .deal-scroll .dt-where { font-weight: 700; color: var(--txt); }
 
 /* ════════════════ 지도 반경 ════════════════ */

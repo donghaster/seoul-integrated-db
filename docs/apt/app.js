@@ -164,12 +164,19 @@
       '<div class="rt-sub">전용 ' + b + "㎡</div>";
   }
 
-  /* 단지 요약 — 평형별로 나눠야 의미가 있다 */
+  /* 단지 요약 — 평형별로 나눠야 의미가 있다.
+     예전에는 구운 자료 전체를 셌다. 위에서 '최근 6개월'을 골라 놓아도 이
+     표만 1년치를 말해, 화면 위아래가 서로 다른 기간을 이야기했다.
+     이제 고른 기간 안의 거래만 센다 — 평형별 시세·전세가율·브리핑이
+     모두 같은 기간을 본다. */
   function aptSummary(key) {
     var a = BY_APT[key];
     if (!a) return null;
+    var inWin = a.deals.filter(function (x) {
+      return x.d >= state.start && x.d <= state.end;
+    });
     var bands = {};
-    a.deals.forEach(function (x) {
+    inWin.forEach(function (x) {
       if (!x.a) return;
       var b = areaBand(x.a);
       var g = bands[b] || (bands[b] = { b: b, sale: [], jeonse: [], wolse: [], last: "" });
@@ -190,13 +197,15 @@
     list.sort(function (x, y) { return y.n - x.n; });
     return {
       apt: a,
+      deals: inWin,
       bands: list,
       cnt: {
-        sale: a.deals.filter(function (x) { return x.t === "sale"; }).length,
-        jeonse: a.deals.filter(function (x) { return x.t === "jeonse"; }).length,
-        wolse: a.deals.filter(function (x) { return x.t === "wolse"; }).length,
+        sale: inWin.filter(function (x) { return x.t === "sale"; }).length,
+        jeonse: inWin.filter(function (x) { return x.t === "jeonse"; }).length,
+        wolse: inWin.filter(function (x) { return x.t === "wolse"; }).length,
       },
-      last: a.deals.reduce(function (m, x) { return x.d > m ? x.d : m; }, ""),
+      last: inWin.reduce(function (m, x) { return x.d > m ? x.d : m; }, ""),
+      allCnt: a.deals.length,
     };
   }
 
@@ -1781,22 +1790,34 @@
     }).join("");
   }
 
-  /* 위 '평형별 시세'는 기간 안의 모든 거래를 세는데 이 목록은 최근 6건만
-     보여 준다. 33.6평 5건인데 아래에 3줄만 보이는 까닭이 그것인데, 말해
-     주지 않으면 자료가 빠진 줄 안다. 머릿글에 몇 건 중 몇 건인지 적는다. */
-  function dealHead(label, rows, type, cap) {
+  /* 한 목록에 담는 최대 행수. 헬리오시티 전체 기간이면 월세만 1,115건이라
+     세 표를 합쳐 1,886행이 된다. 그리는 데만 0.9초가 걸려, 손님 앞에서
+     단지를 누를 때마다 화면이 멈춘다. 최근 것부터 이만큼만 담는다 —
+     상담에서 뒤로 200건보다 더 내려갈 일은 없다. */
+  var DETAIL_CAP = 200;
+
+  /* 머릿글에 몇 건인지, 어느 기간인지 적는다. 위 '평형별 시세'와 같은
+     기간·같은 건수를 세므로 두 표가 어긋나 보이지 않는다. */
+  function dealHead(label, rows, type) {
     var n = rows.filter(function (x) { return x.t === type; }).length;
-    var lim = cap || 6;
     return "<h4>" + label +
-      (n > lim ? ' <span class="dim-note">' + n + "건 중 최근 " + lim + "건</span>" : "") +
-      "</h4>";
+      ' <span class="dim-note">' + periodLabel() +
+      (n ? " · " + n.toLocaleString() + "건" : "") +
+      (n > DETAIL_CAP ? " (최근 " + DETAIL_CAP + "건 표시)" : "") +
+      "</span></h4>";
   }
 
-  function dealListHtml(rows, type, cap) {
+  /* 예전에는 최근 6건만 잘라 보여 줬다. 위에서 '최근 12개월'을 골라 놓고도
+     아래에 6줄뿐이라 자료가 빠진 줄 아셨다. 이제 고른 기간의 거래를 모두
+     담고, 화면에는 10줄만 두고 나머지는 이 안에서 굴려 본다 —
+     다른 표들과 같은 장치다(wireScrollBoxes). */
+  function dealListHtml(rows, type) {
     var v = rows.filter(function (x) { return x.t === type; })
-      .sort(function (a, b) { return a.d < b.d ? 1 : -1; }).slice(0, cap || 6);
+      .sort(function (a, b) { return a.d < b.d ? 1 : -1; })
+      .slice(0, DETAIL_CAP);
     if (!v.length) return '<p class="placeholder">신고된 거래가 없습니다.</p>';
-    return '<div class="table-wrap"><table class="detail-deals"><thead><tr>' +
+    return '<div class="table-wrap deal-scroll" data-rows="10">' +
+      '<table class="detail-deals"><thead><tr>' +
       '<th>거래일</th><th>분양면적<span class="th-sub">㎡ (평) · 아래 전용</span></th><th>층</th><th>' +
       (type === "wolse" ? "보증금/월세" : "금액") +
       '</th><th>평당가<span class="th-sub">공급 · 아래 전용</span></th></tr></thead><tbody>' +
@@ -1880,7 +1901,9 @@
     // 분양권·입주권처럼 준공 전 단지가 그렇다.
     out.push("<b>" + esc(a.n) + "</b>" + josa(a.n, "은", "는") + " " + esc(a.gu) + " " + esc(a.dg) +
       (a.y ? "에 있고 <b>" + a.y + "년 준공</b>입니다. " : "에 있습니다. ") +
-      "자료 기간(" + DATA_START.slice(2).replace(/-/g, ".") + "~" + DATA_END.slice(2).replace(/-/g, ".") + ") 신고된 거래는 " +
+      // 구운 자료 전체가 아니라 위에서 고른 기간을 말해야 한다.
+      // 아래 표들과 같은 기간을 세면서 문장만 1년치를 말하면 서로 어긋난다.
+      "조회 기간(" + state.start.slice(2).replace(/-/g, ".") + "~" + state.end.slice(2).replace(/-/g, ".") + ") 신고된 거래는 " +
       "<b>매매 " + sum.cnt.sale + "건 · 전세 " + sum.cnt.jeonse + "건 · 월세 " + sum.cnt.wolse + "건</b>, " +
       "모두 " + total.toLocaleString() + "건입니다.");
 
@@ -1948,13 +1971,34 @@
     return out;
   }
 
+  /* 지금 펼쳐 둔 단지. 위에서 기간을 바꾸면 이 화면도 같이 다시 그린다 —
+     안 그러면 '최근 12개월'로 바꿔 놓고도 상세는 3개월치를 말한다. */
+  var openAptKey = null;
+
   function showApt(key) {
     var sum = aptSummary(key);
     var host = document.getElementById("aptResult");
-    if (!sum) { host.innerHTML = ""; return; }
+    if (!sum) { host.innerHTML = ""; openAptKey = null; return; }
+    openAptKey = key;
 
     var a = sum.apt;
     var mainBand = sum.bands[0] || null;
+    /* 기간을 좁혀 그 안에 거래가 하나도 없으면 대표 평형이 사라져
+       '인근 유사 단지'가 통째로 빠진다. 그런데 바로 위 안내문은
+       "아래 인근 유사 단지를 보세요"라고 가리키고 있다 — 정작 볼 게 없다.
+       거래가 없을수록 인근이 더 필요하니, 그럴 때는 이 단지가 원래 가장
+       많이 거래된 평형으로 대신 찾아 준다. */
+    var refBand = mainBand;
+    if (!refBand) {
+      var tally = {};
+      a.deals.forEach(function (x) {
+        if (!x.a) return;
+        var b = areaBand(x.a);
+        tally[b] = (tally[b] || 0) + 1;
+      });
+      var best = Object.keys(tally).sort(function (p1, p2) { return tally[p2] - tally[p1]; })[0];
+      if (best) refBand = { b: parseInt(best, 10), fallback: true };
+    }
     var c = coordOf(a.gu, a.dg, a.n);
     var special = specialKind(sum);
 
@@ -1976,15 +2020,20 @@
           '<th>전세</th><th>중위 보증금</th><th>전세가율</th><th>월세</th><th>보증금 / 월세</th>' +
         "</tr></thead><tbody>" + bandRowsHtml(sum) + "</tbody></table></div>" +
 
-        dealHead("최근 매매", a.deals, "sale") + dealListHtml(a.deals, "sale") +
-        (sum.cnt.jeonse ? dealHead("최근 전세", a.deals, "jeonse") : "<h4>최근 전세</h4>") +
-        (sum.cnt.jeonse ? dealListHtml(a.deals, "jeonse") : jeonseGuessHtml(sum, mainBand)) +
+        dealHead("매매 실거래", sum.deals, "sale") + dealListHtml(sum.deals, "sale") +
+        (sum.cnt.jeonse ? dealHead("전세 실거래", sum.deals, "jeonse") : "<h4>전세 실거래</h4>") +
+        (sum.cnt.jeonse ? dealListHtml(sum.deals, "jeonse") : jeonseGuessHtml(sum, mainBand)) +
+        (sum.cnt.wolse
+          ? dealHead("월세 실거래", sum.deals, "wolse") + dealListHtml(sum.deals, "wolse")
+          : "") +
 
         (special ? '<p class="thin-note"><span>' + special.why + "</span></p>" : "") +
 
-        (mainBand ? "<h4>인근 유사 단지 <span class=\"dim-note\">" +
-          bandLabel(mainBand.b, bandSupplyOf(mainBand.b, a.gu, a.dg, a.n)) +
-          " 기준 · 같은 자치구 2km 이내</span></h4>" + similarHtml(key, mainBand.b) : "") +
+        (refBand ? "<h4>인근 유사 단지 <span class=\"dim-note\">" +
+          bandLabel(refBand.b, bandSupplyOf(refBand.b, a.gu, a.dg, a.n)) +
+          " 기준 · 같은 자치구 2km 이내" +
+          (refBand.fallback ? " · 고르신 기간에 이 단지 거래가 없어 가장 많이 거래된 평형으로 찾았습니다" : "") +
+          "</span></h4>" + similarHtml(key, refBand.b) : "") +
 
         '<div class="read-guide" style="margin-top:18px;">' +
           "<h4>금집부쌤이 보는 " + esc(a.n) + "</h4><ol>" +
@@ -2001,6 +2050,8 @@
         focusApt(a.gu, a.dg, a.n);
       });
     }
+    // 10줄만 보이게 접고 넘치면 펼치기 단추를 붙인다
+    if (window.wireScrollBoxes) window.wireScrollBoxes();
   }
 
   /* ════════════════ 입지분석 ════════════════ */
@@ -3700,6 +3751,7 @@
   }
 
   function renderAll() {
+    if (openAptKey) showApt(openAptKey);   // 기간이 바뀌면 단지 상세도 따라간다
     renderKpi();
     renderIndex();
     renderBrief();
