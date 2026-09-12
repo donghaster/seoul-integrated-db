@@ -578,17 +578,57 @@ def write(store):
              len(txt.encode("utf-8")) / 1024, cut))
 
 
+def probe(word):
+    """단지 하나가 왜 안 맞았는지 눈으로 본다 — 대장이 뭐라고 부르는지 찍어 본다.
+
+    '이름 못 맞춤'으로 제외된 단지가 거래는 제일 많은 경우가 있다. 대장 미비라면
+    포기가 맞지만, 우리 쪽 이름 맞추기가 못 따라간 것이면 고칠 수 있는 일이다.
+    그 둘을 가르려면 대장이 돌려준 건물명을 직접 봐야 한다.
+    """
+    cs = [c for c in complexes() if word in c["name"]]
+    if not cs:
+        print("그런 이름의 단지가 실거래 자료에 없다:", word)
+        return
+    want = defaultdict(set)
+    for c in cs:
+        want[GU_CD[c["gu"]]].add(c["dong"])
+    codes = bjdong_codes(want)
+    for (sig, cd, bun, ji), group in sites(cs, codes):
+        names = [c["name"] for c in group]
+        print("\n지번 %s-%s (%s %s) — 실거래 이름 %s" % (bun, ji, sig, cd, ", ".join(names)))
+        try:
+            raw, total = fetch_site(sig, cd, bun, ji)
+        except Exception as exc:                     # noqa: BLE001
+            print("   대장이 안 줬다:", exc)
+            continue
+        blds = by_building(raw)
+        print("   대장 건물명 %d개 · 호 %d개(전체 %d)" % (len(blds), len(raw), total))
+        for b in sorted(blds):
+            area, dropped = tidy(blds[b])
+            sample = sorted(area.items())[:4]
+            print("     [%s] 호 %d · 쓸 만한 평형 %d(버린 것 %d) %s"
+                  % (b or "(이름 없음)", sum(len(v) for v in blds[b].values()),
+                     len(area), dropped,
+                     " ".join("%.2f→%.2f" % (float(k), v) for k, v in sample)))
+        for c in group:
+            print("     고르기: %s → %s" % (c["name"], pick(list(blds), c["name"]) or "못 맞춤"))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--budget", type=int, default=None, help="이번에 쓸 호출 수")
     ap.add_argument("--minutes", type=int, default=None, help="이번에 쓸 시간(분)")
     ap.add_argument("--write", action="store_true", help="받지 않고 supply.js만 다시 굽는다")
     ap.add_argument("--gu", default="", help="이 자치구만 받는다(쉼표로 여럿)")
+    ap.add_argument("--probe", default="", help="이 이름이 든 단지만 대장 응답을 찍어 본다")
     ap.add_argument("--retry", action="store_true",
                     help="제외로 적어 둔 단지를 지우고 다시 물어본다(규칙을 고친 뒤)")
     a = ap.parse_args()
     if a.write:
         write(json.load(open(STORE, encoding="utf-8")))
+        return
+    if a.probe:
+        probe(a.probe)
         return
     only = [g.strip() for g in a.gu.split(",") if g.strip()]
     write(collect(a.budget, a.minutes, only, a.retry))
