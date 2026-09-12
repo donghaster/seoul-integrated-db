@@ -459,6 +459,18 @@
      표와 요약 카드는 아래 areaBoth·pyBoth를 쓰고, 문장·차트는 전용 기준
      하나로 말하되 '전용 기준'이라고 밝힌다. */
   function pyNum(v) { return Math.round(v || 0).toLocaleString(); }
+
+  /* 월별 브리핑 표 전용 — 단위는 머리글이 지고 칸에는 숫자만 놓는다.
+     "21억 1,000만원"을 열두 줄 늘어놓으면 눈이 단위를 매번 다시 읽고,
+     칸도 그만큼 넓어진다. 억은 천만원 자리까지 반올림한다 — 달마다 흐름을
+     훑는 자리라 그 정도면 충분하고, 정확한 금액은 실거래 TOP 30에 그대로 있다. */
+  function eokNum(man) {
+    if (!man) return "-";
+    var v = man / 10000;
+    return v >= 100 ? Math.round(v).toLocaleString() : v.toFixed(1).replace(/\.0$/, "");
+  }
+
+  function manNum(man) { return man ? Math.round(man).toLocaleString() : "-"; }
   function pyBaseLabel() { return "전용 기준"; }
   function pyBaseWord() { return "전용"; }
 
@@ -3332,6 +3344,10 @@
 
   function moLabel(m) { return m.slice(2, 4) + "년 " + parseInt(m.slice(5), 10) + "월"; }
 
+  /* 표 안에서만 쓰는 짧은 달. "25년 10월"에 집계중·표본 적음 딱지까지 붙으면
+     월 칸 하나가 120px을 먹는다. 문장에서는 moLabel이 읽기 좋다. */
+  function moShort(m) { return m.slice(2, 4) + "." + m.slice(5, 7); }
+
   // 신고 기한이 30일이라 최근 달은 아직 다 안 들어와 있다.
   // 그 달 말일에 계약해도 30일 뒤까지 신고할 수 있으므로, 말일+30일이
   // 자료 기준일을 넘는 달은 "집계중"이다.
@@ -3348,24 +3364,30 @@
 
   function deltaHtml(cur, prev, nCur, nPrev, hot) {
     if (!cur || !prev) return '<span class="dim-note">-</span>';
-    var r = (cur - prev) / prev * 100;
+    // 달마다 표본이 얇아 +12.3과 +12를 가를 정밀도가 애초에 없다. 자릿수만
+    // 늘어나 칸을 넓히므로 반올림한다. 단위(%)는 머리글이 진다.
+    var r = Math.round((cur - prev) / prev * 100);
     var sign = r > 0 ? "+" : "";
     // 표본이 얇거나 한 단지에 쏠린 달이면, 등락률은 시세가 아니라
     // "어느 단지가 팔렸나"를 보여줄 뿐이다
     if (nCur < MIN_N || nPrev < MIN_N || hot) {
       return '<span class="d-weak" title="표본이 적어 시세 변동으로 보기 어렵습니다">' +
-             sign + r.toFixed(1) + "%<sup>*</sup></span>";
+             sign + r + "<sup>*</sup></span>";
     }
     var cls = Math.abs(r) < 1 ? "d-flat" : (r > 0 ? "d-up" : "d-down");
-    return '<span class="' + cls + '">' + sign + r.toFixed(1) + "%</span>";
+    return '<span class="' + cls + '">' + sign + r + "</span>";
   }
 
   // 머리글을 두 줄로 — "중위 평당 / 가"처럼 단어 중간에서 끊기는 걸 막는다
   function th2(a, b) { return '<span class="th2">' + a + "</span><span class=\"th2\">" + b + "</span>"; }
 
+  /* 12개월을 다 펼치면 카드 하나가 515px이다. 세 장이 나란히 서니 화면이
+     이 표로 찬다. 브리핑에서 주로 보는 건 최근 몇 달이라 여섯 달만 펼쳐 두고
+     나머지는 스크롤로 넘긴다 — 다른 표들과 같은 장치다(wireScrollBoxes). */
   function briefTable(title, cols, rows) {
     return '<div class="brief-card"><h4>' + title + "</h4>" +
-      '<div class="table-wrap"><table class="brief-table"><thead><tr>' +
+      '<div class="deal-scroll brief-scroll" data-rows="6">' +
+      '<table class="brief-table"><thead><tr>' +
       cols.map(function (c) { return "<th>" + c + "</th>"; }).join("") +
       "</tr></thead><tbody>" + rows.join("") + "</tbody></table></div></div>";
   }
@@ -3409,36 +3431,40 @@
 
     var saleRows = mo.map(function (x, i) {
       var pv = i ? mo[i - 1].sale.py : 0, pn = i ? mo[i - 1].sale.n : 0;
-      return "<tr><td>" + moLabel(x.m) + flag(x.m, x.sale.n, x.sale.hot) + "</td>" +
-        "<td>" + x.sale.n.toLocaleString() + "건</td>" +
-        "<td>" + (x.sale.py ? pyNum(x.sale.py) + "만원" : "-") + "</td>" +
-        "<td>" + (x.sale.amt ? eokman(x.sale.amt) : "-") + "</td>" +
+      return "<tr><td>" + moShort(x.m) + flag(x.m, x.sale.n, x.sale.hot) + "</td>" +
+        "<td>" + x.sale.n.toLocaleString() + "</td>" +
+        "<td>" + manNum(x.sale.py) + "</td>" +
+        "<td>" + eokNum(x.sale.amt) + "</td>" +
         "<td>" + deltaHtml(x.sale.py, pv, x.sale.n, pn, x.sale.hot) + "</td></tr>";
     });
 
     var jeonseRows = mo.map(function (x, i) {
       var pv = i ? mo[i - 1].jeonse.py : 0, pn = i ? mo[i - 1].jeonse.n : 0;
-      return "<tr><td>" + moLabel(x.m) + flag(x.m, x.jeonse.n, x.jeonse.hot) + "</td>" +
-        "<td>" + x.jeonse.n.toLocaleString() + "건</td>" +
-        "<td>" + (x.jeonse.dep ? eokman(x.jeonse.dep) : "-") + "</td>" +
-        "<td>" + (x.jeonse.py ? pyNum(x.jeonse.py) + "만원" : "-") + "</td>" +
+      return "<tr><td>" + moShort(x.m) + flag(x.m, x.jeonse.n, x.jeonse.hot) + "</td>" +
+        "<td>" + x.jeonse.n.toLocaleString() + "</td>" +
+        "<td>" + eokNum(x.jeonse.dep) + "</td>" +
+        "<td>" + manNum(x.jeonse.py) + "</td>" +
         "<td>" + deltaHtml(x.jeonse.py, pv, x.jeonse.n, pn, x.jeonse.hot) + "</td></tr>";
     });
 
     var wolseRows = mo.map(function (x) {
-      return "<tr><td>" + moLabel(x.m) + flag(x.m, x.wolse.n, x.wolse.hot) + "</td>" +
-        "<td>" + x.wolse.n.toLocaleString() + "건</td>" +
-        "<td>" + (x.wolse.dep ? eokman(x.wolse.dep) : "-") + "</td>" +
-        "<td>" + (x.wolse.rent ? Math.round(x.wolse.rent).toLocaleString() + "만원" : "-") + "</td>" +
-        "<td>" + Math.round(x.wolse.junRate * 100) + "%</td></tr>";
+      return "<tr><td>" + moShort(x.m) + flag(x.m, x.wolse.n, x.wolse.hot) + "</td>" +
+        "<td>" + x.wolse.n.toLocaleString() + "</td>" +
+        "<td>" + eokNum(x.wolse.dep) + "</td>" +
+        "<td>" + manNum(x.wolse.rent) + "</td>" +
+        "<td>" + Math.round(x.wolse.junRate * 100) + "</td></tr>";
     });
 
     grid.innerHTML =
-      briefTable("매매", ["월", "건수", th2("중위", "평당가"), th2("중위", "거래가"), "전월비"], saleRows) +
-      briefTable("전세", ["월", "건수", th2("중위", "보증금"), th2("중위", "평당가"), "전월비"], jeonseRows) +
-      briefTable("월세", ["월", "건수", th2("중위", "보증금"), th2("중위", "월세"), th2("준전세", "비중")], wolseRows);
+      briefTable("매매", ["월", th2("건수", "(건)"), th2("중위 평당가", "(만원)"),
+        th2("중위 거래가", "(억)"), th2("전월비", "(%)")], saleRows) +
+      briefTable("전세", ["월", th2("건수", "(건)"), th2("중위 보증금", "(억)"),
+        th2("중위 평당가", "(만원)"), th2("전월비", "(%)")], jeonseRows) +
+      briefTable("월세", ["월", th2("건수", "(건)"), th2("중위 보증금", "(억)"),
+        th2("중위 월세", "(만원)"), th2("준전세", "(%)")], wolseRows);
 
     renderBriefScript(mo);
+    if (window.wireScrollBoxes) window.wireScrollBoxes();
   }
 
   /* 고객 앞에서 그대로 읽어 드릴 수 있게 금집부쌤 1인칭으로 풀어 준다.
