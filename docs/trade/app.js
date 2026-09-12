@@ -1476,6 +1476,11 @@
       (single ? "<th>거리</th>" : "<th>순위</th>") +
       "<th>상권</th><th>유형</th><th>행정동</th><th>일평균 유동인구</th><th>점포</th><th>추정 월매출</th>" +
       "</tr></thead><tbody>" +
+      (rows.length ? "" :
+        // 반경 안에 이웃 상권이 없으면 머리글만 남아 표가 고장난 듯 보였다.
+        // 다른 표들처럼 왜 비었는지 한 줄로 밝힌다.
+        '<tr class="empty-row"><td colspan="7">이 반경 안에 ' +
+        (single ? "이웃 상권이" : "상권이") + " 없습니다. 위에서 반경을 넓혀 보세요.</td></tr>") +
       rows.map(function (x, i) {
         return '<tr class="tr-row" data-c="' + esc(x.t.c) + '">' +
           "<td>" + (single ? (x.d < 1000 ? x.d + "m" : (x.d / 1000).toFixed(1) + "km") : (i + 1)) + "</td>" +
