@@ -358,7 +358,7 @@
     map.invalidateSize({ animate: false });
     if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.15), { maxZoom: 13 });
     document.getElementById("ntDetail").innerHTML =
-      '<p class="placeholder">지도의 원 또는 아래 목록에서<br />뉴타운을 클릭하세요.</p>';
+      '<p class="placeholder">지도의 원 또는 아래 목록에서<br />뉴타운을 클릭.</p>';
   }
 
   function showDetail(d) {
@@ -473,7 +473,7 @@
     var box = document.getElementById("ntGroups");
 
     if (!list.length) {
-      box.innerHTML = '<p class="sec-desc">조건에 맞는 뉴타운이 없습니다. 필터를 바꿔보세요.</p>';
+      box.innerHTML = '<p class="sec-desc">조건에 맞는 뉴타운이 없음. 필터를 바꿔볼 것.</p>';
       return;
     }
 
@@ -683,7 +683,7 @@
     });
 
     document.getElementById("zoneDetail").innerHTML =
-      '<p class="placeholder">지도의 구역 또는 아래 카드를 클릭하세요.</p>';
+      '<p class="placeholder">지도의 구역 또는 아래 카드를 클릭.</p>';
   }
 
   function showZone(z) {
@@ -697,7 +697,7 @@
       "<tr><td>진행상황</td><td><b>" + esc(z.status) + "</b></td></tr>" +
       "</table>" +
       '<p style="margin-top:10px;font-size:12px;color:var(--txt-mute);line-height:1.6">' +
-      "※ 인가일·세대수·시공사는 변경될 수 있습니다. 계약 전 조합·구청 고시 원문을 확인하세요.</p>";
+      "※ 인가일·세대수·시공사는 변경될 수 있음. 계약 전 조합·구청 고시 원문을 확인할 것.</p>";
   }
 
   /* ════════════════ 뉴타운 실거래 ════════════════ */
@@ -751,7 +751,7 @@
     fillDealBands();
     if (!A) {
       document.getElementById("dealBody").innerHTML =
-        '<tr class="empty-row"><td colspan="8">실거래 데이터(apt.js)를 불러오지 못했습니다.</td></tr>';
+        '<tr class="empty-row"><td colspan="8">실거래 데이터(apt.js)를 불러오지 못함.</td></tr>';
       if (window.wireScrollBoxes) window.wireScrollBoxes();
       return;
     }
@@ -767,7 +767,7 @@
         return esc(p.dong) + " " + p.py.toLocaleString();
       }).join(" · ");
       var warn = x.st.spread >= 20
-        ? ' <span class="spread-warn" title="동별 평당가 격차가 ' + x.st.spread + '%라 하나의 대표값으로 보기 어렵습니다">동별 편차 ' + x.st.spread + '%</span>'
+        ? ' <span class="spread-warn" title="동별 평당가 격차가 ' + x.st.spread + '%라 하나의 대표값으로 보기 어려움">동별 편차 ' + x.st.spread + '%</span>'
         : "";
       return "<tr>" +
         '<td><span class="rank-chip ' + rc + '">' + (i + 1) + "</span></td>" +
@@ -784,8 +784,8 @@
         "<td>" + x.st.wolse.toLocaleString() + "</td>" +
         "</tr>";
     }).join("") : '<tr class="empty-row"><td colspan="9">' +
-      (state.band === "all" ? "조건에 맞는 뉴타운이 없습니다."
-        : esc(bandInfo(state.band).name) + " 매매 신고가 있는 뉴타운이 없습니다. 위 칸을 '전체'로 두고 보세요.") +
+      (state.band === "all" ? "조건에 맞는 뉴타운이 없음."
+        : esc(bandInfo(state.band).name) + " 매매 신고가 있는 뉴타운이 없음. 위 칸을 '전체'로 두고 볼 것.") +
       "</td></tr>";
     // 행이 채워진 뒤에 불러야 넘치는지 알 수 있다
     if (window.wireScrollBoxes) window.wireScrollBoxes();
@@ -794,8 +794,8 @@
       "표본 " + aptWin().label + " · 국토교통부 아파트 실거래 기준. " +
       (state.band === "all" ? "" :
         "<b>" + esc(bandInfo(state.band).name) + "</b>만 추려 " + rows.length +
-        "개 뉴타운에 표본이 있습니다. ") +
-      "동이 여러 개인 뉴타운은 <b>매매 건수로 가중평균</b>한 값이며, 괄호 없이 적은 동별 값이 그 재료입니다.";
+        "개 뉴타운에 표본이 있음. ") +
+      "동이 여러 개인 뉴타운은 <b>매매 건수로 가중평균</b>한 값이며, 괄호 없이 적은 동별 값이 그 재료.";
 
     var top = rows.slice(0, 20);
     var canvas = document.getElementById("ntPyeongChart");
@@ -858,12 +858,12 @@
   /* ════════════════ 체크포인트 ════════════════ */
 
   var POLICY = [
-    { date: "지위양도", title: "조합원 지위 양도 제한", body: "투기과열지구에서 <b>재개발은 관리처분인가 후</b>, 재건축은 조합설립인가 후 조합원 지위 양도가 제한됩니다. 10년 보유·5년 거주 등 예외 요건이 있으니 물건별로 반드시 확인하세요.", tag: "필수 확인" },
-    { date: "분양자격", title: "입주권 자격 · 현금청산", body: "권리산정기준일 이후 <b>지분 쪼개기</b>나 무허가건축물 등은 입주권이 나오지 않고 <b>현금청산</b> 대상이 될 수 있습니다. 구청 고시의 권리산정기준일을 먼저 확인해야 합니다.", tag: "필수 확인" },
-    { date: "추가분담금", title: "감정평가액과 추가분담금", body: "매입가가 아니라 <b>감정평가액(권리가액)</b>이 기준입니다. 조합원분양가와의 차액이 추가분담금이며, 공사비 상승으로 <b>관리처분 이후에도 늘어날 수 있습니다</b>.", tag: "자금계획" },
-    { date: "이주비", title: "이주비 대출과 이자", body: "이주 단계에서 <b>이주비 대출</b>이 나오지만 한도·이자 부담 주체가 사업장마다 다릅니다. 규제지역 여부에 따라 LTV가 달라지는 점도 확인하세요.", tag: "자금계획" },
-    { date: "기간", title: "사업 지연 리스크", body: "관리처분인가 이후에도 <b>이주 지연·공사비 갈등·시공사 교체</b>로 수년이 늦어지는 사례가 많습니다. 단계별 소요기간을 보수적으로 잡아야 합니다.", tag: "리스크" },
-    { date: "세금", title: "취득세·양도세", body: "입주권·분양권은 주택 수 산정과 <b>취득세율</b>이 일반 주택과 다릅니다. 멸실 전후 취득 시점에 따라 세율이 크게 달라지므로 세무 상담을 권합니다.", tag: "세제" },
+    { date: "지위양도", title: "조합원 지위 양도 제한", body: "투기과열지구에서 <b>재개발은 관리처분인가 후</b>, 재건축은 조합설립인가 후 조합원 지위 양도가 제한됨. 10년 보유·5년 거주 등 예외 요건이 있으니 물건별로 반드시 확인할 것.", tag: "필수 확인" },
+    { date: "분양자격", title: "입주권 자격 · 현금청산", body: "권리산정기준일 이후 <b>지분 쪼개기</b>나 무허가건축물 등은 입주권이 나오지 않고 <b>현금청산</b> 대상이 될 수 있음. 구청 고시의 권리산정기준일을 먼저 확인할 것.", tag: "필수 확인" },
+    { date: "추가분담금", title: "감정평가액과 추가분담금", body: "매입가가 아니라 <b>감정평가액(권리가액)</b>이 기준. 조합원분양가와의 차액이 추가분담금이며, 공사비 상승으로 <b>관리처분 이후에도 늘어날 수 있음</b>.", tag: "자금계획" },
+    { date: "이주비", title: "이주비 대출과 이자", body: "이주 단계에서 <b>이주비 대출</b>이 나오지만 한도·이자 부담 주체가 사업장마다 다름. 규제지역 여부에 따라 LTV가 달라지는 점도 확인할 것.", tag: "자금계획" },
+    { date: "기간", title: "사업 지연 리스크", body: "관리처분인가 이후에도 <b>이주 지연·공사비 갈등·시공사 교체</b>로 수년이 늦어지는 사례가 많음. 단계별 소요기간을 보수적으로 잡을 것.", tag: "리스크" },
+    { date: "세금", title: "취득세·양도세", body: "입주권·분양권은 주택 수 산정과 <b>취득세율</b>이 일반 주택과 다름. 멸실 전후 취득 시점에 따라 세율이 크게 달라지므로 세무 상담을 권함.", tag: "세제" },
   ];
 
   document.getElementById("policyGrid").innerHTML = POLICY.map(function (p) {

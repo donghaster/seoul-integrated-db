@@ -12,9 +12,9 @@
   var SG = window.SANGGA_DATA;
   if (!T || !T.trades) {
     document.querySelector(".wrap").insertAdjacentHTML("afterbegin",
-      '<section class="card-section"><h2>데이터를 불러오지 못했습니다</h2>' +
-      '<p class="sec-desc">data/trade.js가 없습니다. <code>py tools/fetch_trade.py</code> 후 ' +
-      "<code>py tools/build_trade.py</code>를 실행하세요.</p></section>");
+      '<section class="card-section"><h2>데이터를 불러오지 못함</h2>' +
+      '<p class="sec-desc">data/trade.js가 없음. <code>py tools/fetch_trade.py</code> 후 ' +
+      "<code>py tools/build_trade.py</code>를 실행.</p></section>");
     return;
   }
   window.DASH_DATA = T;
@@ -455,7 +455,7 @@
       var ex = ["강남역", "서래마을카페거리(서래마을)", "홍대입구역(홍대)", "노량진역"];
       for (var i = 0; i < ex.length; i++) {
         var hit = searchTrade(ex[i], 1)[0];
-        if (hit) { input.value = hit.n; note.innerHTML = "예시로 <b>" + esc(hit.n) + "</b>을(를) 열었습니다."; gotoTrade(hit.c); return; }
+        if (hit) { input.value = hit.n; note.innerHTML = "예시로 <b>" + esc(hit.n) + "</b>을(를) 열었음."; gotoTrade(hit.c); return; }
       }
     });
   })();
@@ -465,8 +465,8 @@
   function byAddress(q, note) {
     var gu = (q.match(/([가-힣]+구)/) || [])[1] || "";
     if (!gu || T.gus.indexOf(gu) === -1) {
-      note.innerHTML = "서울 자치구를 못 찾았습니다. <b>'서울 동작구 노량진동'</b>처럼 넣으시거나, " +
-        "<b>상권 이름</b>을 바로 넣어 보세요.";
+      note.innerHTML = "서울 자치구를 못 찾음. <b>'서울 동작구 노량진동'</b>처럼 넣으시거나, " +
+        "<b>상권 이름</b>을 바로 넣어 볼 것.";
       return;
     }
     state.gu = gu; state.dong = ALL; state.code = ALL;
@@ -484,15 +484,15 @@
       var keys = Object.keys(dongs).sort();
       if (keys.length === 1) {
         state.dong = keys[0];
-        note.innerHTML = "<b>" + esc(gu) + " " + esc(keys[0]) + "</b> 범위로 잡았습니다.";
+        note.innerHTML = "<b>" + esc(gu) + " " + esc(keys[0]) + "</b> 범위로 잡음.";
       } else if (keys.length > 1) {
         note.innerHTML = "<b>" + esc(dongRaw) + "</b>은 행정동이 <b>" + esc(keys.join(" · ")) +
-          "</b>으로 나뉘어 있어 <b>" + esc(gu) + " 전체</b>로 두었습니다. 위 <b>행정동</b>에서 골라 좁히세요.";
+          "</b>으로 나뉘어 있어 <b>" + esc(gu) + " 전체</b>로 둠. 위 <b>행정동</b>에서 골라 좁힐 것.";
       } else {
-        note.innerHTML = "<b>" + esc(gu) + "</b>로 잡았습니다. 행정동은 위에서 고르세요.";
+        note.innerHTML = "<b>" + esc(gu) + "</b>로 잡음. 행정동은 위에서 고를 것.";
       }
     } else {
-      note.innerHTML = "<b>" + esc(gu) + "</b>로 잡았습니다. 행정동·상권은 위에서 좁히세요.";
+      note.innerHTML = "<b>" + esc(gu) + "</b>로 잡음. 행정동·상권은 위에서 좁힐 것.";
     }
     refresh();
     document.getElementById("sec-sum").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -557,7 +557,7 @@
   function concl(t, list) {
     if (!t || !t.fp || !t.st) {
       return conclHtml("자료가 모자란 범위", "flat",
-        ["유동인구나 점포 통계가 비어 있습니다."],
+        ["유동인구나 점포 통계가 비어 있음."],
         "범위를 <b>자치구 전체</b>로 넓히거나, 아래 <b>실거래</b>와 현장 확인으로 판단.");
     }
     var single = list.length === 1;
@@ -592,56 +592,56 @@
 
     if (busy && churnGood) {
       tag = "사람도 많고 자리도 안정된 " + (single ? "상권" : "범위"); tone = "up";
-      advice = "<b>권리금이 붙어 있을 가능성이 큽니다.</b> 매물이 나오면 <b>왜 나왔는지</b>를 반드시 확인하세요.";
+      advice = "<b>권리금이 붙어 있을 가능성이 큼.</b> 매물이 나오면 <b>왜 나왔는지</b>를 반드시 확인할 것.";
     } else if (busy && churnBad) {
       tag = "사람은 많지만 손바뀜이 잦은 " + (single ? "상권" : "범위"); tone = "warn";
-      advice = "유동인구만 보고 들어가면 위험합니다. <b>같은 자리에서 몇 번 바뀌었는지</b>, " +
+      advice = "유동인구만 보고 들어가면 위험함. <b>같은 자리에서 몇 번 바뀌었는지</b>, " +
                "<b>임대료가 매출을 감당하는지</b> 꼭 따져 볼 것.";
     } else if (busy) {
       tag = "사람이 많이 지나는 " + (single ? "상권" : "범위"); tone = "up";
-      advice = "손바뀜은 서울 평균 수준입니다. <b>업종이 이 사람들과 맞는지</b>가 관건입니다.";
+      advice = "손바뀜은 서울 평균 수준. <b>업종이 이 사람들과 맞는지</b>가 관건.";
     } else if (churnBad) {
       tag = "손바뀜이 서울 평균보다 심한 " + (single ? "상권" : "범위"); tone = "warn";
-      advice = "폐업이 서울 평균보다 <b>" + churnGap.toFixed(1) + "%p</b> 많습니다. " +
-               "아래 <b>업종별 순증감</b>에서 어떤 업종이 빠져나가는지 꼭 보고 들어가세요.";
+      advice = "폐업이 서울 평균보다 <b>" + churnGap.toFixed(1) + "%p</b> 많음. " +
+               "아래 <b>업종별 순증감</b>에서 어떤 업종이 빠져나가는지 꼭 보고 들어갈 것.";
     } else if (quiet && churnBad) {
       tag = "사람도 적고 빠져나가는 " + (single ? "상권" : "범위"); tone = "down";
-      advice = "<b>신중하셔야 합니다.</b> 배후 수요가 확실한 업종이 아니면 권하기 어렵습니다.";
+      advice = "<b>신중할 것.</b> 배후 수요가 확실한 업종이 아니면 권하기 어려움.";
     } else if (quiet) {
       tag = "조용하지만 자리는 지키는 " + (single ? "상권" : "범위"); tone = "flat";
-      advice = "임대료 부담이 적어 <b>단골 장사</b>에는 맞습니다. 대신 <b>지나가는 손님은 기대하지 마세요.</b>";
+      advice = "임대료 부담이 적어 <b>단골 장사</b>에는 맞음. 대신 <b>지나가는 손님은 기대하기 어려움.</b>";
     } else {
       tag = "서울 평균 근처"; tone = "flat";
-      advice = "특별히 앞서지도 뒤처지지도 않습니다. <b>업종 구성</b>과 <b>임대료 수준</b>으로 판단하세요.";
+      advice = "특별히 앞서지도 뒤처지지도 않음. <b>업종 구성</b>과 <b>임대료 수준</b>으로 판단할 것.";
     }
 
     var why = [];
     if (single) {
       var RK = rankIn("서울", "fp");
       why.push("일평균 유동인구 <b>" + comma(perDay(t.fp.tot)) + "명</b>으로 서울 " +
-        comma(RK.n) + "개 상권 중 <b>" + comma(RK.map[t.c] || 0) + "위</b>입니다.");
+        comma(RK.n) + "개 상권 중 <b>" + comma(RK.map[t.c] || 0) + "위</b>.");
     } else {
       var head = "상권 <b>" + comma(list.length) + "곳</b>을 합쳐 일평균 유동인구 <b>" +
         comma(perDay(t.fp.tot)) + "명</b>";
       if (state.gu !== ALL && state.dong === ALL) {
         var GR = guRank();
         head += "이고, 상권 하나당으로 보면 <b>서울 " + GR.n + "개 구 중 " +
-          (GR.map[state.gu] || "-") + "위</b>입니다.";
+          (GR.map[state.gu] || "-") + "위</b>.";
       } else {
-        head += "이고, 상권 하나당으로 보면 서울 중앙값의 <b>" + ratio + "%</b> 수준입니다.";
+        head += "이고, 상권 하나당으로 보면 서울 중앙값의 <b>" + ratio + "%</b> 수준.";
       }
       why.push(head);
     }
     why.push("점포는 <b>" + comma(t.st.tot) + "개</b>, 개업률 <b>" + t.st.opr + "%</b> · 폐업률 <b>" + t.st.clr + "%</b>" +
       (Math.abs(churn) >= 0.3
-        ? "로 " + (churn > 0 ? "폐업이 " + churn.toFixed(1) + "%p 많습니다" : "개업이 " + (-churn).toFixed(1) + "%p 많습니다")
-        : "로 들고 나는 수가 비슷합니다") +
+        ? "로 " + (churn > 0 ? "폐업이 " + churn.toFixed(1) + "%p 많음" : "개업이 " + (-churn).toFixed(1) + "%p 많음")
+        : "로 들고 나는 수가 비슷") +
       " — 서울 전체(개업 " + base.opr.toFixed(1) + "% · 폐업 " + base.clr.toFixed(1) + "%)보다 <b>" +
       (Math.abs(churnGap) < 0.2 ? "비슷한 수준" :
-        churnGap > 0 ? churnGap.toFixed(1) + "%p 심합니다" : (-churnGap).toFixed(1) + "%p 낫습니다") + "</b>.");
+        churnGap > 0 ? churnGap.toFixed(1) + "%p 심함" : (-churnGap).toFixed(1) + "%p 나음") + "</b>.");
     if (t.sl) {
       why.push("추정 월매출은 <b>" + money(Math.round(t.sl.amt / 3)) + "</b>" +
-        (t.st.tot ? ", 점포 하나당 <b>" + money(Math.round(t.sl.amt / 3 / t.st.tot)) + "</b>" : "") + "입니다.");
+        (t.st.tot ? ", 점포 하나당 <b>" + money(Math.round(t.sl.amt / 3 / t.st.tot)) + "</b>" : "") + ".");
     }
     return conclHtml(tag, tone, why, advice);
   }
@@ -652,7 +652,7 @@
     destroyCharts();
     var host = document.getElementById("trResult");
     if (!t) {
-      host.innerHTML = '<section class="card-section"><p class="placeholder">이 범위에는 상권이 없습니다.</p></section>';
+      host.innerHTML = '<section class="card-section"><p class="placeholder">이 범위에는 상권이 없음.</p></section>';
       return;
     }
     var single = list.length === 1;
@@ -661,25 +661,25 @@
     host.innerHTML =
       section("sec-sum", "📊", scopeName() + (single ? "" : " 합산"), "",
         kpiHtml(t, list) + concl(t, list)) +
-      (t.fp ? section("sec-fp", "👥", "유동인구", "분기 합계를 91일로 나눈 <b>일평균</b>입니다.",
+      (t.fp ? section("sec-fp", "👥", "유동인구", "분기 합계를 91일로 나눈 <b>일평균</b>.",
         fpHtml(t)) : "") +
-      (t.st ? section("sec-st", "🏪", "점포 · 개폐업", "업종별 점포 수와 그 분기의 개업·폐업입니다.",
+      (t.st ? section("sec-st", "🏪", "점포 · 개폐업", "업종별 점포 수와 그 분기의 개업·폐업.",
         stHtml(t)) : "") +
-      (t.sl ? section("sec-sl", "💳", "추정 매출", "서울시가 카드 결제 등으로 <b>추정</b>한 값입니다.",
+      (t.sl ? section("sec-sl", "💳", "추정 매출", "서울시가 카드 결제 등으로 <b>추정</b>한 값.",
         slHtml(t)) : "") +
       section("sec-nrg", "🏢", "실거래 비교",
-        "국토교통부 <b>상업업무용 매매</b> 신고 자료입니다. 최근 12개월치를 그대로 보여드립니다.",
+        "국토교통부 <b>상업업무용 매매</b> 신고 자료. 최근 12개월치를 그대로 보여 줌.",
         nrgHtml()) +
       section("sec-rent", "🔑", "임대시세 · 공실률",
-        "한국부동산원 <b>상업용부동산 임대동향조사</b>입니다. 분기마다 나오고, " +
-        "<b>상권 구분이 저희와 다릅니다</b> — 아래에 어디를 보고 있는지 밝혀 두었습니다.",
+        "한국부동산원 <b>상업용부동산 임대동향조사</b>. 분기마다 나오고, " +
+        "<b>상권 구분이 우리와 다름</b> — 아래에 어디를 보고 있는지 밝혀 둠.",
         rentHtml()) +
       section("sec-yield", "🧮", "수익률 계산",
-        "매물 조건을 넣으면 즉시 계산됩니다. <b>취득세 등 4.6%</b>를 투입금에 넣을지 고르실 수 있습니다.",
+        "매물 조건을 넣으면 즉시 계산됨. <b>취득세 등 4.6%</b>를 투입금에 넣을지 고를 수 있음.",
         yieldFormHtml() + '<div id="yieldOut"></div>') +
       section("sec-map", "🗺️", single ? "위치 · 인근 상권" : "상권 분포 · 업종 지도",
-        single ? "가까운 상권을 함께 표시합니다. 원을 누르면 그 상권으로 넘어갑니다."
-               : "원 크기는 유동인구, 색은 상권 유형입니다. 원을 누르면 그 상권만 따로 봅니다.",
+        single ? "가까운 상권을 함께 표시. 원을 누르면 그 상권으로 넘어감."
+               : "원 크기는 유동인구, 색은 상권 유형. 원을 누르면 그 상권만 따로 표시.",
         '<div class="radius-bar"><span>반경</span>' +
           RADII.map(function (r) {
             return '<button type="button" class="mini-btn' + (r === radius ? " is-on" : "") +
@@ -694,11 +694,11 @@
         "</div>" +
         '<div id="nearList"></div>') +
       section("sec-ind", "🔍", "업종별 세부분석",
-        "업종을 고르시면 <b>그 업종만</b> 따로 봅니다. 고객이 " +
-        "\"여기서 카페 하면 되겠냐\"고 물으실 때 쓰시면 됩니다.",
+        "업종을 고르면 <b>그 업종만</b> 따로 표시. 고객이 " +
+        "\"여기서 카페 하면 되겠냐\"고 물을 때 쓰면 됨.",
         '<div class="finder-bar"><label for="indPick">업종</label>' +
         '<select id="indPick" class="ind-sel"></select></div><div id="indBody"></div>') +
-      section("sec-cmp", "⚖️", "상권 비교", "비교할 상권을 고르면 나란히 놓고 봅니다. 최대 4곳까지.",
+      section("sec-cmp", "⚖️", "상권 비교", "비교할 상권을 고르면 나란히 놓고 비교. 최대 4곳까지.",
         '<div class="finder-bar"><label for="cmpSearch">상권 추가</label>' +
         '<div class="finder-input"><input type="text" id="cmpSearch" placeholder="상권 이름" autocomplete="off" />' +
         '<div class="finder-drop" id="cmpDrop" hidden></div></div></div><div id="cmpBody"></div>');
@@ -799,8 +799,8 @@
         '<div class="tr-chart"><h4>성별 구성</h4><div class="chart-box" style="height:200px"><canvas id="fpSex"></canvas></div></div>' +
       "</div>" +
       '<p class="dim-note" style="margin:-4px 0 14px">시간대 칸이 6·5·3·3·4·3시간으로 길이가 달라, ' +
-      '<b>시간당 평균</b>으로 펴서 그렸습니다. 합계로 보면 6시간짜리 <b>00~06시</b>가 늘 1등으로 나와 ' +
-      '새벽에 붐비는 것처럼 오해하게 됩니다.</p>' +
+      '<b>시간당 평균</b>으로 펴서 그림. 합계로 보면 6시간짜리 <b>00~06시</b>가 늘 1등으로 나와 ' +
+      '새벽에 붐비는 것처럼 오해하게 됨.</p>' +
       '<div id="fpNote"></div>';
   }
 
@@ -820,12 +820,12 @@
     var lines = [];
     lines.push("장사 시간대 중 가장 붐비는 때는 <b>" + TM_LABEL[peakI] + "시</b>(시간당 " +
       comma(perHour(f.tm[peakI], peakI)) + "명)이고, 가장 많은 연령대는 <b>" + AGE_LABEL[ageI] +
-      "</b>(" + pct(f.age[ageI], f.tot) + "%)입니다.");
-    lines.push("남녀 비율은 <b>" + pct(f.ml, f.tot) + " : " + pct(f.fml, f.tot) + "</b>입니다.");
+      "</b>(" + pct(f.age[ageI], f.tot) + "%).");
+    lines.push("남녀 비율은 <b>" + pct(f.ml, f.tot) + " : " + pct(f.fml, f.tot) + "</b>.");
     if (we > wk * 1.1) {
-      lines.push("<b>주말이 평일보다 " + Math.round((we / wk - 1) * 100) + "% 많음</b> — 나들이·외식 수요가 붙는 자리입니다.");
+      lines.push("<b>주말이 평일보다 " + Math.round((we / wk - 1) * 100) + "% 많음</b> — 나들이·외식 수요가 붙는 자리.");
     } else if (wk > we * 1.1) {
-      lines.push("<b>평일이 주말보다 " + Math.round((wk / we - 1) * 100) + "% 많음</b> — 직장·통근 수요가 중심입니다.");
+      lines.push("<b>평일이 주말보다 " + Math.round((wk / we - 1) * 100) + "% 많음</b> — 직장·통근 수요가 중심.");
     } else {
       lines.push("평일과 주말이 <b>비슷</b>.");
     }
@@ -873,8 +873,8 @@
       '<h4 class="tr-h4">업종별 점포 수 상위 <span class="h4-sub">막대 오른쪽이 그 분기의 개업·폐업과 순증감</span></h4>' +
       '<div class="ib-list">' + rows + "</div>" +
       '<p class="dim-note" style="margin-top:10px"><b>순증감</b>이 마이너스면 그 업종이 이 범위에서 ' +
-      "빠져나가는 중입니다. 괄호 안 %는 그 업종 점포 수 대비이며, <b>점포 30개 미만</b>은 " +
-      "숫자가 크게 흔들려 생략했습니다.</p>" +
+      "빠져나가는 중. 괄호 안 %는 그 업종 점포 수 대비이며, <b>점포 30개 미만</b>은 " +
+      "숫자가 크게 흔들려 생략함.</p>" +
       stCatHtml(t);
   }
 
@@ -1120,7 +1120,7 @@
     if (!SG || !SG.deals) return { rows: [], label: "", note: "자료 없음" };
     var D = SG.deals;
     var gu = state.gu;
-    if (gu === ALL) return { rows: [], label: "", note: "자치구를 고르시면 그 구의 실거래를 보여드립니다." };
+    if (gu === ALL) return { rows: [], label: "", note: "자치구를 고르면 그 구의 실거래를 보여 줌." };
 
     var rows = D.rows.filter(function (r) {
       var k = D.dongs[r[0]] || "";
@@ -1140,11 +1140,11 @@
 
   function nrgHtml() {
     if (state.gu === ALL) {
-      return '<p class="placeholder">자치구를 고르시면 그 구의 실거래를 보여드립니다.</p>';
+      return '<p class="placeholder">자치구를 고르면 그 구의 실거래를 보여 줌.</p>';
     }
     var list = beopList();
     if (!list.length) {
-      return '<p class="placeholder">이 자치구에 신고된 상업업무용 매매가 없습니다.</p>';
+      return '<p class="placeholder">이 자치구에 신고된 상업업무용 매매가 없음.</p>';
     }
     var g = guessBeop(list);
     var known = list.some(function (x) { return x.n === nrgBeop; });
@@ -1164,7 +1164,7 @@
         }).join("") + "</select>" +
       (state.dong !== ALL && !g.guessed && nrgMode === "dong"
         ? '<span class="dim-note" style="margin-left:8px">행정동 <b>' + esc(state.dong) +
-          "</b>과 이름이 맞는 법정동이 없어 <b>거래가 가장 많은 곳</b>을 골라 뒀습니다.</span>"
+          "</b>과 이름이 맞는 법정동이 없어 <b>거래가 가장 많은 곳</b>을 골라 둠.</span>"
         : "") +
       "</div><div id=\"nrgBody\"></div>";
   }
@@ -1217,7 +1217,7 @@
     var D = SG && SG.deals;
     var q = nrgDeals();
     if (!(q.all || []).length) {
-      host.innerHTML = '<p class="placeholder">' + esc(q.note || "이 범위에 신고된 상업업무용 매매가 없습니다.") + "</p>";
+      host.innerHTML = '<p class="placeholder">' + esc(q.note || "이 범위에 신고된 상업업무용 매매가 없음.") + "</p>";
       return;
     }
 
@@ -1240,7 +1240,7 @@
 
     if (!q.rows.length) {
       host.innerHTML = bandHtml +
-        '<p class="placeholder">' + esc(q.label) + "에 신고된 매매가 없습니다.</p>";
+        '<p class="placeholder">' + esc(q.label) + "에 신고된 매매가 없음.</p>";
       wireNrgBand();
       return;
     }
@@ -1271,7 +1271,7 @@
       '<h4 class="tr-h4">월별 거래 건수 <span class="h4-sub">' + esc(q.label) + "</span></h4>" +
       '<div class="chart-box" style="height:200px"><canvas id="nrgChart"></canvas></div>' +
       '<h4 class="tr-h4">거래 내역 <span class="h4-sub">' + comma(q.rows.length) +
-        "건 · 최근 순 · 표 안에서 스크롤하세요</span></h4>" +
+        "건 · 최근 순 · 표 안에서 스크롤</span></h4>" +
       '<div class="deal-scroll"><table class="rank-table deal-table"><thead><tr>' +
         "<th>거래일</th><th>소재지</th><th>용도</th><th>유형</th>" +
         '<th>면적 <span class="th-sub">(㎡)</span></th><th>층</th>' +
@@ -1292,7 +1292,7 @@
       }).join("") + "</tbody></table></div>" +
       '<p class="dim-note" style="margin-top:8px">평당가는 <b>연면적 기준</b>이라 아파트 전용면적 ' +
       "평당가와 직접 비교 불가. 마지막 달은 <b>신고 기한(계약 후 30일)</b> 때문에 " +
-      "아직 덜 찬 숫자. 더 자세한 내용은 <a href='../sangga/index.html'>상가·오피스텔 대시보드</a>에 있습니다.</p>";
+      "아직 덜 찬 숫자. 더 자세한 내용은 <a href='../sangga/index.html'>상가·오피스텔 대시보드</a>에 있음.</p>";
 
     wireNrgBand();
     window.wireScrollBoxes();
@@ -1325,7 +1325,7 @@
   }
 
   /* ── 임대시세 · 공실률 ──
-     부동산원 상권은 서울 68곳뿐이라 저희 1,650곳과 1:1로 안 맞는다.
+     부동산원 상권은 서울 68곳뿐이라 우리 1,650곳과 1:1로 안 맞는다.
      자치구로 이어 붙이고, 어디를 보고 있는지 화면에 밝힌다. */
 
   var rentSize = "sm";                    // sm 소규모 | md 중대형
@@ -1340,12 +1340,12 @@
   }
 
   function rentHtml() {
-    if (!RN) return '<p class="placeholder">임대시세 자료가 없습니다. <code>py tools/fetch_rent.py</code>를 실행하세요.</p>';
+    if (!RN) return '<p class="placeholder">임대시세 자료가 없음. <code>py tools/fetch_rent.py</code>를 실행.</p>';
     var cands = rentCandidates();
     if (!cands.length) {
       return '<p class="placeholder">' + (state.gu === ALL
-        ? "자치구를 고르시면 그 구의 임대시세를 보여드립니다."
-        : "<b>" + esc(state.gu) + "</b>에는 부동산원 조사 상권이 없어 서울 평균으로 보여드립니다.") + "</p>" +
+        ? "자치구를 고르면 그 구의 임대시세를 보여 줌."
+        : "<b>" + esc(state.gu) + "</b>에는 부동산원 조사 상권이 없어 서울 평균으로 보여 줌.") + "</p>" +
         '<div id="rentBody"></div>';
     }
     // 상권마다 조사 대상이 다르다. 쌍문역은 중대형만, 어떤 곳은 소규모만 있다.
@@ -1418,7 +1418,7 @@
 
     if (!vac && !rent) {
       host.innerHTML = '<p class="placeholder"><b>' + esc(where) + "</b>은 " +
-        (P === "sm" ? "소규모" : "중대형") + " 상가 조사 대상이 아닙니다. 다른 규모를 눌러 보세요.</p>";
+        (P === "sm" ? "소규모" : "중대형") + " 상가 조사 대상이 아님. 다른 규모를 눌러 볼 것.</p>";
       return;
     }
 
@@ -1495,7 +1495,7 @@
         ".<br>공실률과 <b>같이</b> 볼 것 &mdash; 임대료가 버티는데 공실이 늘면 " +
         "<b>호가만 남고 계약은 안 되는 상태</b>일 수 있음.");
     }
-    lines.push("이 자료의 상권 구분은 <b>부동산원 기준</b>이라 저희 상권과 경계가 다름.<br>" +
+    lines.push("이 자료의 상권 구분은 <b>부동산원 기준</b>이라 우리 상권과 경계가 다름.<br>" +
       "고객께는 <b>\"이 일대 평균\"</b> 정도로 말하는 것이 정확.");
     return '<div class="read-guide" style="margin-top:16px"><h4>금집부쌤이 보는 ' + esc(where) +
       " 임대시세</h4><ol>" + lines.map(function (x) { return "<li>" + x + "</li>"; }).join("") + "</ol></div>";
@@ -1514,7 +1514,7 @@
         '<input type="number" id="' + x[0] + '" placeholder="' + x[2] + '" /></div>';
     }).join("") + "</div>" +
     '<label class="y-check"><input type="checkbox" id="yAcq" checked /> ' +
-    "취득비용 포함 <span class='dim-note'>취득세 등 매매가의 4.6%를 투입금에 더합니다</span></label>";
+    "취득비용 포함 <span class='dim-note'>취득세 등 매매가의 4.6%를 투입금에 더함</span></label>";
   }
 
   function initYield() {
@@ -1535,7 +1535,7 @@
     var loan = n("yLoan"), rate = n("yRate"), cost = n("yCost"), vac = n("yVac");
     var acq = (document.getElementById("yAcq") || {}).checked;
     if (!price || !rent) {
-      out.innerHTML = '<p class="placeholder">매매가와 월세를 넣으면 계산됩니다.</p>';
+      out.innerHTML = '<p class="placeholder">매매가와 월세를 넣으면 계산됨.</p>';
       return;
     }
     var yearRent = rent * 12 * (1 - vac / 100);
@@ -1558,10 +1558,10 @@
         (pyRent ? '<div class="mini"><span>평당 월임대료</span><b>' + pyRent.toFixed(1) + "만원</b></div>" : "") +
       "</div>" +
       '<div class="read-guide" style="margin-top:14px"><h4>금집부쌤이 짚어드리는 주의점</h4><ol>' +
-        "<li><b>표면수익률만 보시면 안 됩니다.</b> 대출 이자와 공실을 넣은 <b>실투자 수익률</b>이 " +
-        "실제로 손에 남는 몫입니다. 지금 계산으로는 <b>" + surface.toFixed(2) + "% → " + net.toFixed(2) + "%</b>입니다.</li>" +
-        "<li>상가 취득세는 <b>4.6%</b>로 주택보다 높습니다. 중개보수·법무비까지 넣으면 더 들어갑니다.</li>" +
-        "<li><b>공실 " + vac + "%</b>로 잡았습니다. 위 <b>폐업률</b>을 보고 이 가정이 현실적인지 판단하세요.</li>" +
+        "<li><b>표면수익률만 보면 안 됨.</b> 대출 이자와 공실을 넣은 <b>실투자 수익률</b>이 " +
+        "실제로 손에 남는 몫. 지금 계산으로는 <b>" + surface.toFixed(2) + "% → " + net.toFixed(2) + "%</b>.</li>" +
+        "<li>상가 취득세는 <b>4.6%</b>로 주택보다 높음. 중개보수·법무비까지 넣으면 더 들어감.</li>" +
+        "<li><b>공실 " + vac + "%</b>로 잡음. 위 <b>폐업률</b>을 보고 이 가정이 현실적인지 판단할 것.</li>" +
       "</ol></div>";
   }
 
@@ -1615,7 +1615,7 @@
     document.getElementById("nearList").innerHTML =
       '<h4 class="tr-h4">' + (single ? "가까운 상권" : "이 범위의 상권") +
         ' <span class="h4-sub">' + comma(rows.length) + "곳" +
-        (rows.length > 10 ? " · 표 안에서 스크롤하세요" : "") + "</span></h4>" +
+        (rows.length > 10 ? " · 표 안에서 스크롤" : "") + "</span></h4>" +
       '<div class="deal-scroll" style="--tbl-h:420px"><table class="rank-table tr-list deal-table"><thead><tr>' +
       (single ? "<th>거리</th>" : "<th>순위</th>") +
       '<th>상권</th><th>유형</th><th>행정동</th>' +
@@ -1627,7 +1627,7 @@
         // 반경 안에 이웃 상권이 없으면 머리글만 남아 표가 고장난 듯 보였다.
         // 다른 표들처럼 왜 비었는지 한 줄로 밝힌다.
         '<tr class="empty-row"><td colspan="7">이 반경 안에 ' +
-        (single ? "이웃 상권이" : "상권이") + " 없습니다. 위에서 반경을 넓혀 보세요.</td></tr>") +
+        (single ? "이웃 상권이" : "상권이") + " 없음. 위에서 반경을 넓혀 볼 것.</td></tr>") +
       rows.map(function (x, i) {
         return '<tr class="tr-row" data-c="' + esc(x.t.c) + '">' +
           "<td>" + (single ? (x.d < 1000 ? x.d + "m" : (x.d / 1000).toFixed(1) + "km") : (i + 1)) + "</td>" +
@@ -1639,8 +1639,8 @@
           "<td>" + comma(val(x.t, "st")) + "</td>" +
           "<td>" + (x.t.sl ? eokNum(Math.round(x.t.sl.amt / 3)) : "-") + "</td></tr>";
       }).join("") + "</tbody></table></div>" +
-      (!single && near.length > 120 ? '<p class="dim-note" style="margin-top:8px">유동인구 상위 120곳만 표시했습니다(전체 ' +
-        comma(near.length) + "곳). 범위를 <b>행정동</b>까지 좁히시면 다 보입니다.</p>" : "");
+      (!single && near.length > 120 ? '<p class="dim-note" style="margin-top:8px">유동인구 상위 120곳만 표시함(전체 ' +
+        comma(near.length) + "곳). 범위를 <b>행정동</b>까지 좁히면 다 보임.</p>" : "");
     window.wireScrollBoxes();
 
     document.querySelectorAll("#nearList .tr-row").forEach(function (r) {
@@ -1725,7 +1725,7 @@
     if (!sel) return;
     var host = document.getElementById("indBody");
     if (!t.st || !t.st.top.length) {
-      if (host) host.innerHTML = '<p class="placeholder">업종 자료가 없습니다.</p>';
+      if (host) host.innerHTML = '<p class="placeholder">업종 자료가 없음.</p>';
       return;
     }
     sel.innerHTML = t.st.top.map(function (r) {
@@ -1739,7 +1739,7 @@
     var host = document.getElementById("indBody");
     if (!host) return;
     var r = t.st.top.filter(function (x) { return x.n === name; })[0];
-    if (!r) { host.innerHTML = '<p class="placeholder">고른 업종 자료가 없습니다.</p>'; return; }
+    if (!r) { host.innerHTML = '<p class="placeholder">고른 업종 자료가 없음.</p>'; return; }
     var sr = (t.sl && t.sl.top.filter(function (x) { return x.n === name; })[0]) || null;
     var net = r.o - r.x;
     var per = (sr && r.c) ? Math.round(sr.a / 3 / r.c) : 0;
@@ -1810,7 +1810,7 @@
     if (per && bPer) {
       lines.push("점포당 월매출은 <b>" + money(per) + "</b>으로 서울 같은 업종(" + money(bPer) +
         ")의 <b>" + gap + "%</b>." +
-        (gap >= 130 ? " <b>잘되는 자리입니다.</b>" : gap <= 70 ? " <b>기대보다 낮습니다.</b>" : ""));
+        (gap >= 130 ? " <b>잘되는 자리.</b>" : gap <= 70 ? " <b>기대보다 낮음.</b>" : ""));
     }
     lines.push("<b>임대료를 반드시 같이 볼 것.</b> 매출이 높아도 임대료가 더 오르면 남는 게 없음.<br>" +
       "위 <b>수익률 계산</b>에 실제 조건을 넣어 확인할 것.");
@@ -1856,14 +1856,14 @@
     if (!el) return;
     if (!radius) {
       el.innerHTML = single
-        ? "가까운 상권 24곳을 함께 봅니다. 업종 구성은 <b>이 상권만</b>입니다."
-        : "고르신 범위의 상권 " + comma(list.length) + "곳을 모두 봅니다.";
+        ? "가까운 상권 24곳을 함께 표시. 업종 구성은 <b>이 상권만</b>."
+        : "고른 범위의 상권 " + comma(list.length) + "곳을 모두 표시.";
       return;
     }
     var pool = single ? TRADES : list;
     var n = pool.filter(function (x) { return edgeM(t, x) <= radius; }).length;
     el.innerHTML = "경계에서 <b>" + radius + "m</b> 안에 상권 <b>" + comma(n) + "곳</b>" +
-      (n <= 1 ? " — 이 반경에는 이웃 상권이 없습니다. 넓혀 보세요." : "");
+      (n <= 1 ? " — 이 반경에는 이웃 상권이 없음. 넓혀 볼 것." : "");
   }
 
   /* ── 비교 ── */
@@ -1901,7 +1901,7 @@
     var host = document.getElementById("cmpBody");
     if (!host) return;
     if (rows.length < 2) {
-      host.innerHTML = '<p class="placeholder">비교할 상권을 하나 이상 더 고르세요.</p>';
+      host.innerHTML = '<p class="placeholder">비교할 상권을 하나 이상 더 고를 것.</p>';
       return;
     }
     var metric = [
@@ -1926,8 +1926,8 @@
           return '<td class="' + (t === best ? "cmp-best" : "") + '">' + m[1](t) + "</td>";
         }).join("") + "</tr>";
       }).join("") + "</tbody></table></div>" +
-      '<p class="dim-note" style="margin-top:8px">진하게 표시된 칸이 그 항목에서 가장 나은 상권입니다. ' +
-      "<b>폐업률은 낮을수록</b> 좋은 것으로 봤습니다.</p>";
+      '<p class="dim-note" style="margin-top:8px">진하게 표시된 칸이 그 항목에서 가장 나은 상권. ' +
+      "<b>폐업률은 낮을수록</b> 좋은 것으로 봄.</p>";
 
     host.querySelectorAll(".cmp-x").forEach(function (b) {
       b.addEventListener("click", function () {

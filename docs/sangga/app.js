@@ -9,8 +9,8 @@
   var GEO = window.GEO_COORDS || {};
   if (!D) {
     document.querySelector(".wrap").insertAdjacentHTML("afterbegin",
-      '<section class="card-section"><h2>데이터를 불러오지 못했습니다</h2>' +
-      '<p class="sec-desc">data/sangga.js가 없습니다. <code>py tools/fetch_molit.py</code> 후 <code>py tools/build_data.py</code>를 실행하세요.</p></section>');
+      '<section class="card-section"><h2>데이터를 불러오지 못함</h2>' +
+      '<p class="sec-desc">data/sangga.js가 없음. <code>py tools/fetch_molit.py</code> 후 <code>py tools/build_data.py</code>를 실행.</p></section>');
     return;
   }
   window.DASH_DATA = D;
@@ -110,7 +110,7 @@
     var sa = a / offiRatio(a);
     return sa.toFixed(1) + "㎡ (" + (sa / PYEONG).toFixed(1) + "평)" +
       ' <span class="est-tag" title="전용률 ' + Math.round(offiRatio(a) * 100) +
-        '%로 어림한 값입니다">추정</span>' +
+        '%로 어림한 값">추정</span>' +
       '<div class="rt-sub">전용 ' + a.toFixed(2) + "㎡</div>";
   }
 
@@ -300,7 +300,7 @@
 
   function nrgRowsHtml(rows, group) {
     if (!rows.length) {
-      return '<tr class="empty-row"><td colspan="8">해당 기간 · 지역에 ' + NRG_LABEL[group] + " 매매 신고가 없습니다.</td></tr>";
+      return '<tr class="empty-row"><td colspan="8">해당 기간 · 지역에 ' + NRG_LABEL[group] + " 매매 신고가 없음.</td></tr>";
     }
     return rows.map(function (r, i) {
       var rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
@@ -395,12 +395,12 @@
     document.getElementById("nrgBody").innerHTML = rows.length
       ? nrgRowsHtml(rows, state.nrgGroup)
       : '<tr><td colspan="8" class="placeholder">' + esc(regionLabel()) + " · " +
-        esc(bandName(state.nrgBand)) + "에는 이 기간 신고된 거래가 없습니다.</td></tr>";
+        esc(bandName(state.nrgBand)) + "에는 이 기간 신고된 거래가 없음.</td></tr>";
     var nn = document.getElementById("nrgBandNote");
     if (nn) {
       nn.innerHTML = state.nrgBand === "all" ? "" :
         "<b>" + esc(bandName(state.nrgBand)) + "</b> " + rows.length + "건" +
-        ' <span class="dim-note">연면적 기준 · 칸별로는 상위 10건까지 보여 드립니다</span>';
+        ' <span class="dim-note">연면적 기준 · 칸별로는 상위 10건까지 보여 드림</span>';
     }
     if (window.wireScrollBoxes) window.wireScrollBoxes();
 
@@ -462,25 +462,25 @@
     var r = region();
     var q = jeonseRatio();
     var ms = r.med.offiSale;
-    var head = '<p class="placeholder">이 지역·기간에 <b>오피스텔 전세 신고가 없습니다.</b></p>';
+    var head = '<p class="placeholder">이 지역·기간에 <b>오피스텔 전세 신고가 없음.</b></p>';
     if (!q || !ms) return head;
 
     var lo = Math.round(ms * q.lo / 100), hi = Math.round(ms * q.hi / 100);
     return head +
       '<div class="calc-box">' +
         '<div class="calc-head"><span class="calc-badge">계산값</span>' +
-          "실거래가 아니라 <b>유사 실거래로 계산한 값</b>입니다</div>" +
+          "실거래가 아니라 <b>유사 실거래로 계산한 값</b></div>" +
         "<p>" + esc(q.basis) + "의 실제 전세가율은 <b>" + q.lo + "~" + q.hi + "%</b>" +
           "(중위 " + q.mid + "% · 같은 건물·같은 평형에서 매매·전세가 각 3건 이상인 <b>" +
-          q.n.toLocaleString() + "개 평형</b>을 짝지어 계산)입니다. " +
+          q.n.toLocaleString() + "개 평형</b>을 짝지어 계산). " +
           "이 지역 오피스텔 <b>중위 매매가 " + eokman(ms) + "</b>에 대보면 " +
           "전세는 <b>" + eokman(lo) + " ~ " + eokman(hi) + "</b> 수준.</p>" +
         (q.mid >= 80
-          ? '<p class="calc-warn">⚠ 오피스텔 전세가율은 <b>' + q.mid + "%</b>로 아파트(50%대)보다 훨씬 높습니다. " +
+          ? '<p class="calc-warn">⚠ 오피스텔 전세가율은 <b>' + q.mid + "%</b>로 아파트(50%대)보다 훨씬 높음. " +
             "<b>매매가가 조금만 내려도 보증금이 위태로워지는 구간</b>이라, " +
             "고객께 <b>전세보증금 반환보증 가입</b>과 <b>선순위 근저당 확인</b>을 반드시 안내할 것.</p>"
           : "") +
-        '<p class="calc-foot">건물·층·향·관리 상태에 따라 이 범위를 벗어납니다. ' +
+        '<p class="calc-foot">건물·층·향·관리 상태에 따라 이 범위를 벗어남. ' +
           "<b>실거래로 확인된 값이 아니니</b> <b>참고</b>.</p>" +
       "</div>";
   }
@@ -490,7 +490,7 @@
   function offiRowsHtml(rows, type, clickable) {
     if (!rows.length) {
       return '<tr class="empty-row"><td colspan="7">' +
-        (type === "jeonse" ? "" : "해당 기간 · 지역에 오피스텔 " + OFFI_LABEL[type] + " 신고가 없습니다.") +
+        (type === "jeonse" ? "" : "해당 기간 · 지역에 오피스텔 " + OFFI_LABEL[type] + " 신고가 없음.") +
         "</td></tr>";
     }
     return rows.map(function (r, i) {
@@ -537,7 +537,7 @@
     if (on) {
       on.innerHTML = (state.offiBand === "all" || !rows.length) ? "" :
         "<b>" + esc(bandName(state.offiBand)) + "</b> " + rows.length + "건" +
-        ' <span class="dim-note">분양 평수 기준 · 칸별로는 상위 10건까지 보여 드립니다</span>';
+        ' <span class="dim-note">분양 평수 기준 · 칸별로는 상위 10건까지 보여 드림</span>';
     }
     if (window.wireScrollBoxes) window.wireScrollBoxes();
 
@@ -545,7 +545,7 @@
     var empty = !rows.length;
     document.getElementById("offiGuess").innerHTML =
       (empty && type === "jeonse") ? jeonseGuessHtml()
-        : (empty ? '<p class="placeholder">해당 기간 · 지역에 오피스텔 ' + OFFI_LABEL[type] + " 신고가 없습니다.</p>" : "");
+        : (empty ? '<p class="placeholder">해당 기간 · 지역에 오피스텔 ' + OFFI_LABEL[type] + " 신고가 없음.</p>" : "");
 
     document.getElementById("offiPrintAll").innerHTML = OFFI_TYPES
       .filter(function (t) { return t !== type; })
@@ -815,12 +815,12 @@
       ? "<b>" + volScopeLabel() + "</b> 오피스텔 건물 " +
         (rank.total > rank.length
           ? rank.total.toLocaleString() + "곳 중 거래 많은 <b>" + rank.length + "곳</b>"
-          : "<b>" + rank.length.toLocaleString() + "곳</b>") + "입니다. " +
+          : "<b>" + rank.length.toLocaleString() + "곳</b>") + ". " +
         '<span class="dim-note">상가·업무용은 지번이 비공개(1**)이고 건물명도 오지 않아 ' +
-        "건물별로 가를 수 없습니다.</span>"
-      : "선택 지역의 <b>월별 거래건수</b>와 <b>" + volScopeLabel() + " 거래량 순위</b>입니다." +
+        "건물별로 가를 수 없음.</span>"
+      : "선택 지역의 <b>월별 거래건수</b>와 <b>" + volScopeLabel() + " 거래량 순위</b>." +
         (state.volRank === "dong"
-          ? ' <span class="dim-note">자치구별 탭은 언제나 서울 25개 구를 보여 줍니다.</span>' : "");
+          ? ' <span class="dim-note">자치구별 탭은 언제나 서울 25개 구를 보여 줌.</span>' : "");
 
     // 지금 보고 있는 지역은 표에서 짚어 준다 — 25줄에서 눈으로 찾게 두면 상담이 끊긴다
     var mineKey = isBld ? null
@@ -850,7 +850,7 @@
         "<td>" + eokman(reg.med.offiSale) + "</td>" +
         "</tr>";
     }).join("") : '<tr class="empty-row"><td colspan="7">해당 기간 · 지역에 거래가 있는 ' +
-      (isBld ? "오피스텔 건물이" : state.volRank === "dong" ? "법정동이" : "자치구가") + " 없습니다.</td></tr>";
+      (isBld ? "오피스텔 건물이" : state.volRank === "dong" ? "법정동이" : "자치구가") + " 없음.</td></tr>";
     if (window.wireScrollBoxes) window.wireScrollBoxes();
   }
 
@@ -909,7 +909,7 @@
     });
 
     document.getElementById("mapMissNote").textContent =
-      miss ? "좌표 미확인 " + miss + "곳은 표시되지 않습니다" : "";
+      miss ? "좌표 미확인 " + miss + "곳은 표시되지 않음" : "";
 
     // 범위를 맞추기 전에 칸을 다시 잰다 — 창이 아니라 칸만 넓어지는 경우가 있다
     map.invalidateSize({ animate: false });
@@ -917,7 +917,7 @@
     else map.setView([37.5535, 126.9905], 11);
 
     document.getElementById("sgDetail").innerHTML =
-      '<p class="placeholder">지도의 원 또는 아래 오피스텔 TOP10 표의<br />건물명을 클릭하세요.</p>';
+      '<p class="placeholder">지도의 원 또는 아래 오피스텔 TOP10 표의<br />건물명을 클릭.</p>';
   }
 
   var nameIndex = {};          // "구|동|건물" -> 좌표키
@@ -989,7 +989,7 @@
     var hit = key && markers[key];
     if (!hit) {
       document.getElementById("sgDetail").innerHTML =
-        '<p class="placeholder">「' + esc(name) + "」의 좌표를 찾지 못해<br />지도에 표시할 수 없습니다.</p>";
+        '<p class="placeholder">「' + esc(name) + "」의 좌표를 찾지 못해<br />지도에 표시할 수 없음.</p>";
       return;
     }
     map.flyTo([hit.coord.lat, hit.coord.lng], 16, { duration: 0.6 });
@@ -1048,8 +1048,8 @@
         "<li>표본 기간 상가·업무용 <b>" + NRG_GROUPS.reduce(function (s, g) { return s + (r.nrgCnt[g] || 0); }, 0).toLocaleString() +
         "건</b>, 오피스텔 <b>" + ((r.offiCnt.sale || 0) + (r.offiCnt.jeonse || 0) + (r.offiCnt.wolse || 0)).toLocaleString() + "건</b> 신고</li>" +
         "<li>오피스텔 전월세 중 <b>월세 비중 " + pct(r.offiCnt.wolse, (r.offiCnt.jeonse || 0) + (r.offiCnt.wolse || 0)) +
-        "</b> — 비중이 높을수록 임대수익형 수요가 강한 지역입니다</li></ul>" +
-        "<p style='margin-top:10px;color:var(--txt-mute);font-size:12.5px'>※ 상업용 평당가는 <b>건물 연면적</b> 기준이라 아파트 전용면적 평당가와 직접 비교할 수 없습니다.</p>";
+        "</b> — 비중이 높을수록 임대수익형 수요가 강한 지역</li></ul>" +
+        "<p style='margin-top:10px;color:var(--txt-mute);font-size:12.5px'>※ 상업용 평당가는 <b>건물 연면적</b> 기준이라 아파트 전용면적 평당가와 직접 비교할 수 없음.</p>";
     }
 
     if (k === "dong") {
@@ -1062,7 +1062,7 @@
               return "<tr><td>" + (i + 1) + "</td><td>" + esc(x.label) + '</td><td class="rt-price">' +
                 x.c.toLocaleString() + "건</td></tr>";
             }).join("") + "</tbody></table>"
-          : "<p>표시할 자료가 없습니다.</p>");
+          : "<p>표시할 자료가 없음.</p>");
     }
 
     if (k === "yield") {
@@ -1074,16 +1074,16 @@
         "<li>표면수익률 ≈ (월세 × 12) ÷ (매매가 − 보증금) = <b>" +
         (isFinite(yieldPct) && yieldPct > 0 ? yieldPct.toFixed(2) + "%" : "계산 불가") + "</b></li>" +
         "</ul><p style='margin-top:10px;color:var(--txt-mute);font-size:12.5px'>" +
-        "※ 서로 다른 물건의 <b>중위값을 조합한 참고 수치</b>입니다. 실제 수익률은 관리비·공실·취득세·중개보수·대출이자를 빼야 하며, " +
-        "같은 물건 기준으로 다시 계산해야 합니다.</p>";
+        "※ 서로 다른 물건의 <b>중위값을 조합한 참고 수치</b>. 실제 수익률은 관리비·공실·취득세·중개보수·대출이자를 빼야 하며, " +
+        "같은 물건 기준으로 다시 계산해야 함.</p>";
     }
 
     return "<h3>⚠️ 수익형 부동산 체크 리스크</h3><ul>" +
-      "<li><b>공실 리스크</b> — 상가는 임차인이 빠지면 수익이 0이 됩니다. 현재 임차 상태·잔여 계약기간·업종을 확인하세요.</li>" +
-      "<li><b>실투자금</b> — 상가 취득세는 <b>4.6%</b>로 주택보다 높고, 대출 조건도 다릅니다.</li>" +
-      "<li><b>관리비·수선</b> — 집합상가는 관리비와 장기수선 부담이 수익률을 크게 깎습니다.</li>" +
-      "<li><b>오피스텔 주택 수 산정</b> — 주거용으로 쓰면 <b>주택 수에 포함</b>되어 기존 주택의 세금이 달라질 수 있습니다.</li>" +
-      "<li><b>상가임대차보호법</b> — 환산보증금 기준 초과 여부에 따라 보호 범위가 달라집니다. 계약갱신요구권(10년)과 권리금 회수기회 보호도 확인하세요.</li>" +
+      "<li><b>공실 리스크</b> — 상가는 임차인이 빠지면 수익이 0이 됨. 현재 임차 상태·잔여 계약기간·업종을 확인할 것.</li>" +
+      "<li><b>실투자금</b> — 상가 취득세는 <b>4.6%</b>로 주택보다 높고, 대출 조건도 다름.</li>" +
+      "<li><b>관리비·수선</b> — 집합상가는 관리비와 장기수선 부담이 수익률을 크게 깎음.</li>" +
+      "<li><b>오피스텔 주택 수 산정</b> — 주거용으로 쓰면 <b>주택 수에 포함</b>되어 기존 주택의 세금이 달라질 수 있음.</li>" +
+      "<li><b>상가임대차보호법</b> — 환산보증금 기준 초과 여부에 따라 보호 범위가 달라짐. 계약갱신요구권(10년)과 권리금 회수기회 보호도 확인할 것.</li>" +
       "</ul>";
   }
 
@@ -1106,12 +1106,12 @@
   /* ════════════════ 정책 ════════════════ */
 
   var POLICY = [
-    { date: "세금", title: "상가 취득세 4.6%", body: "상가·업무용 부동산은 취득세 <b>4.6%</b>(농특세·지방교육세 포함)로 주택보다 높습니다. 실투자금 계산에 반드시 넣으세요.", tag: "세제" },
-    { date: "부가세", title: "부가가치세와 포괄양수도", body: "상가 매매는 건물분에 <b>부가세 10%</b>가 붙습니다. <b>포괄양수도</b> 요건을 갖추면 생략할 수 있으나 요건이 엄격합니다.", tag: "세제" },
-    { date: "임대차", title: "상가임대차보호법", body: "<b>환산보증금 = 보증금 + 월세×100</b> 기준을 넘으면 보호 범위가 달라집니다. 계약갱신요구권(최대 10년)과 <b>권리금 회수기회 보호</b>는 환산보증금과 무관하게 적용됩니다.", tag: "임대차" },
-    { date: "오피스텔", title: "주거용 오피스텔 주택 수 산정", body: "주거용으로 사용·신고된 오피스텔은 <b>주택 수에 포함</b>되어 기존 주택의 양도세·종부세에 영향을 줍니다. 업무용/주거용 구분이 핵심입니다.", tag: "필수 확인" },
-    { date: "대출", title: "임대사업자 대출(RTI)", body: "상가·오피스텔 임대사업자 대출은 <b>임대업이자상환비율(RTI)</b> 심사를 받습니다. 금리 변동 시 한도가 줄어들 수 있습니다.", tag: "자금계획" },
-    { date: "수익률", title: "표면수익률 vs 실질수익률", body: "광고의 수익률은 대개 <b>표면수익률</b>입니다. 관리비·공실·재산세·중개보수·대출이자를 뺀 <b>실질수익률</b>로 다시 계산하세요.", tag: "리스크" },
+    { date: "세금", title: "상가 취득세 4.6%", body: "상가·업무용 부동산은 취득세 <b>4.6%</b>(농특세·지방교육세 포함)로 주택보다 높음. 실투자금 계산에 반드시 넣을 것.", tag: "세제" },
+    { date: "부가세", title: "부가가치세와 포괄양수도", body: "상가 매매는 건물분에 <b>부가세 10%</b>가 붙음. <b>포괄양수도</b> 요건을 갖추면 생략할 수 있으나 요건이 엄격.", tag: "세제" },
+    { date: "임대차", title: "상가임대차보호법", body: "<b>환산보증금 = 보증금 + 월세×100</b> 기준을 넘으면 보호 범위가 달라짐. 계약갱신요구권(최대 10년)과 <b>권리금 회수기회 보호</b>는 환산보증금과 무관하게 적용됨.", tag: "임대차" },
+    { date: "오피스텔", title: "주거용 오피스텔 주택 수 산정", body: "주거용으로 사용·신고된 오피스텔은 <b>주택 수에 포함</b>되어 기존 주택의 양도세·종부세에 영향을 줌. 업무용/주거용 구분이 핵심.", tag: "필수 확인" },
+    { date: "대출", title: "임대사업자 대출(RTI)", body: "상가·오피스텔 임대사업자 대출은 <b>임대업이자상환비율(RTI)</b> 심사를 받음. 금리 변동 시 한도가 줄어들 수 있음.", tag: "자금계획" },
+    { date: "수익률", title: "표면수익률 vs 실질수익률", body: "광고의 수익률은 대개 <b>표면수익률</b>. 관리비·공실·재산세·중개보수·대출이자를 뺀 <b>실질수익률</b>로 다시 계산할 것.", tag: "리스크" },
   ];
 
   document.getElementById("policyGrid").innerHTML = POLICY.map(function (p) {
@@ -1146,8 +1146,8 @@
       note.hidden = !none;
       if (none) {
         note.innerHTML = "<b>" + esc(regionLabel()) + "</b>에는 선택한 기간(" + esc(win().name) +
-          ")에 상가·업무용과 오피스텔 실거래 신고가 <b>모두 없습니다</b>. " +
-          "기간을 늘리거나 다른 지역을 골라 보세요.";
+          ")에 상가·업무용과 오피스텔 실거래 신고가 <b>모두 없음</b>. " +
+          "기간을 늘리거나 다른 지역을 골라 볼 것.";
       }
     }
     return { nrgTotal: nrgTotal, offiTotal: offiTotal };
@@ -1183,11 +1183,11 @@
     var t = "", pending = isPending(ym);
     if (pending) t += ' <span class="brief-flag">집계중</span>';
     if (!pending && n > 0 && n < MIN_N) {
-      t += ' <span class="brief-thin" title="거래가 너무 적어 중위값을 시세로 보기 어렵습니다">적음</span>';
+      t += ' <span class="brief-thin" title="거래가 너무 적어 중위값을 시세로 보기 어려움">적음</span>';
     }
     if (hot && n) {
       t += ' <span class="brief-hot" title="' + esc(hot[0]) + ' 한 곳이 ' + hot[1] +
-           '건(' + Math.round(hot[1] / n * 100) + '%) — 중위값이 그 건물 값에 끌려갑니다">한곳 ' +
+           '건(' + Math.round(hot[1] / n * 100) + '%) — 중위값이 그 건물 값에 끌려감">한곳 ' +
            Math.round(hot[1] / n * 100) + '%</span>';
     }
     return t;
@@ -1200,7 +1200,7 @@
     if (!cur || !prev) return '<span class="dim-note">-</span>';
     var r = Math.round((cur - prev) / prev * 100), sign = r > 0 ? "+" : "";
     if (nCur < MIN_N || nPrev < MIN_N || hot) {
-      return '<span class="d-weak" title="표본이 적어 시세 변동으로 보기 어렵습니다">' +
+      return '<span class="d-weak" title="표본이 적어 시세 변동으로 보기 어려움">' +
              sign + r + '<sup>*</sup></span>';
     }
     var cls = Math.abs(r) < 1 ? "d-flat" : (r > 0 ? "d-up" : "d-down");
@@ -1251,8 +1251,8 @@
   function renderBrief() {
     document.getElementById("briefTitle").textContent = regionLabel();
     document.getElementById("briefDesc").innerHTML =
-      "조회 기간 <b>" + win().label + "</b>을 <b>달 단위</b>로 끊어 정리했습니다. " +
-      "<b>고객께 말씀하실 숫자는 이 표에서</b> 가져가세요.";
+      "조회 기간 <b>" + win().label + "</b>을 <b>달 단위</b>로 끊어 정리. " +
+      "<b>고객께 말씀하실 숫자는 이 표에서</b> 가져갈 것.";
 
     var key = regionKey();
     var shop = moSlice(key, "shop");
@@ -1342,11 +1342,11 @@
     if (!thin.length) { note.hidden = true; return; }
     note.hidden = false;
     note.innerHTML = "<span><b>" + thin.map(function (g) { return g.name; }).join(" · ") +
-      "</b>은(는) 달마다 " + MIN_N + "건이 안 됩니다. " +
+      "</b>은(는) 달마다 " + MIN_N + "건이 안 됨. " +
       "<b>중위값을 시세로 말하면 안 됨</b> \u2014 그 달에 어떤 물건이 팔렸는지에 따라 값이 몇 배로 뜀. " +
       (state.dong !== ALL
-        ? "<b>법정동을 \u2018전체\u2019로</b> 놓고 자치구 단위로 보시길 권합니다."
-        : "조회 기간을 <b>12개월</b>로 넓히시거나, 아래 TOP10에서 <b>개별 물건</b>을 직접 보여 주세요.") +
+        ? "<b>법정동을 \u2018전체\u2019로</b> 놓고 자치구 단위로 보길 권함."
+        : "조회 기간을 <b>12개월</b>로 넓히시거나, 아래 TOP10에서 <b>개별 물건</b>을 직접 보여 줄 것.") +
       "</span>";
   }
 

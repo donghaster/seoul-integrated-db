@@ -9,8 +9,8 @@
   var GEO = window.GEO_COORDS || {};
   if (!D) {
     document.querySelector(".wrap").insertAdjacentHTML("afterbegin",
-      '<section class="card-section"><h2>데이터를 불러오지 못했습니다</h2>' +
-      '<p class="sec-desc">data/apt.js가 없습니다. <code>py tools/fetch_molit.py</code> 후 <code>py tools/build_data.py</code>를 실행하세요.</p></section>');
+      '<section class="card-section"><h2>데이터를 불러오지 못함</h2>' +
+      '<p class="sec-desc">data/apt.js가 없음. <code>py tools/fetch_molit.py</code> 후 <code>py tools/build_data.py</code>를 실행.</p></section>');
     return;
   }
   window.DASH_DATA = D;   // brand.js가 조회시각 표시에 쓴다
@@ -164,7 +164,7 @@
      시끄러워지고, 정작 "이 값은 어림"이라는 경고가 눈에 안 띄었다. */
   function estMark(exact) {
     return exact ? "" :
-      '<span class="est-mark" title="건축물대장에서 확인하지 못해 전용률로 어림한 분양면적입니다. 실제와 1~2평 차이 날 수 있습니다.">*</span>';
+      '<span class="est-mark" title="건축물대장에서 확인하지 못해 전용률로 어림한 분양면적. 실제와 1~2평 차이 날 수 있음.">*</span>';
   }
 
   function bandBoth(b, sup, exact) {
@@ -1150,7 +1150,7 @@
     if (state.gu === ALL) {
       state.dong = ALL;
       dongChips.innerHTML = '<button class="active" data-d="all">전체</button>' +
-        '<span class="dim-note" style="align-self:center;margin-left:8px">자치구를 선택하면 법정동이 나옵니다</span>';
+        '<span class="dim-note" style="align-self:center;margin-left:8px">자치구를 선택하면 법정동이 나옴</span>';
       bindDongChips();
       return;
     }
@@ -1223,7 +1223,7 @@
 
   function dealRowsHtml(rows, type, clickable) {
     if (!rows.length) {
-      return '<tr class="empty-row"><td colspan="7">해당 기간 · 지역에 ' + TYPE_LABEL[type] + " 실거래 신고가 없습니다.</td></tr>";
+      return '<tr class="empty-row"><td colspan="7">해당 기간 · 지역에 ' + TYPE_LABEL[type] + " 실거래 신고가 없음.</td></tr>";
     }
     return rows.map(function (r, i) {
       var rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
@@ -1267,7 +1267,7 @@
     document.getElementById("dealBody").innerHTML = rows.length
       ? dealRowsHtml(rows, type, true)
       : '<tr><td colspan="7" class="placeholder">' + esc(regionLabel()) + " · " +
-        esc(b.name) + "에는 이 기간 신고된 " + TYPE_LABEL[type] + " 거래가 없습니다.</td></tr>";
+        esc(b.name) + "에는 이 기간 신고된 " + TYPE_LABEL[type] + " 거래가 없음.</td></tr>";
 
     var note = document.getElementById("dealBandNote");
     if (note) {
@@ -1650,7 +1650,7 @@
         "<td>" + pyNum(reg.med.pyeong) + "만원</td>" +
         "</tr>";
     }).join("") : '<tr class="empty-row"><td colspan="7">해당 기간 · 지역에 ' +
-        (mode === "apt" ? "거래된 단지가" : "표시할 지역이") + ' 없습니다.</td></tr>';
+        (mode === "apt" ? "거래된 단지가" : "표시할 지역이") + ' 없음.</td></tr>';
     if (window.wireScrollBoxes) window.wireScrollBoxes();
   }
 
@@ -1757,7 +1757,7 @@
     });
 
     document.getElementById("mapMissNote").textContent =
-      miss ? "좌표 미확인 " + miss + "곳은 지도에 표시되지 않습니다" : "";
+      miss ? "좌표 미확인 " + miss + "곳은 지도에 표시되지 않음" : "";
 
     /* 범위를 맞추기 전에 칸을 다시 잰다. 창 크기가 안 바뀌어도 옆 상세칸이
        채워지거나 고정 막대가 줄면 지도 칸만 넓어지는데, Leaflet은 그걸 모른다.
@@ -1768,7 +1768,7 @@
     else map.setView([37.5535, 126.9905], 11);
 
     document.getElementById("aptDetail").innerHTML =
-      '<p class="placeholder">지도의 원 또는 아래 TOP10 표의 단지명을 클릭하면<br />단지 정보가 여기에 표시됩니다.</p>';
+      '<p class="placeholder">지도의 원 또는 아래 TOP10 표의 단지명을 클릭하면<br />단지 정보가 여기에 표시됨.</p>';
   }
 
   function showDetail(key, focusRank) {
@@ -1810,7 +1810,7 @@
     var hit = key && markers[key];
     if (!hit) {
       document.getElementById("aptDetail").innerHTML =
-        '<p class="placeholder">「' + esc(name) + "」의 좌표를 찾지 못해<br />지도에 표시할 수 없습니다.</p>";
+        '<p class="placeholder">「' + esc(name) + "」의 좌표를 찾지 못해<br />지도에 표시할 수 없음.</p>";
       return;
     }
     map.flyTo([hit.coord.lat, hit.coord.lng], 16, { duration: 0.6 });
@@ -1895,8 +1895,8 @@
         // 입력이 있는데 결과가 없을 때만 안내를 띄우고, 지우면 닫는다.
         if (input.value.trim()) {
           drop.innerHTML = '<div class="finder-empty">' +
-            "「" + esc(input.value.trim()) + "」와 일치하는 단지가 없습니다. " +
-            "<b>띄어쓰기를 빼고</b> 이름의 일부만 넣어 보세요 (예: 래미안, 자이, 힐스테이트).</div>";
+            "「" + esc(input.value.trim()) + "」와 일치하는 단지가 없음. " +
+            "<b>띄어쓰기를 빼고</b> 이름의 일부만 넣어 볼 것(예: 래미안, 자이, 힐스테이트).</div>";
           drop.hidden = false;
         } else {
           closeDrop();
@@ -1999,7 +1999,7 @@
     var v = rows.filter(function (x) { return x.t === type; })
       .sort(function (a, b) { return a.d < b.d ? 1 : -1; })
       .slice(0, DETAIL_CAP);
-    if (!v.length) return '<p class="placeholder">신고된 거래가 없습니다.</p>';
+    if (!v.length) return '<p class="placeholder">신고된 거래가 없음.</p>';
     return '<div class="table-wrap deal-scroll" data-rows="6">' +
       '<table class="detail-deals"><thead><tr>' +
       '<th>거래일</th><th>분양면적<span class="th-sub">㎡ (평) · 아래 전용</span></th><th>층</th><th>' +
@@ -2018,16 +2018,16 @@
   function jeonseGuessHtml(sum, band) {
     var a = sum.apt;
     var q = jeonseRatio(a.gu, a.dg, a.y);
-    var base = "<p class=\"placeholder\">신고된 전세 거래가 없습니다.";
+    var base = "<p class=\"placeholder\">신고된 전세 거래가 없음.";
 
     if (!q) return base + "</p>";
 
     var head = base + "</p>" +
       '<div class="calc-head"><span class="calc-badge">계산값</span>' +
-      "실거래가 아니라 <b>유사 실거래로 계산한 값</b>입니다</div>" +
+      "실거래가 아니라 <b>유사 실거래로 계산한 값</b></div>" +
       "<p>" + esc(q.basis) + "의 실제 전세가율은 <b>" + q.lo + "~" + q.hi + "%</b>" +
       "(중위 " + q.mid + "% · 같은 단지·같은 평형에서 매매·전세가 각 3건 이상인 <b>" +
-      q.n.toLocaleString() + "개 평형</b>을 짝지어 계산)입니다. 이 비율을 아래 매매가에 대본 값입니다.</p>";
+      q.n.toLocaleString() + "개 평형</b>을 짝지어 계산). 이 비율을 아래 매매가에 대본 값.</p>";
 
     var A = sum.apt;
     var rows = sum.bands.filter(function (g) { return g.medSale; });
@@ -2047,7 +2047,7 @@
           "<td>" + eokman(Math.round(g.medSale * q.mid / 100)) + "</td></tr>";
       }).join("") + "</tbody></table>" +
       "</div>" +
-      '<p class="calc-foot">매매 중위값 × 전세가율입니다. 동·향·층·수리 상태에 따라 이 범위를 벗어납니다. ' +
+      '<p class="calc-foot">매매 중위값 × 전세가율. 동·향·층·수리 상태에 따라 이 범위를 벗어남. ' +
       "<b>실거래로 확인된 값이 아니니</b> <b>참고</b>.</p></div>";
   }
 
@@ -2075,7 +2075,7 @@
   function similarHtml(key, band) {
     var sim = similarApts(key, band, 4);
     if (!sim.length) {
-      return '<p class="placeholder">같은 자치구 2km 안에 비교할 만한 단지를 찾지 못했습니다.</p>';
+      return '<p class="placeholder">같은 자치구 2km 안에 비교할 만한 단지를 찾지 못함.</p>';
     }
     var me = BY_APT[key];
     return '<div class="table-wrap"><table class="detail-deals"><thead><tr>' +
@@ -2249,7 +2249,7 @@
         (refBand ? "<h4>인근 유사 단지 <span class=\"dim-note\">" +
           bandLabel(refBand.b, bandSupplyOf(refBand.b, a.gu, a.dg, a.n)) +
           " 기준 · 같은 자치구 2km 이내" +
-          (refBand.fallback ? " · 고르신 기간에 이 단지 거래가 없어 가장 많이 거래된 평형으로 찾았습니다" : "") +
+          (refBand.fallback ? " · 고르신 기간에 이 단지 거래가 없어 가장 많이 거래된 평형으로 찾음" : "") +
           "</span></h4>" + similarHtml(key, refBand.b) : "") +
 
         '<div class="read-guide" style="margin-top:18px;">' +
@@ -2338,7 +2338,7 @@
     var info = (gu && LOC[gu] && LOC[gu][k]) || null;
     if (!info) {
       return "<h3>" + item.ico + " " + item.title + "</h3>" +
-        "<p><b>자치구를 선택</b>하시면 그 구의 " + item.title + " 자료가 나옵니다. " +
+        "<p><b>자치구를 선택</b>하면 그 구의 " + item.title + " 자료가 나옴. " +
         "(현재 선택: <b>" + (gu || "서울시 전체") + "</b>)</p>";
     }
 
@@ -2414,7 +2414,7 @@
 
   function locSchoolHtml(gu, s, item) {
     if (!s.total) {
-      return "<h3>" + item.ico + " " + gu + " 학군·교육</h3><p>학교 정보를 찾지 못했습니다.</p>";
+      return "<h3>" + item.ico + " " + gu + " 학군·교육</h3><p>학교 정보를 찾지 못함.</p>";
     }
     var dong = state.dong;                      // 'all' 또는 특정 법정동
     var kinds = SCHOOL_ORDER.concat(Object.keys(s.byKind).filter(function (k) {
@@ -2439,16 +2439,16 @@
       ? esc(gu) + " 전체 소재 학교 <b>" + s.total + "개</b>"
       : esc(gu) + " " + esc(dong) + " 소재 학교 <b>" + shown + "개</b>";
     var emptyMsg = (dong !== ALL && !shown)
-      ? "<p>" + esc(dong) + "에 소재지 주소가 일치하는 학교가 없습니다(인접 동 학교를 이용할 수 있습니다).</p>" : "";
+      ? "<p>" + esc(dong) + "에 소재지 주소가 일치하는 학교가 없음(인접 동 학교를 이용 가능).</p>" : "";
 
     return "<h3>" + item.ico + " " + gu + " 학군·교육</h3>" +
-      "<p>" + scope + " · 학교 이름을 클릭하면 상세정보가 열립니다.</p>" +
+      "<p>" + scope + " · 학교 이름을 클릭하면 상세정보가 열림.</p>" +
       emptyMsg + blocks +
-      "<div class='loc-caveat'>⚠️ 이 목록은 <b>학교 소재지(주소) 기준</b>이며 <b>실제 배정을 보장하지 않습니다.</b> " +
+      "<div class='loc-caveat'>⚠️ 이 목록은 <b>학교 소재지(주소) 기준</b>이며 <b>실제 배정을 보장하지 않음.</b> " +
       "초등학교는 통학구역, 중·고등학교는 서울 상당수 지역에서 근거리 배정+추첨이 혼합되어 있어 " +
-      "동 하나에 특정 학교가 1:1로 매칭되지 않습니다. 정확한 배정은 반드시 " +
+      "동 하나에 특정 학교가 1:1로 매칭되지 않음. 정확한 배정은 반드시 " +
       "<a href='https://schoolzone.emac.kr' target='_blank' rel='noopener'>학구도안내서비스</a>에서 " +
-      "실제 주소로 확인하세요.</div>" +
+      "실제 주소로 확인할 것.</div>" +
       srcNote("NEIS 교육정보 개방포털 학교 기본정보");
   }
 
@@ -2468,17 +2468,17 @@
   /* ── 개발 호재: 뉴타운 대시보드와 같은 정비사업 자료를 자치구로 걸러 보여준다 ── */
   function locDevelopHtml(gu, item) {
     var N = window.NEWTOWN_DATA;
-    if (!N) return "<h3>" + item.ico + " 개발 호재</h3><p>정비사업 자료를 불러오지 못했습니다.</p>";
+    if (!N) return "<h3>" + item.ico + " 개발 호재</h3><p>정비사업 자료를 불러오지 못함.</p>";
     if (!gu) {
       return "<h3>" + item.ico + " 개발 호재</h3>" +
-        "<p><b>자치구를 선택</b>하시면 그 구의 재정비촉진지구(뉴타운)·정비사업이 나옵니다. " +
-        "서울 전체에는 <b>" + N.districts.length + "개 지구</b>가 있습니다.</p>";
+        "<p><b>자치구를 선택</b>하면 그 구의 재정비촉진지구(뉴타운)·정비사업이 나옴. " +
+        "서울 전체에는 <b>" + N.districts.length + "개 지구</b>가 있음.</p>";
     }
     var list = N.districts.filter(function (d) { return d.gu === gu; });
     if (!list.length) {
       return "<h3>" + item.ico + " " + gu + " 개발 호재</h3>" +
-        "<p><b>" + esc(gu) + "</b>에는 서울시가 지정한 <b>재정비촉진지구(뉴타운)가 없습니다.</b> " +
-        "개별 재건축·재개발 구역은 별도 확인이 필요합니다.</p>";
+        "<p><b>" + esc(gu) + "</b>에는 서울시가 지정한 <b>재정비촉진지구(뉴타운)가 없음.</b> " +
+        "개별 재건축·재개발 구역은 별도 확인 필요.</p>";
     }
     var ing = list.filter(function (d) { return d.stage < 6; });
     return "<h3>" + item.ico + " " + gu + " 개발 호재</h3><ul>" +
@@ -2494,7 +2494,7 @@
           "<td class='rt-sub'>" + esc(d.summary) + "</td></tr>";
       }).join("") + "</tbody></table>" +
       "<p class='loc-src'>자료: 서울시 재정비촉진지구 공개자료 정리 — 자세한 구역별 진행은 " +
-      "<a href='../newtown/index.html'>뉴타운 대시보드</a>에서 보실 수 있습니다. 계약 전 조합·구청 고시 확인이 필요합니다.</p>";
+      "<a href='../newtown/index.html'>뉴타운 대시보드</a>에서 볼 수 있음. 계약 전 조합·구청 고시 확인 필요.</p>";
   }
 
   /* 뉴타운 대시보드와 같은 단계를 같은 색으로 찍는다 — 두 화면을 오가며
@@ -2598,7 +2598,7 @@
     if (usable.length < 2) {
       return '<div class="dv-box"><h3>📍 ' + esc(gu) + " 안에서 " + esc(dong) + "</h3>" +
         '<p class="placeholder">분기마다 매매 ' + DONG_MIN_Q +
-        "건이 안 돼 구 안 위치를 흐름으로 보여드리기 어렵습니다. 위 <b>평당가 순위</b> 표를 쓰세요.</p></div>";
+        "건이 안 돼 구 안 위치를 흐름으로 보여 주기 어려움. 위 <b>평당가 순위</b> 표를 쓸 것.</p></div>";
     }
 
     var last = usable.filter(function (x) { return !x.partial; }).pop() || usable[usable.length - 1];
@@ -2609,7 +2609,7 @@
     var peak = usable.reduce(function (m, x) { return Math.max(m, Math.abs(x.pct - 100)); }, 0) || 1;
     var bars = '<div class="dv-chart"><div class="dv-bars">' + C.series.map(function (x) {
       if (x.pct == null) {
-        return '<div class="dv-col dim" title="표본 ' + x.n + '건 — 계산에서 뺐습니다">' +
+        return '<div class="dv-col dim" title="표본 ' + x.n + '건 — 계산에서 제외">' +
           '<span class="dv-val">-</span><span class="dv-gap"></span>' +
           '<span class="dv-q">' + qLabel(x.q) + "</span></div>";
       }
@@ -2631,15 +2631,15 @@
       var move = b.pct - a.pct;                 // 비율 자체의 변화
       var word;
       if (Math.abs(move) < 5) {
-        word = "<b>거의 그대로</b>입니다";
+        word = "<b>거의 그대로</b>";
       } else if (b.pct >= 100) {
         // 구 평균 위에 있는 동 — 비율이 오르면 프리미엄이 커진 것
-        word = move > 0 ? "<b>구 평균 대비 프리미엄이 " + move + "%p 커졌습니다</b>"
-                        : "<b>구 평균 대비 프리미엄이 " + Math.abs(move) + "%p 줄었습니다</b>";
+        word = move > 0 ? "<b>구 평균 대비 프리미엄이 " + move + "%p 커짐</b>"
+                        : "<b>구 평균 대비 프리미엄이 " + Math.abs(move) + "%p 줄어듦</b>";
       } else {
         // 구 평균 아래 동 — 비율이 내리면 오히려 더 벌어진 것이다
-        word = move > 0 ? "<b>구 평균에 " + move + "%p 다가섰습니다</b>"
-                        : "<b>구 평균과의 거리가 " + Math.abs(move) + "%p 더 벌어졌습니다</b>";
+        word = move > 0 ? "<b>구 평균에 " + move + "%p 다가섬</b>"
+                        : "<b>구 평균과의 거리가 " + Math.abs(move) + "%p 더 벌어짐</b>";
       }
       trend = qLabel(a.q) + " " + a.pct + "% → " + qLabel(b.q) + " " + b.pct + "%로 " + word;
     }
@@ -2653,9 +2653,9 @@
       : "";
 
     var speak = esc(dong) + "은 " + esc(gu) + " 평균의 <b>" + last.pct + "%</b> 수준" +
-      (rank > 0 ? "으로, 구 안 " + C.peers.length + "개 동 가운데 <b>" + rank + "위</b>" : "") + "입니다. " +
+      (rank > 0 ? "으로, 구 안 " + C.peers.length + "개 동 가운데 <b>" + rank + "위</b>" : "") + ". " +
       (trend ? trend + ". " : "") +
-      "구 전체가 오르내려도 이 비율은 <b>동의 상대적 자리</b>를 보여줍니다.";
+      "구 전체가 오르내려도 이 비율은 <b>동의 상대적 자리</b>를 보여줌.";
 
     return '<div class="dv-box">' +
       "<h3>📍 " + esc(gu) + " 안에서 " + esc(dong) +
@@ -2667,9 +2667,9 @@
           '<span class="dim-note">' + C.peers.length + "개 동 중</span></div>" : "") +
       "</div>" + bars + peerLine +
       '<div class="lb-speak"><span class="lb-quote">첨언</span><p>&ldquo;' + speak + '&rdquo;</p></div>' +
-      '<p class="lb-foot">공식 실거래가격지수는 <b>자치구 단위까지만</b> 나옵니다. ' +
-        "이 표는 <b>우리 실거래로 계산</b>한 값이라 위 공식지수와 산출 방식이 다릅니다. " +
-        "분기 매매 " + DONG_MIN_Q + "건 미만은 뺐고, <b>*</b>는 아직 진행 중인 분기입니다.</p>" +
+      '<p class="lb-foot">공식 실거래가격지수는 <b>자치구 단위까지만</b> 나옴. ' +
+        "이 표는 <b>우리 실거래로 계산</b>한 값이라 위 공식지수와 산출 방식이 다름. " +
+        "분기 매매 " + DONG_MIN_Q + "건 미만은 뺐고, <b>*</b>는 아직 진행 중인 분기.</p>" +
       "</div>";
   }
 
@@ -2711,27 +2711,27 @@
     var GRID = [
       [ // 값 상위
         ["비싸고 계속 오르는 곳",
-         "이미 서울 상위권 값인데 <b>오르는 속도도 상위권</b>입니다. 수요가 계속 붙고 있다는 뜻이라, 매수를 미루실수록 부담이 커질 수 있습니다."],
+         "이미 서울 상위권 값인데 <b>오르는 속도도 상위권</b>. 수요가 계속 붙고 있다는 뜻이라, 매수를 미룰수록 부담이 커질 수 있음."],
         ["비싼 값을 지키는 곳",
-         "서울 <b>최상위권 값</b>을 유지하면서 상승 속도는 <b>평균 수준</b>입니다. 이미 높은 자리라 급등은 어렵지만, <b>값이 잘 안 빠지는</b> 자리로 보시면 됩니다."],
+         "서울 <b>최상위권 값</b>을 유지하면서 상승 속도는 <b>평균 수준</b>. 이미 높은 자리라 급등은 어렵지만, <b>값이 잘 안 빠지는</b> 자리로 보면 됨."],
         ["비싸지만 쉬어가는 곳",
-         "값은 서울 상위권인데 <b>오르는 속도는 하위권</b>입니다. 이미 높은 자리에 올라와 <b>상승 여력이 제한적</b>이거나 잠시 쉬어가는 구간입니다."],
+         "값은 서울 상위권인데 <b>오르는 속도는 하위권</b>. 이미 높은 자리에 올라와 <b>상승 여력이 제한적</b>이거나 잠시 쉬어가는 구간."],
       ],
       [ // 값 중간
         ["중간값에서 빠르게 오르는 곳",
-         "값은 서울 중간권인데 <b>오르는 속도는 상위권</b>입니다. <b>격차를 좁히는 중</b>이라 눈여겨보실 만합니다."],
+         "값은 서울 중간권인데 <b>오르는 속도는 상위권</b>. <b>격차를 좁히는 중</b>이라 눈여겨볼 만함."],
         ["서울 평균 근처",
-         "값과 상승 속도가 모두 <b>서울 중간권</b>입니다. 특별히 앞서지도 뒤처지지도 않는 흐름입니다."],
+         "값과 상승 속도가 모두 <b>서울 중간권</b>. 특별히 앞서지도 뒤처지지도 않는 흐름."],
         ["중간값에서 쉬어가는 곳",
-         "값은 서울 중간권인데 <b>오르는 속도는 하위권</b>입니다. 당분간 <b>큰 움직임을 기대하기 어려운</b> 구간입니다."],
+         "값은 서울 중간권인데 <b>오르는 속도는 하위권</b>. 당분간 <b>큰 움직임을 기대하기 어려운</b> 구간."],
       ],
       [ // 값 하위
         ["저평가에서 따라붙는 곳",
-         "값은 아직 서울 하위권인데 <b>오르는 속도는 상위권</b>입니다. <b>뒤늦게 따라붙는 구간</b>이라 지금이 관심 가질 시점일 수 있습니다."],
+         "값은 아직 서울 하위권인데 <b>오르는 속도는 상위권</b>. <b>뒤늦게 따라붙는 구간</b>이라 지금이 관심 가질 시점일 수 있음."],
         ["값이 낮고 완만한 곳",
-         "값은 서울 하위권이고 상승 속도는 <b>평균 수준</b>입니다. <b>실거주 부담이 적으면서</b> 시세는 서울 흐름을 따라가는 자리입니다."],
+         "값은 서울 하위권이고 상승 속도는 <b>평균 수준</b>. <b>실거주 부담이 적으면서</b> 시세는 서울 흐름을 따라가는 자리."],
         ["값도 움직임도 조용한 곳",
-         "값도 서울 하위권이고 <b>오르는 속도도 하위권</b>입니다. 실거주 부담은 적지만 <b>시세 차익은 기대하기 어려운</b> 구간입니다."],
+         "값도 서울 하위권이고 <b>오르는 속도도 하위권</b>. 실거주 부담은 적지만 <b>시세 차익은 기대하기 어려운</b> 구간."],
       ],
     ];
     var tag = GRID[pBand][rBand][0], story = GRID[pBand][rBand][1];
@@ -2740,10 +2740,10 @@
     var speak =
       esc(gu) + "는 서울 " + N + "개 구 가운데 <b>값은 " + pRank + "위</b>(평당 " +
       pyNum(pr.py) + "만원)로 " + pWord + "인데, <b>오르는 속도는 " + rRank + "위</b>(전년 대비 " +
-      sign(yoy) + ")로 " + rWord + "입니다. " +
-      (Math.abs(gap) < 0.5 ? "서울 평균과 비슷합니다. "
+      sign(yoy) + ")로 " + rWord + ". " +
+      (Math.abs(gap) < 0.5 ? "서울 평균과 비슷. "
         : "25개구 평균(" + sign(R.avg) + ")보다 <b>" + Math.abs(gap).toFixed(1) + "%p " +
-          (gap > 0 ? "높습니다" : "낮습니다") + "</b>. ") +
+          (gap > 0 ? "높음" : "낮음") + "</b>. ") +
       story.replace(/<\/?b>/g, "");
 
     return '<div class="loc-brief">' +
@@ -2759,8 +2759,8 @@
       '<p class="lb-story">' + story + "</p>" +
       '<div class="lb-speak"><span class="lb-quote">첨언</span><p>&ldquo;' + speak + '&rdquo;</p></div>' +
       '<p class="lb-foot">값 순위는 <b>선택한 조회 기간</b>의 실거래로 이 대시보드가 계산했고, ' +
-        "상승률 순위는 <b>한국부동산원 공식지수</b>의 전년 동기 대비입니다. " +
-        "<b>재는 것이 달라 두 순위가 어긋나는 것이 정상</b>입니다.</p>" +
+        "상승률 순위는 <b>한국부동산원 공식지수</b>의 전년 동기 대비. " +
+        "<b>재는 것이 달라 두 순위가 어긋나는 것이 정상</b>.</p>" +
       "</div>";
   }
 
@@ -2806,9 +2806,9 @@
       priceIndexHtml() +
       dongVsGuHtml() +
       "<p style='margin-top:10px;color:var(--txt-mute);font-size:12.5px'>" +
-      "※ 평당가 = 거래금액 ÷ (" + pyBaseWord() + "면적 ÷ 3.3058). 매매 신고 3건 이상인 지역만 순위에 넣습니다." +
+      "※ 평당가 = 거래금액 ÷ (" + pyBaseWord() + "면적 ÷ 3.3058). 매매 신고 3건 이상인 지역만 순위에 넣음." +
       (state.pyBase === "supply"
-        ? " <b>분양면적은 실거래 자료에 없어</b> 전용률 74%로 환산했습니다." : "") + "</p>";
+        ? " <b>분양면적은 실거래 자료에 없어</b> 전용률 74%로 환산." : "") + "</p>";
   }
 
   /* 한국부동산원 공동주택 매매 실거래가격지수 — 구 단위 공식 통계.
@@ -2895,12 +2895,12 @@
         '<div class="pi-kpi"><span>' + fmtQ(first) + " 이후</span><b class=\"" + cls(total) + '">' +
           sign(total) + "</b></div>" +
       "</div>" + rankLine +
-      '<p class="pi-cap">분기별 변동률 <span class="dim-note">막대는 0%가 기준선이라 길이를 그대로 비교하셔도 됩니다</span></p>' +
+      '<p class="pi-cap">분기별 변동률 <span class="dim-note">막대는 0%가 기준선이라 길이를 그대로 비교해도 됨</span></p>' +
       bars +
       "<p style='margin-top:10px;color:var(--txt-mute);font-size:12px'>" +
-      "위 중위 평당가는 <b>이 대시보드가 직접 계산</b>한 값이고, 이 지수는 <b>한국부동산원 공식 통계</b>입니다. " +
-      "산출 방식이 달라 숫자는 다르지만 <b>방향(오름/내림)이 어긋나면</b> 표본이 치우쳤다는 신호로 보시면 됩니다. " +
-      "분기 단위라 최신 분기는 늦게 반영됩니다.</p>";
+      "위 중위 평당가는 <b>이 대시보드가 직접 계산</b>한 값이고, 이 지수는 <b>한국부동산원 공식 통계</b>. " +
+      "산출 방식이 달라 숫자는 다르지만 <b>방향(오름/내림)이 어긋나면</b> 표본이 치우쳤다는 신호로 보면 됨. " +
+      "분기 단위라 최신 분기는 늦게 반영됨.</p>";
   }
 
   // 인쇄 직전에 입지분석 5개 항목을 전부 펼친다(화면에서 무엇을 열어 뒀든 동일하게)
@@ -2924,12 +2924,12 @@
   /* ════════════════ 정책 ════════════════ */
 
   var POLICY = [
-    { date: "규제지역", title: "투기과열지구·조정대상지역", body: "서울 전역이 규제지역으로 지정되면 <b>LTV·DTI 한도</b>와 <b>전매제한</b>, <b>자금조달계획서</b> 제출 의무가 달라집니다. 지정 현황은 수시로 바뀌므로 계약 전 국토부 고시를 확인하세요.", tag: "대출·전매" },
-    { date: "세금", title: "취득세·양도세 중과", body: "다주택자의 <b>취득세 중과(8~12%)</b>와 조정대상지역 <b>양도세 중과</b>는 주택 수·보유기간·지역에 따라 크게 달라집니다. 1세대 1주택 비과세 요건(2년 보유·거주)도 지역에 따라 다릅니다.", tag: "세제" },
-    { date: "임대차", title: "임대차 2법 · 전월세신고제", body: "<b>계약갱신요구권(2+2)</b>과 <b>전월세상한제(5%)</b>, 보증금 6천만원 또는 월세 30만원 초과 계약의 <b>전월세신고 의무</b>가 적용됩니다. 신고는 계약 후 30일 이내입니다.", tag: "임대차" },
-    { date: "정비사업", title: "재건축·재개발 조합원 지위 양도", body: "투기과열지구 내 재건축은 <b>조합설립인가 후</b>, 재개발은 <b>관리처분인가 후</b> 조합원 지위 양도가 제한됩니다. 예외 요건(10년 보유·5년 거주 등)이 있으니 개별 확인이 필요합니다.", tag: "정비사업" },
-    { date: "청약", title: "청약 가점·특별공급", body: "무주택기간·부양가족·청약통장 가입기간으로 <b>가점 84점</b>이 구성됩니다. 신혼부부·생애최초·다자녀 등 <b>특별공급</b> 물량과 소득·자산 요건을 함께 확인하세요.", tag: "청약" },
-    { date: "보증금", title: "전세보증금 반환보증", body: "HUG·SGI의 <b>전세보증금 반환보증</b> 가입 요건(주택가격 대비 보증금 비율 등)이 강화되는 추세입니다. 계약 전 <b>등기부 확인 + 보증 가입 가능 여부</b>를 함께 점검하세요.", tag: "전세안전" },
+    { date: "규제지역", title: "투기과열지구·조정대상지역", body: "서울 전역이 규제지역으로 지정되면 <b>LTV·DTI 한도</b>와 <b>전매제한</b>, <b>자금조달계획서</b> 제출 의무가 달라짐. 지정 현황은 수시로 바뀌므로 계약 전 국토부 고시를 확인할 것.", tag: "대출·전매" },
+    { date: "세금", title: "취득세·양도세 중과", body: "다주택자의 <b>취득세 중과(8~12%)</b>와 조정대상지역 <b>양도세 중과</b>는 주택 수·보유기간·지역에 따라 크게 달라짐. 1세대 1주택 비과세 요건(2년 보유·거주)도 지역에 따라 다름.", tag: "세제" },
+    { date: "임대차", title: "임대차 2법 · 전월세신고제", body: "<b>계약갱신요구권(2+2)</b>과 <b>전월세상한제(5%)</b>, 보증금 6천만원 또는 월세 30만원 초과 계약의 <b>전월세신고 의무</b>가 적용됨. 신고는 계약 후 30일 이내.", tag: "임대차" },
+    { date: "정비사업", title: "재건축·재개발 조합원 지위 양도", body: "투기과열지구 내 재건축은 <b>조합설립인가 후</b>, 재개발은 <b>관리처분인가 후</b> 조합원 지위 양도가 제한됨. 예외 요건(10년 보유·5년 거주 등)이 있으니 개별 확인 필요.", tag: "정비사업" },
+    { date: "청약", title: "청약 가점·특별공급", body: "무주택기간·부양가족·청약통장 가입기간으로 <b>가점 84점</b>이 구성됨. 신혼부부·생애최초·다자녀 등 <b>특별공급</b> 물량과 소득·자산 요건을 함께 확인할 것.", tag: "청약" },
+    { date: "보증금", title: "전세보증금 반환보증", body: "HUG·SGI의 <b>전세보증금 반환보증</b> 가입 요건(주택가격 대비 보증금 비율 등)이 강화되는 추세. 계약 전 <b>등기부 확인 + 보증 가입 가능 여부</b>를 함께 점검할 것.", tag: "전세안전" },
   ];
 
   document.getElementById("policyGrid").innerHTML = POLICY.map(function (p) {
@@ -2979,9 +2979,9 @@
 
   // 표본이 얇을 때 "그래서 뭘 하면 되는지"는 지금 상태에 따라 다르다
   function thinAdvice() {
-    if (state.gran === "week") return "매매는 <b>월간</b>으로 바꾸시면 훨씬 안정적으로 보입니다.";
+    if (state.gran === "week") return "매매는 <b>월간</b>으로 바꾸면 훨씬 안정적으로 보임.";
     var days = (new Date(state.end) - new Date(state.start)) / 86400000;
-    if (days < 175) return "조회 기간을 <b>6개월 이상</b>으로 넓히시면 표본이 늘어납니다.";
+    if (days < 175) return "조회 기간을 <b>6개월 이상</b>으로 넓히면 표본이 늘어남.";
     if (state.dong !== ALL) return "이 법정동은 원래 거래가 드묾.<br><b>법정동을 ‘전체’로</b> 놓고 자치구 단위로 보거나, 아래 <b>월별 브리핑 표</b>의 숫자를 쓸 것.";
     return "이 지역은 원래 거래가 드묾.<br>아래 <b>월별 브리핑 표</b>의 건수를 함께 볼 것.";
   }
@@ -3220,19 +3220,19 @@
         var mine = su.length >= 2 ? (su[su.length - 1].s.v - su[0].s.v) / su[0].s.v * 100 : null;
         var qTxt = function (q) { return q.replace(/(\d{4})Q0?(\d)/, "$1년 $2분기"); };
         var line = "<b>공식(부동산원) 지수</b>는 " + qTxt(pf.period) + "부터 " + qTxt(pl.period) + "까지 <b>" +
-          (pr >= 0 ? "+" : "\u2212") + Math.abs(pr).toFixed(1) + "%</b>입니다. <b>분기 단위라 우리 조회 기간과 구간이 다르니</b> 값을 직접 견주지 마시고 <b>방향만</b> 보세요.";
+          (pr >= 0 ? "+" : "\u2212") + Math.abs(pr).toFixed(1) + "%</b>. <b>분기 단위라 우리 조회 기간과 구간이 다르니</b> 값을 직접 견주지 말고 <b>방향만</b> 볼 것.";
         if (mine !== null) {
           line += (mine >= 0) === (pr >= 0)
-            ? " 우리 표본과 <b>방향이 같습니다</b> \u2014 믿고 말씀하셔도 됩니다."
-            : " 우리 표본과 <b>방향이 엇갈립니다</b>. 이럴 땐 <b>공식지수를 앞세우고</b>, 우리 수치는 참고로만 쓰세요.";
+            ? " 우리 표본과 <b>방향이 같음</b> \u2014 믿고 말해도 됨."
+            : " 우리 표본과 <b>방향이 엇갈림</b>. 이럴 땐 <b>공식지수를 앞세우고</b>, 우리 수치는 참고로만 쓸 것.";
         }
         out.push(line);
       }
     }
 
     out.push("이 그래프는 <b>국토교통부 실거래 신고</b>를 " + unit + " 단위로 모아 " +
-      (isIdx ? "<b>첫 구간 100</b> 기준으로 지수화" : "<b>만원/평</b> 그대로") + "한 것입니다. " +
-      regionLabel() + " " + win().label + " 구간입니다.");
+      (isIdx ? "<b>첫 구간 100</b> 기준으로 지수화" : "<b>만원/평</b> 그대로") + "한 것. " +
+      regionLabel() + " " + win().label + " 구간.");
 
     host.innerHTML = (concl || "") + out.map(function (t) { return "<li>" + t + "</li>"; }).join("");
   }
@@ -3298,9 +3298,9 @@
           ? pi0.priceIndex.points[pi0.priceIndex.points.length - 1].period : "";
         offMiss = last
           ? "공식(부동산원) 지수는 <b>" + last.replace("Q0", "년 ").replace("Q", "년 ") +
-            "분기</b>까지 나와 있어 지금 조회 기간과 겹치지 않습니다. " +
-            "<b>조회 기간을 그 분기까지 넓히시면</b> 겹쳐 볼 수 있습니다."
-          : state.gu + "의 공식(부동산원) 지수 자료가 없습니다.";
+            "분기</b>까지 나와 있어 지금 조회 기간과 겹치지 않음. " +
+            "<b>조회 기간을 그 분기까지 넓히면</b> 겹쳐 볼 수 있음."
+          : state.gu + "의 공식(부동산원) 지수 자료가 없음.";
       }
       if (off) {
         sets.push({
@@ -3384,17 +3384,17 @@
       // 표본이 많아도 한 단지에 몰리면 지수가 그 단지 값으로 끌려간다.
       // 서초구 2026-08 전세가 그랬다(양재리본타워2단지 105/336건).
       hots.sort(function (a, b) { return b.pct - a.pct; });
-      notes.push("<b>붉은 세모(△)는 한 단지가 30% 넘게 차지한 구간</b>입니다. " +
+      notes.push("<b>붉은 세모(△)는 한 단지가 30% 넘게 차지한 구간</b>. " +
         hots.slice(0, 3).map(function (h) {
           return h.when + " " + h.label + " <b>" + esc(h.name) + " " + h.c + "/" + h.n + "건(" + h.pct + "%)</b>";
         }).join(", ") +
         (hots.length > 3 ? " 외 " + (hots.length - 3) + "곳" : "") + ". " +
         "<b>그 구간의 중위값은 사실상 그 단지 값</b>이라, 신축 입주장처럼 싼(또는 비싼) 물량이 " +
-        "한꺼번에 신고되면 시세가 급변한 것처럼 보입니다. <b>시세 변동으로 읽지 마세요.</b>");
+        "한꺼번에 신고되면 시세가 급변한 것처럼 보임. <b>시세 변동으로 읽지 말 것.</b>");
     }
     if (thin) {
-      notes.push("<b>표본 " + THIN + "건 미만 구간이 " + thin + "곳</b> 있습니다(전체 " + drawn + "곳). " +
-        "속이 빈 작은 점이 그 구간이고, <b>한두 건에 지수가 크게 출렁이니 시세 흐름으로 읽지 마세요.</b> " +
+      notes.push("<b>표본 " + THIN + "건 미만 구간이 " + thin + "곳</b> 있음(전체 " + drawn + "곳). " +
+        "속이 빈 작은 점이 그 구간이고, <b>한두 건에 지수가 크게 출렁이니 시세 흐름으로 읽지 말 것.</b> " +
         thinAdvice());
     }
     if (offMiss) notes.push(offMiss);
@@ -3406,13 +3406,13 @@
 
     document.getElementById("idxDesc").innerHTML =
       "조회 기간 <b>" + win().label + "</b> · " + (state.gran === "week" ? "주별" : "월별") + " 중위 평당가를 " +
-      (isIdx ? "첫 구간 100 기준으로 지수화" : "만원/평 그대로") + "했습니다. " +
-      "<b>점 위에 마우스를 올리면</b> 그 구간의 표본 건수와 실제 거래된 단지가 나옵니다." +
-      (state.gu === ALL ? " 자치구를 고르면 <b>공식(부동산원) 지수</b>와 겹쳐 볼 수 있습니다." : "");
+      (isIdx ? "첫 구간 100 기준으로 지수화" : "만원/평 그대로") + "함. " +
+      "<b>점 위에 마우스를 올리면</b> 그 구간의 표본 건수와 실제 거래된 단지가 나옴." +
+      (state.gu === ALL ? " 자치구를 고르면 <b>공식(부동산원) 지수</b>와 겹쳐 볼 수 있음." : "");
     var btn = document.getElementById("idxOfficialBtn");
     btn.classList.toggle("is-on", idxState.official);
     btn.disabled = state.gu === ALL;
-    btn.title = state.gu === ALL ? "자치구를 선택하면 공식 지수를 겹쳐 볼 수 있습니다" : "";
+    btn.title = state.gu === ALL ? "자치구를 선택하면 공식 지수를 겹쳐 볼 수 있음" : "";
   }
 
   document.querySelectorAll("#idxViewTabs button").forEach(function (b) {
@@ -3443,7 +3443,7 @@
 
   function pyRowsHtml(rows, type) {
     if (!rows || !rows.length) {
-      return '<tr class="empty-row"><td colspan="7">해당 기간 · 지역에 ' + TYPE_LABEL[type] + " 실거래가 없습니다.</td></tr>";
+      return '<tr class="empty-row"><td colspan="7">해당 기간 · 지역에 ' + TYPE_LABEL[type] + " 실거래가 없음.</td></tr>";
     }
     return rows.map(function (r, i) {
       var rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
@@ -3478,7 +3478,7 @@
     if (!rows || !rows.length) {
       return '<tr class="empty-row"><td colspan="4">해당 기간 · 지역에 ' + TYPE_LABEL[type] +
         " 거래가 " + (RANK_MIN[unit] || 3) + "건 이상인 " +
-        (unit === "gu" ? "자치구가" : unit === "dong" ? "법정동이" : "단지가") + " 없습니다.</td></tr>";
+        (unit === "gu" ? "자치구가" : unit === "dong" ? "법정동이" : "단지가") + " 없음.</td></tr>";
     }
     var mine = mineName(unit);
     return rows.map(function (r, i) {
@@ -3497,14 +3497,14 @@
     var pd = document.getElementById("pyDesc");
     if (pd) {
       pd.innerHTML = unit === "deal"
-        ? "금액이 아니라 <b>평당가(거래금액 ÷ 전용면적 ÷ 3.3058)</b> 상위 30건입니다. " +
-          "큰 평형이 밀리고 <b>작지만 비싼 단지</b>가 드러나므로, 금액 순위와 함께 보시면 좋습니다."
+        ? "금액이 아니라 <b>평당가(거래금액 ÷ 전용면적 ÷ 3.3058)</b> 상위 30건. " +
+          "큰 평형이 밀리고 <b>작지만 비싼 단지</b>가 드러나므로, 금액 순위와 함께 보면 좋음."
         : "<b>" + rankScopeLabel(unit) + "</b>의 " +
           (unit === "gu" ? "자치구별" : unit === "dong" ? "법정동별" : "단지별") +
-          " <b>중위 평당가</b> 순위입니다. 거래 한두 건으로 1등이 되지 않도록 " +
-          "<b>" + (RANK_MIN[unit] || 3) + "건 이상</b>만 셉니다." +
+          " <b>중위 평당가</b> 순위. 거래 한두 건으로 1등이 되지 않도록 " +
+          "<b>" + (RANK_MIN[unit] || 3) + "건 이상</b>만 셈." +
           (unit === "apt" ? "" :
-            ' <span class="dim-note">자치구별은 늘 서울 전체, 법정동별은 고른 자치구 안에서 견줍니다.</span>');
+            ' <span class="dim-note">자치구별은 늘 서울 전체, 법정동별은 고른 자치구 안에서 견줌.</span>');
     }
     if (unit === "deal") {
       document.getElementById("pyHead").innerHTML = PY_HEAD_DEAL;
@@ -3554,7 +3554,7 @@
     if (!rows || !rows.length) {
       var what = unit === "gu" ? "자치구가" : unit === "dong" ? "법정동이" : "단지가";
       return '<tr class="empty-row"><td colspan="6">전·후반부 모두 거래가 있는 ' + what +
-        " 없습니다. 조회 기간을 늘려 보세요.</td></tr>";
+        " 없음. 조회 기간을 늘려 볼 것.</td></tr>";
     }
     var mine = mineName(unit);
     return rows.map(function (r, i) {
@@ -3568,7 +3568,7 @@
         "<td>" + r.after.toLocaleString() + "만원</td>" +
         '<td style="font-weight:800;color:' + (up ? "var(--up)" : "var(--down)") + '">' +
           (up ? "+" : "") + r.rate.toFixed(1) + "%</td>" +
-        "<td>" + r.cnt + (few ? ' <span class="spread-warn" title="표본이 적어 등락이 과장될 수 있습니다">표본 적음</span>' : "") + "</td>" +
+        "<td>" + r.cnt + (few ? ' <span class="spread-warn" title="표본이 적어 등락이 과장될 수 있음">표본 적음</span>' : "") + "</td>" +
         "</tr>";
     }).join("");
   }
@@ -3585,9 +3585,9 @@
     document.getElementById("riseDesc").innerHTML =
       "조회 기간 <b>" + win().label + "</b>을 <b>정확히 반으로 나눠</b> " +
       "<b>" + rankScopeLabel(unit) + "</b>의 <b>" + uw + "</b> " +
-      "전반부 → 후반부 중위 평당가 변동률이 큰 순서입니다." +
+      "전반부 → 후반부 중위 평당가 변동률이 큰 순서." +
       (unit === "apt" ? "" :
-        ' <span class="dim-note">자치구별은 늘 서울 전체, 법정동별은 고른 자치구 안에서 견줍니다.</span>');
+        ' <span class="dim-note">자치구별은 늘 서울 전체, 법정동별은 고른 자치구 안에서 견줌.</span>');
 
     // 나머지 유형은 무거우므로 인쇄 직전에만 만든다(buildRisePrintAll)
     document.getElementById("risePrintAll").innerHTML = "";
@@ -3655,7 +3655,7 @@
     // 표본이 얇거나 한 단지에 쏠린 달이면, 등락률은 시세가 아니라
     // "어느 단지가 팔렸나"를 보여줄 뿐이다
     if (nCur < MIN_N || nPrev < MIN_N || hot) {
-      return '<span class="d-weak" title="표본이 적어 시세 변동으로 보기 어렵습니다">' +
+      return '<span class="d-weak" title="표본이 적어 시세 변동으로 보기 어려움">' +
              sign + r + "<sup>*</sup></span>";
     }
     var cls = Math.abs(r) < 1 ? "d-flat" : (r > 0 ? "d-up" : "d-down");
@@ -3688,8 +3688,8 @@
     var mo = monthlyBrief(regionKey());
     document.getElementById("briefTitle").textContent = regionLabel();
     document.getElementById("briefDesc").innerHTML =
-      "조회 기간 <b>" + win().label + "</b>을 <b>달 단위</b>로 끊어 정리했습니다. " +
-      "주간 그래프는 표본이 얇아 출렁이니, <b>고객께 말씀하실 숫자는 이 표에서</b> 가져가세요.";
+      "조회 기간 <b>" + win().label + "</b>을 <b>달 단위</b>로 끊어 정리. " +
+      "주간 그래프는 표본이 얇아 출렁이니, <b>고객께 말씀하실 숫자는 이 표에서</b> 가져갈 것.";
 
     var grid = document.getElementById("briefGrid");
     // 거래가 없으면 "없습니다" 한 줄로 자리를 차지하지 말고 섹션째 감춘다
@@ -3709,11 +3709,11 @@
       var t = "", pending = isPending(m);
       if (pending) t += ' <span class="brief-flag">집계중</span>';
       if (!pending && n > 0 && n < MIN_N) {
-        t += ' <span class="brief-thin" title="거래가 너무 적어 중위값을 시세로 보기 어렵습니다">적음</span>';
+        t += ' <span class="brief-thin" title="거래가 너무 적어 중위값을 시세로 보기 어려움">적음</span>';
       }
       if (hot && n) {
         t += ' <span class="brief-hot" title="' + esc(hot[0]) + ' 한 곳이 ' + hot[1] +
-             '건(' + Math.round(hot[1] / n * 100) + '%) — 중위값이 그 단지 값에 끌려갑니다">한곳 ' +
+             '건(' + Math.round(hot[1] / n * 100) + '%) — 중위값이 그 단지 값에 끌려감">한곳 ' +
              Math.round(hot[1] / n * 100) + '%</span>';
       }
       return t;
@@ -3769,10 +3769,10 @@
     if (use.length < 2) {
       var tot = mo.reduce(function (t, x) { return t + x.sale.n; }, 0);
       return conclHtml("매매로는 판단이 어려운 국면", "flat",
-        ["신고가 마감된 달 가운데 매매 " + MIN_N + "건을 넘긴 달이 " + use.length + "곳뿐입니다.",
-         "조회 기간 매매는 모두 " + tot.toLocaleString() + "건입니다."],
+        ["신고가 마감된 달 가운데 매매 " + MIN_N + "건을 넘긴 달이 " + use.length + "곳뿐.",
+         "조회 기간 매매는 모두 " + tot.toLocaleString() + "건."],
         "매매 흐름 대신 <b>전월세 표</b>와 <b>개별 단지</b>로 설명하시고, " +
-        "기간을 <b>6개월 이상</b>으로 넓혀 다시 보세요.");
+        "기간을 <b>6개월 이상</b>으로 넓혀 다시 볼 것.");
     }
 
     var vals = use.map(function (x) { return x.sale.py; });
@@ -3781,7 +3781,7 @@
 
     var why = ["<b>매매 중위 평당가</b>가 " + moLabel(a.m) + " " + pyNum(a.sale.py) +
       "만원에서 " + moLabel(b.m) + " " + pyNum(b.sale.py) + "만원으로 <b>" +
-      (ph.r >= 0 ? "+" : "\u2212") + Math.abs(ph.r).toFixed(1) + "%</b>입니다."];
+      (ph.r >= 0 ? "+" : "\u2212") + Math.abs(ph.r).toFixed(1) + "%</b>."];
 
     // 거래량 — 마감된 달끼리만
     var volWord = "";
@@ -3790,9 +3790,9 @@
       var n1 = v1.sale.n + v1.jeonse.n + v1.wolse.n, n2 = v2.sale.n + v2.jeonse.n + v2.wolse.n;
       if (n1) {
         var vr = (n2 - n1) / n1 * 100;
-        volWord = Math.abs(vr) < 10 ? "거래량은 비슷합니다"
-          : (vr > 0 ? "거래량이 <b>" + Math.round(vr) + "% 늘었습니다</b>"
-                    : "거래량이 <b>" + Math.round(-vr) + "% 줄었습니다</b>");
+        volWord = Math.abs(vr) < 10 ? "거래량은 비슷"
+          : (vr > 0 ? "거래량이 <b>" + Math.round(vr) + "% 늘어남</b>"
+                    : "거래량이 <b>" + Math.round(-vr) + "% 줄어듦</b>");
         why.push(moLabel(v1.m) + " " + n1.toLocaleString() + "건 → " + moLabel(v2.m) + " " +
           n2.toLocaleString() + "건으로 " + volWord + ".");
       }
@@ -3804,10 +3804,10 @@
       var jrA = Math.round(w[0].wolse.junRate * 100), jrB = Math.round(w[w.length - 1].wolse.junRate * 100);
       if (jrB - jrA >= 8) {
         why.push("전월세는 <b>준전세 비중이 " + jrA + "% → " + jrB + "%</b>로 늘어, " +
-          "<b>보증금을 올리고 월세를 낮추는 쪽</b>으로 움직였습니다.");
+          "<b>보증금을 올리고 월세를 낮추는 쪽</b>으로 움직임.");
       } else if (jrA - jrB >= 8) {
         why.push("전월세는 <b>준전세 비중이 " + jrA + "% → " + jrB + "%</b>로 줄어, " +
-          "<b>월세를 늘리는 쪽</b>으로 움직였습니다.");
+          "<b>월세를 늘리는 쪽</b>으로 움직임.");
       }
     }
 
@@ -3819,17 +3819,17 @@
 
     var advice;
     if (ph.tone === "warn") {
-      advice = "<b>달마다 크게 출렁여 한 숫자로 못박기 어렵습니다.</b> 관심 단지의 <b>같은 평형 최근 거래</b>를 직접 짚어 드리세요.";
+      advice = "<b>달마다 크게 출렁여 한 숫자로 못박기 어려움.</b> 관심 단지의 <b>같은 평형 최근 거래</b>를 직접 짚을 것.";
     } else if (ph.tone === "up") {
       advice = (volWord.indexOf("줄었") >= 0)
-        ? "<b>값은 오르는데 거래는 줄었습니다.</b> 호가만 오른 것일 수 있으니 <b>실제 성사가</b>를 꼭 확인하시라고 하세요."
-        : "<b>값과 거래가 함께 도는 구간</b>입니다. 매수 쪽이면 결정을 미루실수록 선택지가 줄어든다고 짚어 주세요.";
+        ? "<b>값은 오르는데 거래는 줄어듦.</b> 호가만 오른 것일 수 있으니 <b>실제 성사가</b>를 꼭 확인할 것."
+        : "<b>값과 거래가 함께 도는 구간</b>. 매수 쪽이면 결정을 미룰수록 선택지가 줄어듦.";
     } else if (ph.tone === "down") {
       advice = (volWord.indexOf("늘었") >= 0)
-        ? "<b>값은 내렸지만 거래는 늘었습니다.</b> 저가 매물이 소화되는 구간이라 <b>급매 위주로</b> 보시라고 권하세요."
-        : "<b>값도 거래도 식은 구간</b>입니다. 매도 쪽이면 가격 조정을, 매수 쪽이면 여유를 두시라고 말씀하세요.";
+        ? "<b>값은 내렸지만 거래는 늘어남.</b> 저가 매물이 소화되는 구간이라 <b>급매 위주로</b> 볼 것."
+        : "<b>값도 거래도 식은 구간</b>. 매도 쪽이면 가격 조정을, 매수 쪽이면 여유를 두시라고 말할 것.";
     } else {
-      advice = "<b>값이 크게 움직이지 않는 구간</b>입니다. 시세 협상보다 <b>층·향·수리 상태</b>로 조건을 맞추시는 편이 낫습니다.";
+      advice = "<b>값이 크게 움직이지 않는 구간</b>. 시세 협상보다 <b>층·향·수리 상태</b>로 조건을 맞추시는 편이 나음.";
     }
     return conclHtml(ph.tag, ph.tone, why, advice);
   }
@@ -3856,20 +3856,20 @@
         if (hotOnly.length) {
           why = "값을 쓸 만한 달이 " +
                 hotOnly.map(function (x) { return moLabel(x.m) + " <b>" + esc(get(x).hot[0]) + "</b>"; }).join(", ") +
-                "처럼 <b>한 단지에 몰려</b> 있어서 <b>달별 흐름을 말씀드리기 어렵습니다</b>. ";
-          how = "<b>구 전체로 넓혀</b> 보시거나, 아래 TOP10에서 <b>관심 단지를 직접</b> 짚어 드리겠습니다.";
+                "처럼 <b>한 단지에 몰려</b> 있어서 <b>달별 흐름을 말하기 어려움</b>. ";
+          how = "<b>구 전체로 넓혀</b> 보거나, 아래 TOP10에서 <b>관심 단지를 직접</b> 짚어 드림.";
         } else if (enough.length) {
           why = "값을 쓸 만한 달이 <b>" + moLabel(enough[0].m) + " 한 달뿐</b>이라 " +
-                "<b>비교해 드릴 대상이 없습니다</b>. ";
-          how = "<b>기간을 6개월 이상으로</b> 넓혀서 보시는 편이 낫습니다.";
+                "<b>비교해 드릴 대상이 없음</b>. ";
+          how = "<b>기간을 6개월 이상으로</b> 넓혀서 보는 편이 나음.";
         } else {
-          why = "달마다 " + MIN_N + "건이 안 돼 <b>달별 흐름을 말씀드리기 어렵습니다</b>. ";
-          how = "<b>기간을 6개월 이상으로</b> 넓혀서 보시는 편이 낫습니다.";
+          why = "달마다 " + MIN_N + "건이 안 돼 <b>달별 흐름을 말하기 어려움</b>. ";
+          how = "<b>기간을 6개월 이상으로</b> 넓혀서 보는 편이 나음.";
         }
         return head + why +
           "가장 최근은 " + moLabel(last1.m) + " " + get(last1).n + "건" +
           (get(last1).py ? ", 중위 평당가 " + pyNum(get(last1).py) + "만원" : "") +
-          "입니다. " + how;
+          ". " + how;
       }
 
       var a2 = pts[0], b2 = pts[pts.length - 1];
@@ -3900,7 +3900,7 @@
                moLabel(loM.m) + " " + Math.round(lo).toLocaleString() + "만원으로 <b>" +
                Math.round((hi - lo) / lo * 100) + "%</b>나 차이 발생. " +
                "<br>달마다 <b>어느 단지가 팔렸느냐</b>에 따라 중위값이 흔들린 것이라, " +
-               "오르내림보다 <b>관심 있는 단지를 직접 보시길</b> 권합니다.";
+               "오르내림보다 <b>관심 있는 단지를 직접 보길</b> 권함.";
         }
       }
 
@@ -3916,8 +3916,8 @@
       if (hots.length) {
         t += " (" + hots.map(function (x) {
           return moLabel(x.m) + "은 <b>" + esc(get(x).hot[0]) + "</b> 한 단지가 " + get(x).hot[1] + "건";
-        }).join(", ") + "이라 뺐습니다. 한 단지 물량이 통째로 신고되면 " +
-        "<b>그 달 중위값은 사실상 그 단지 값</b>이 됩니다.)";
+        }).join(", ") + "이라 제외. 한 단지 물량이 통째로 신고되면 " +
+        "<b>그 달 중위값은 사실상 그 단지 값</b>이 됨.)";
       }
       return t;
     }
@@ -3945,7 +3945,7 @@
       }
       out.push(t3);
     } else if (mo.some(function (x) { return x.wolse.n; })) {
-      out.push("<b>월세</b>는 달마다 " + MIN_N + "건이 안 돼 구조 변화를 말씀드리기 어렵습니다.");
+      out.push("<b>월세</b>는 달마다 " + MIN_N + "건이 안 돼 구조 변화를 말하기 어려움.");
     }
 
     // 거래량 — 집계중인 달은 비교에서 빼야 "급감"으로 잘못 읽지 않는다
@@ -3955,20 +3955,20 @@
       var na = va.sale.n + va.jeonse.n + va.wolse.n;
       var nb = vb.sale.n + vb.jeonse.n + vb.wolse.n;
       out.push("<b>거래량</b>은 " + moLabel(va.m) + " " + na.toLocaleString() + "건에서 " +
-        moLabel(vb.m) + " " + nb.toLocaleString() + "건입니다. " +
-        "(신고가 마감된 달끼리만 비교했습니다.)");
+        moLabel(vb.m) + " " + nb.toLocaleString() + "건. " +
+        "(신고가 마감된 달끼리만 비교.)");
     }
 
     var pend = mo.filter(function (x) { return isPending(x.m); });
     if (pend.length) {
       out.push("<b>" + pend.map(function (x) { return moLabel(x.m); }).join("·") +
-        " 숫자는 아직 확정이 아닙니다.</b> 실거래 신고 기한이 계약일로부터 30일이라 " +
-        "앞으로 건수가 더 늘어납니다. <b>지금 수치만 보고 거래가 끊겼다고 보시면 안 됩니다.</b>");
+        " 숫자는 아직 확정이 아님.</b> 실거래 신고 기한이 계약일로부터 30일이라 " +
+        "앞으로 건수가 더 늘어남. <b>지금 수치만 보고 거래가 끊겼다고 보면 안 됨.</b>");
     }
 
     out.push("여기 숫자는 모두 <b>국토교통부 실거래 신고 원본</b>이고, " +
-      regionLabel() + " " + win().label + " 구간입니다. 표의 <b>*</b>는 표본이 " + MIN_N +
-      "건이 안 돼 시세 변동으로 보기 어려운 등락률입니다.");
+      regionLabel() + " " + win().label + " 구간. 표의 <b>*</b>는 표본이 " + MIN_N +
+      "건이 안 돼 시세 변동으로 보기 어려운 등락률.");
 
     document.getElementById("briefScript").innerHTML =
       briefConcl(mo) + out.map(function (t) { return "<li>" + t + "</li>"; }).join("");
