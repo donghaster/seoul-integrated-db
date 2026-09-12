@@ -1452,6 +1452,8 @@ html[data-theme="dark"] .rank-table tbody tr.rank-mine { background: #1e2740; }
   scrollbar-width: thin; padding-bottom: 2px;
 }
 .stickytop .chip-wrap button { flex: none; }
+/* 칸 안에서 줄어들 수 있어야 '법정동' 글줄 옆에서 가로로 넘어간다 */
+.stickytop .filter-bar .ctl-full .chip-wrap { min-width: 0; flex: 1 1 auto; }
 
 /* 바로가기 — 가운데가 아니라 왼쪽부터, 한 줄을 넘지 않게 가로로 넘긴다 */
 .stickytop nav.section-nav {
@@ -1478,37 +1480,76 @@ html[data-theme="dark"] .rank-table tbody tr.rank-mine { background: #1e2740; }
   .stickytop .filter-bar,
   .stickytop nav.section-nav { padding-left: 12px; padding-right: 12px; }
 
-  .stickytop .topbar { padding-top: 7px; padding-bottom: 5px; flex-wrap: nowrap; }
+  /* 좁은 화면 기본 규칙이 상단바를 세로로 세워, 배지 한 줄 + 나머지 한 줄로
+     35px을 더 먹었다. 고정 막대 안에서는 가로 한 줄로 붙인다. */
+  .stickytop .topbar {
+    padding-top: 7px; padding-bottom: 5px;
+    flex-direction: row; flex-wrap: nowrap; align-items: center;
+  }
+  /* 라이트/다크/자동은 폰에서 173px을 먹으면서 상호·전화를 왼쪽으로 124px
+     밀어내 '010-'이 잘렸다. 폰은 '자동'이 기기 설정을 따라가니 접는다. */
+  .stickytop .theme-toggle { display: none; }
   /* 좁은 화면 기본 규칙이 둘 다 100% 너비로 만들어 위아래로 쌓았다.
      고정 막대 안에서는 한 줄로 붙인다. */
-  .stickytop .brand { flex: 0 0 auto; flex-basis: auto; min-width: 0; }
+  .stickytop .brand { flex: 0 0 auto; flex-basis: auto; width: auto; min-width: 0; }
   .stickytop .brand-titles, .stickytop .brand-sub { display: none; }
   .stickytop .geumjib-badge { height: 28px; width: 28px; }
   .stickytop .topbar-right {
-    flex: 1 1 auto; flex-basis: auto; gap: 7px; flex-wrap: nowrap;
+    flex: 1 1 auto; flex-basis: auto; width: auto; gap: 7px; flex-wrap: nowrap;
     overflow: hidden; justify-content: flex-end;
   }
+  /* 상호·전화는 줄지 않게 — 줄면 '010-'부터 잘려 나간다 */
+  .stickytop .brand-plate { flex: 0 0 auto; }
+  .stickytop .print-btn { flex: 0 0 auto; }
   .stickytop .fetched, .stickytop .home-link { display: none; }
   .stickytop .print-btn { padding: 6px 10px; font-size: 12px; }
 
   /* 상호·전화는 폰에서도 남긴다 — 손님께 보여 주는 화면이다.
      다만 로고 그림은 자리를 먹으니 글자만 쓴다. */
   .stickytop .brand-plate {
-    display: inline-flex; padding: 2px 8px; border-radius: 8px; min-width: 0;
+    display: inline-flex; padding: 2px 8px; border-radius: 8px;
+    min-width: 0; flex: 0 1 auto; overflow: hidden;
   }
   .stickytop .brand-plate .logo { display: none; }
   .stickytop .brand-plate .brand-plate-fallback {
     display: inline-flex; align-items: center; gap: 2px; font-size: 11.5px;
   }
 
-  /* 지역 선택은 한 줄에 눕힌다 */
-  .stickytop .filter-bar { padding-bottom: 6px; gap: 6px 10px; flex-wrap: nowrap; overflow-x: auto; }
-  .stickytop .filter-bar > .ctl { flex: none; }
+  /* 지역 선택 — 자치구·기간은 첫 줄에, 법정동 칩은 그 아래 한 줄에.
+     nowrap으로 다 밀어붙이면 법정동 줄이 997px까지 뻗어 옆으로 긁어야
+     나온다. 줄바꿈은 허용하되 칩 띠 자체만 가로로 넘긴다. */
+  .stickytop .filter-bar { padding-bottom: 6px; gap: 6px 10px; flex-wrap: wrap; }
+  .stickytop .filter-bar > .ctl { flex: 0 1 auto; min-width: 0; }
+  /* 고르개가 150px씩 벌어져 뉴타운은 세 줄로 쌓였다. 글자는 다 보이는
+     선에서 눌러 두 개가 한 줄에 서게 한다. */
+  .stickytop .filter-bar .ctl select { min-width: 96px; max-width: 122px; }
   .stickytop .filter-bar select { min-width: 96px; font-size: 12.5px; }
+  /* 상권 고르개만은 좁히지 않는다 — '신논현역 1번 · 14,260명'처럼 이름이
+     길고, 이 화면에서는 그 이름이 가장 중요한 정보다. 한 줄을 통째로 준다. */
+  .stickytop .scope-bar .scope-sel { flex: 1 1 140px; max-width: 100%; }
+  .stickytop .scope-bar #selTrade { flex: 1 0 100%; }
+  /* 빠른 기간 단추는 폰에서 세 줄로 접혀 막대를 79px 부풀렸다.
+     한 줄로 눕히고 그 띠 안에서만 옆으로 넘긴다 — 자치구와 같은 줄에 선다. */
+  .stickytop .filter-bar .ctl-grow { flex: 1 1 110px; min-width: 0; }
+  .stickytop .filter-bar .ctl-grow .tab-row {
+    flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
+    scrollbar-width: thin; min-width: 0; flex: 1 1 auto;
+  }
+  .stickytop .filter-bar .ctl-grow .tab-row button { flex: none; }
   .stickytop .filter-bar label { font-size: 11px; }
   .stickytop .filter-note { display: none; }
-  /* 법정동 칩은 아래 한 줄을 통째로 쓴다 */
+  /* 법정동은 아래 한 줄을 통째로 쓰고, 칩이 많으면 그 안에서 옆으로 넘긴다.
+     '선택한 구 내' 같은 덧말은 폰에서 자리만 먹으니 접는다. */
   .stickytop .filter-bar .ctl-full { flex: 1 0 100%; }
+  .stickytop .filter-bar .ctl-full label .dim-note { display: none; }
+}
+
+/* 더 좁은 폰(360·320px) — 배지+상호전화+인쇄가 343px이라 7px이 모자라
+   상호가 왼쪽부터 잘렸다. 인쇄 단추를 그림쇠 하나로 줄여 자리를 낸다.
+   상담 중에 폰으로 인쇄할 일은 없으니 글자는 접어도 된다. */
+@media (max-width: 400px) {
+  .stickytop .print-btn { font-size: 0; padding: 6px 8px; }
+  .stickytop .print-btn::first-letter { font-size: 14px; }
 }
 
 @media print { .stickytop { position: static; box-shadow: none; border: 0; } }
