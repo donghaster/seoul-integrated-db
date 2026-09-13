@@ -1968,6 +1968,15 @@ html[data-theme="dark"] .near-tag { color: var(--accent); }
 @media print {
   /* 지도 두 장을 한 칸에 모아 같은 쪽에 둔다(JS가 옮겨 붙인다). */
   #sec-map { break-inside: avoid; }
+
+  /* 지도 쪽은 지도만 쓰게 둔다.
+
+     뒤 섹션(실거래 가격지수)의 머리와 설명이 지도 밑에 몇 줄 따라붙으면,
+     지도를 보다 말고 다른 이야기를 읽게 된다 — 상담에서 짚는 자리가 흐려진다.
+     대신 그만큼 지도를 키워 쪽을 채운다. 짝을 지었을 때만 — 단지를 안 고르면
+     주변 입지가 없어 지도 한 장뿐이고, 그때 쪽을 통째로 비우면 낭비다. */
+  #sec-map.has-pair { break-after: page; }
+  #sec-map.has-pair .near-map { height: 365px !important; }
   #sec-map .near-wrap { margin-top: 10px; padding-top: 10px; }
 
   /* 좁은 종이에서는 지도와 옆 상세가 위아래로 쌓여 한 쪽을 다 먹는다.

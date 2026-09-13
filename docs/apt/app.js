@@ -4904,8 +4904,11 @@
   var mapsShrunk = [];
   function shrinkMapsForPrint() {
     mapsShrunk = [];
+    /* 지도 쪽을 지도 전용으로 쓰기로 했으니(뒤에 다른 섹션이 붙지 않는다)
+       남는 자리를 주변 입지 지도에 몰아 준다. 짝을 못 지었을 때는 원래 크기. */
+    var nearH = document.getElementById("sec-map").classList.contains("has-pair") ? 365 : 270;
     [[document.getElementById("aptMap"), typeof map !== "undefined" ? map : null, 270],
-     [document.getElementById("nearMap"), nearMap, 270]].forEach(function (x) {
+     [document.getElementById("nearMap"), nearMap, nearH]].forEach(function (x) {
       var el = x[0], mp = x[1];
       if (!el || !mp || el.offsetParent === null) return;
       // 보던 자리를 적어 둔다 — 인쇄가 끝나면 그대로 되돌려 놓는다
@@ -4965,8 +4968,11 @@
     if (!near || !host || document.body.classList.contains("printing-one")) return;
     nearHome = { parent: near.parentNode, next: near.nextSibling };
     host.appendChild(near);
+    host.classList.add("has-pair");    // 짝을 지은 쪽에만 걸리는 규칙이 있다
   }
   function unpairMaps() {
+    var host = document.getElementById("sec-map");
+    if (host) host.classList.remove("has-pair");
     if (!nearHome) return;
     var near = document.getElementById("sec-near");
     if (near) nearHome.parent.insertBefore(near, nearHome.next);
