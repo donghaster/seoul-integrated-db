@@ -545,7 +545,17 @@ section[data-tabpanel].is-on { display: block; }
     padding: 9px 11px; margin-bottom: 7px;
   }
   section.card-section:hover { box-shadow: none; }
-  .sec-head, .sec-desc, h2, h3, h4 { break-after: avoid; }
+  /* 제목은 제 내용과 붙여 둔다. 다만 '설명글'까지 붙이면 안 된다 —
+     제목+설명+그 다음 덩이(그래프나 표)가 통째로 묶여 300~750px가 되고,
+     그만큼이 앞 장 아래에 못 들어가면 통째로 다음 장으로 넘어간다. 앞 장은
+     허옇게 비고, 넘어간 자리는 엉뚱한 쪽 머리에 붙는다. 제목과 설명까지만
+     붙여 두면(70px 남짓) 그런 일이 없다. */
+  .sec-head, h2, h3 { break-after: avoid; }
+  /* h4(소제목)는 붙이지 않는다. 뒤따르는 것이 대개 400~560px짜리 표라,
+     붙여 두면 표가 안 들어갈 때 소제목까지 통째로 넘어가며 앞 장 아래가
+     그만큼 빈다. 표는 제 머리글을 이고 다니므로(thead), 소제목이 앞 장
+     아래에 남고 표가 다음 장에서 시작해도 읽는 데 지장이 없다. */
+  h4 { break-after: auto; }
   thead { display: table-header-group; }
   tr { break-inside: avoid; }
   p, li { orphans: 3; widows: 3; }
@@ -635,6 +645,7 @@ section[data-tabpanel].is-on { display: block; }
   .tab-row button.active .tab-tail { display: inline; }
 
   table.rank-table td { padding: 4px 5px; }
+  table.rank-table caption { font-size: 13px; margin: 10px 0 5px; }
   table.rank-table th { padding: 4px 5px; }
 
   /* 설명글과 안내 상자의 줄 간격을 조금 좁힌다. 읽는 데 지장이 없는 선에서,
@@ -783,7 +794,9 @@ section[data-tabpanel].is-on { display: block; }
 @media print {
   .finder-bar, .finder-drop { display: none !important; }
   .apt-card { break-inside: auto; background: #fff; padding: 12px 14px 14px; }
-  .apt-card h4 { break-after: avoid; margin: 12px 0 6px; }
+  /* 소제목을 뒤 표와 붙이지 않는다 — 붙이면 500px짜리 표가 안 들어갈 때
+     소제목까지 통째로 넘어가며 앞 장 아래가 그만큼 빈다. */
+  .apt-card h4 { break-after: auto; margin: 12px 0 6px; }
   .apt-card .table-wrap { break-inside: auto; }
 }
 .apt-flag {
@@ -2006,4 +2019,13 @@ html[data-theme="dark"] .near-tag { color: var(--accent); }
   #sec-map .near-lists { grid-template-columns: repeat(6, 1fr); gap: 6px 10px; }
   #sec-map .near-row { font-size: 10px; line-height: 1.42; }
   #sec-map .near-col-h { font-size: 11px; padding-bottom: 3px; margin-bottom: 3px; }
+}
+
+/* 인쇄용 표의 이름표. h3로 표 위에 따로 두면 '제목은 뒤와 붙여 둔다'는 규칙에
+   묶여 표 전체(500px)가 함께 움직인다 — 앞 장이 그만큼 빈다. 표 안의 caption으로
+   두면 제목은 표 머리에 붙어 있으면서 표는 장을 넘어 이어질 수 있다. */
+table.rank-table caption {
+  caption-side: top; text-align: left;
+  font-size: 15px; font-weight: 800; color: var(--txt);
+  margin: 18px 0 8px;
 }

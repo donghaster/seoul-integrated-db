@@ -1433,9 +1433,9 @@
     document.getElementById("dealPrintAll").innerHTML = TYPES.filter(function (t) { return t !== type; })
       .map(function (t) {
         var pr = topRows(t).slice(0, PRINT_EXTRA);
-        return '<h3 style="margin:18px 0 8px; font-size:15px;">' + regionLabel() + " · " + TYPE_LABEL[t] +
-          (b.k === "all" ? "" : " · " + b.name) + " 실거래가 TOP " + pr.length + "</h3>" +
-          '<table class="rank-table"><thead><tr><th>순위</th><th>단지명</th>' +
+        return '<table class="rank-table"><caption>' + regionLabel() + " · " + TYPE_LABEL[t] +
+          (b.k === "all" ? "" : " · " + b.name) + " 실거래가 TOP " + pr.length + "</caption>" +
+          '<thead><tr><th>순위</th><th>단지명</th>' +
           '<th>분양면적<span class="th-sub">㎡ (평) · 전용</span></th><th>층</th><th>' +
           (t === "wolse" ? "보증금 / 월세" : "거래가") +
           '</th><th>평당가<span class="th-sub">공급 · 전용</span></th><th>거래일</th></tr></thead><tbody>' +
@@ -4410,9 +4410,9 @@
       .filter(function (t) { return t !== pyState.type; })
       .map(function (t) {
         var pr = (tops[t] || []).slice(0, PRINT_EXTRA);
-        return '<h3 style="margin:18px 0 8px; font-size:15px;">' + regionLabel() + " · " + TYPE_LABEL[t] +
-          " 평당가격 TOP " + pr.length + "</h3>" +
-          '<table class="rank-table"><thead><tr><th>순위</th><th>단지명</th>' +
+        return '<table class="rank-table"><caption>' + regionLabel() + " · " + TYPE_LABEL[t] +
+          " 평당가격 TOP " + pr.length + "</caption>" +
+          '<thead><tr><th>순위</th><th>단지명</th>' +
           '<th>분양면적<span class="th-sub">㎡ (평) · 전용</span></th>' +
           '<th>층</th><th>거래가</th><th>평당가<span class="th-sub">공급 · 전용</span></th><th>거래일</th></tr></thead><tbody>' +
           pyRowsHtml(pr, t) + "</tbody></table>";
@@ -4489,9 +4489,9 @@
       .filter(function (t) { return t !== riseState.type; })
       .map(function (t) {
         var pr = riseOf(rankScope(riseState.unit), t, riseState.unit).slice(0, PRINT_EXTRA);
-        return '<h3 style="margin:18px 0 8px; font-size:15px;">' + regionLabel() + " · " + TYPE_LABEL[t] +
-          " 평당가 상승률 TOP " + pr.length + "</h3>" +
-          '<table class="rank-table"><thead><tr><th>순위</th><th>단지명</th><th>전반부</th><th>후반부</th><th>변동률</th><th>거래</th></tr></thead><tbody>' +
+        return '<table class="rank-table"><caption>' + regionLabel() + " · " + TYPE_LABEL[t] +
+          " 평당가 상승률 TOP " + pr.length + "</caption>" +
+          '<thead><tr><th>순위</th><th>단지명</th><th>전반부</th><th>후반부</th><th>변동률</th><th>거래</th></tr></thead><tbody>' +
           riseRowsHtml(pr, riseState.unit) +
           "</tbody></table>";
       }).join("");
