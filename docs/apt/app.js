@@ -28,6 +28,7 @@
     gran: "month",                 // 집계 단위: week | month
     dealType: "sale",
     dealBand: "all",               // 실거래 TOP30 평형대 — all | u20 | 20 | 30 … | 80
+    cmpBand: "all",                // 가격비교 평형대 — 같은 칸을 따로 기억한다
     cmpOn: { sale: true, jeonse: true, wolse: true },
     volRank: "gu",
   };
@@ -1337,6 +1338,26 @@
     });
   })();
 
+  /* 가격비교의 평형대 칸 — 실거래 TOP30과 같은 모양, 같은 규칙.
+     고객이 "34평은 어떤가요" 하고 물으면 세 유형을 그 평형대로 함께 좁혀
+     보여 줄 수 있어야 한다. 전체로만 보면 세 선이 모두 대형 평형 이야기다. */
+  (function initCmpBandTabs() {
+    var host = document.getElementById("cmpBandTabs");
+    if (!host) return;
+    host.innerHTML = DEAL_BANDS.map(function (b) {
+      return '<button data-b="' + b.k + '"' + (b.k === "all" ? ' class="active"' : "") +
+        ">" + b.name + "</button>";
+    }).join("");
+    host.addEventListener("click", function (e) {
+      var btn = e.target.closest("button[data-b]");
+      if (!btn) return;
+      host.querySelectorAll("button").forEach(function (x) { x.classList.remove("active"); });
+      btn.classList.add("active");
+      state.cmpBand = btn.dataset.b;
+      renderCompare();
+    });
+  })();
+
   /* ════════════════ ② 매매·전세·월세 가격비교 ════════════════ */
 
   var cmpRankChart = null, cmpMonthChart = null;
@@ -1369,12 +1390,23 @@
     return { pct: Math.round(row.v / mid * 1000) / 10, n: sale.length, mid: mid };
   }
 
+  /* 가격비교가 쓸 TOP 행 — 평형대를 따른다.
+
+     실거래 TOP30과 칸을 따로 기억한다. 저쪽에서 30평대를 보다가 이쪽으로
+     내려왔을 때 화면이 멋대로 좁아져 있으면 무엇을 보고 있는지 놓친다. */
+  function cmpRows(type) {
+    return state.cmpBand === "all"
+      ? (region().top[type] || [])
+      : bandTop(regionKey(), type, state.cmpBand);
+  }
+
   function renderCompare() {
     var r = region();
+    var tops = { sale: cmpRows("sale"), jeonse: cmpRows("jeonse"), wolse: cmpRows("wolse") };
     var labels = ["1위", "2위", "3위", "4위", "5위", "6위", "7위", "8위", "9위", "10위"];
 
     var rankSets = TYPES.map(function (t) {
-      var rows = r.top[t] || [];
+      var rows = tops[t] || [];
       return {
         label: TYPE_LABEL[t],
         _type: t,
@@ -1403,7 +1435,7 @@
           callbacks: {
             label: function (c) {
               var t = c.dataset._type;
-              var row = (r.top[t] || [])[c.dataIndex];
+              var row = (tops[t] || [])[c.dataIndex];
               if (!row) return c.dataset.label + ": -";
               var txt = c.dataset.label + " " + c.parsed.y + "억 — " + row.n + " " + row.a + "㎡";
               if (t === "jeonse") {
@@ -1429,7 +1461,7 @@
     var months = bucketList();
     var monthLabels = bucketLabels();
     var monthSets = TYPES.map(function (t) {
-      var rows = (r.top[t] || []).slice(0, 10);   // 차트는 TOP10만
+      var rows = (tops[t] || []).slice(0, 10);   // 차트는 TOP10만
       var bucket = {};
       rows.forEach(function (row) {
         var ym = bucketKey(row.d);
@@ -1461,12 +1493,22 @@
       },
     });
 
+    var bNote = document.getElementById("cmpBandNote");
+    if (bNote) {
+      var bb = bandOf(state.cmpBand);
+      var most = Math.max(tops.sale.length, tops.jeonse.length, tops.wolse.length);
+      bNote.innerHTML = bb.k === "all" ? "" :
+        "<b>" + esc(bb.name) + "</b>" +
+        (most ? " 안에서 다시 줄 세움" : " 거래 없음") +
+        ' <span class="dim-note">분양 평수 기준 · 같은 단지 같은 평형은 3건까지</span>';
+    }
+
     // 요약 카드
     document.getElementById("cmpSummary").innerHTML = TYPES.map(function (t) {
       /* r.top은 30건까지 들고 있다(아래 표가 쓴다). 이 카드는 위 그래프와
          같은 것을 말해야 하므로 10건만 본다 — '1위–10위 격차'라고 적어 놓고
          30위까지 재고 있었다(반포동 매매 42억을 60억으로 적었다). */
-      var rows = (r.top[t] || []).slice(0, 10);
+      var rows = (tops[t] || []).slice(0, 10);
       if (!rows.length) {
         return '<div class="stat-box"><div class="label">' + TYPE_LABEL[t] + " TOP10</div>" +
           '<div class="value">-</div><div class="sub">실거래 없음</div></div>';

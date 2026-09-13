@@ -352,12 +352,16 @@
     </div>
     <p class="sec-desc"><b>점 하나 = 실거래 한 건</b>. 평균이 아니라 그 기간 가장 비싼 거래를 1위부터 10위까지 줄 세운 것.<br />
       아래 막대는 그 열 건이 <b>실제로 어느 달에 있었는지</b> 되돌려 놓은 것 — 천장이 언제 찍혔는지가 여기서 보임.<br />
-      매매가·전세보증금·월세 환산보증금을 <b>같은 억원 축</b>에 올림. 아래 버튼으로 항목을 껐다 켤 수 있음.</p>
+      매매가·전세보증금·월세 환산보증금을 <b>같은 억원 축</b>에 올림. 아래 버튼으로 항목을 껐다 켤 수 있음.<br />
+      <b>평형대</b>를 고르면 세 유형을 모두 그 평형대 안에서 다시 줄 세움 &mdash; <b>분양 평수 기준</b>이라 고객이 말씀하시는 평수와 같음.</p>
     <div class="tab-row" id="compareToggle">
       <button class="active" data-type="sale">매매</button>
       <button class="active" data-type="jeonse">전세</button>
       <button class="active" data-type="wolse">월세(환산)</button>
     </div>
+    <!-- 평형대는 JS에서 채운다(app.js DEAL_BANDS) -->
+    <div class="tab-row seg-sm band-tabs" id="cmpBandTabs" aria-label="평형대"></div>
+    <p class="band-note" id="cmpBandNote"></p>
     <div class="chart-box" style="height:300px;"><canvas id="cmpRankChart"></canvas></div>
     <div class="chart-box" style="height:300px; margin-top:20px;"><canvas id="cmpMonthChart"></canvas></div>
     <div class="stat-row" id="cmpSummary" style="margin-top:22px;"></div>
@@ -517,6 +521,6 @@
 <script src="../data/locinfo.js?v=e97bc091b7"></script>
 <script src="../data/newtown.js?v=8ba14b3baf"></script>
 <script src="../shared/brand.js?v=717bc69d33"></script>
-<script src="app.js?v=a23cde9de2"></script>
+<script src="app.js?v=a6c8cb56ab"></script>
 </body>
 </html>
