@@ -542,7 +542,7 @@ section[data-tabpanel].is-on { display: block; }
      찍는다. 끊긴 자리를 알아볼 수 있으면 빈 장을 만들 까닭이 없다. */
   section.card-section {
     box-shadow: none; border: 1px solid #ccc; break-inside: auto;
-    padding: 12px 14px; margin-bottom: 10px;
+    padding: 9px 11px; margin-bottom: 7px;
   }
   section.card-section:hover { box-shadow: none; }
   .sec-head, .sec-desc, h2, h3, h4 { break-after: avoid; }
@@ -611,13 +611,27 @@ section[data-tabpanel].is-on { display: block; }
   body.printing-one section.card-section.print-target { display: block !important; }
 
   /* 차트는 캔버스 크기가 고정되어야 잘리지 않는다 */
-  .chart-box { height: 250px !important; break-inside: avoid; }
+  /* 그래프 칸을 줄인다. 종이에서는 점 하나하나를 짚기보다 모양을 보는 것이라
+     이 높이로 충분하고, 한 장에 들어가는 줄이 그만큼 늘어난다. */
+  .chart-box { height: 205px !important; break-inside: avoid; }
   .chart-grid { grid-template-columns: 1fr 1fr; }
-  .leaflet-map { height: 360px !important; }
+  .leaflet-map { height: 270px !important; }
   .filter-bar { border: 1px solid #ccc; box-shadow: none; padding: 8px 12px; }
   .filter-bar select { border: none; padding: 2px 0; background: none; -webkit-appearance: none; appearance: none; }
   table.rank-table { font-size: 11.5px; }
-  table.rank-table td { padding: 6px 6px; }
+  table.rank-table td { padding: 4px 5px; }
+  table.rank-table th { padding: 4px 5px; }
+
+  /* 설명글과 안내 상자의 줄 간격을 조금 좁힌다. 읽는 데 지장이 없는 선에서,
+     한 장에 담기는 양을 늘리는 가장 값싼 방법이다. */
+  .sec-desc { font-size: 11.5px; line-height: 1.5; margin: 0 0 9px; }
+  .read-guide { padding: 9px 12px; margin-top: 10px !important; }
+  .read-guide ol { margin: 4px 0 0; padding-left: 17px; }
+  .read-guide li { line-height: 1.5; margin-bottom: 4px; }
+  .sec-head { margin-bottom: 6px; }
+  h2 { font-size: 16px; margin: 0; }
+  .brief-grid { gap: 7px; }
+  footer.disclaimer { padding: 8px 0 0; font-size: 10px; }
   .loc-detail { display: block !important; }
   /* 입지분석 5개 항목은 인쇄에서 항목마다 끊어 읽기 좋게 */
   .loc-print-block { break-inside: avoid; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #ddd; }
@@ -1825,7 +1839,7 @@ html[data-theme="dark"] .near-tag { color: var(--accent); }
 @media print {
   .near-wrap { margin-top: 16px; padding-top: 12px; break-before: auto; }
   .near-chips { display: none !important; }   /* 종이에서는 누를 수 없다 */
-  .near-map { height: 420px !important; break-inside: avoid; }
+  .near-map { height: 270px !important; break-inside: avoid; }
   .near-lists { grid-template-columns: repeat(4, 1fr); gap: 8px 14px; margin-top: 10px; }
   .near-col { break-inside: avoid; }
   .near-row { font-size: 11px; line-height: 1.5; }
@@ -1952,6 +1966,20 @@ html[data-theme="dark"] .near-tag { color: var(--accent); }
    종이로 짚는 자리라 잘리면 쓸모가 크게 준다. 둘 다 한 쪽이 안 되는 크기이므로
    통째로 묶어도 버려지는 자리가 한 쪽을 넘지 않는다. */
 @media print {
-  #sec-map, .near-wrap { break-inside: avoid; }
-  .near-wrap { break-before: auto; }
+  /* 지도 두 장을 한 칸에 모아 같은 쪽에 둔다(JS가 옮겨 붙인다). */
+  #sec-map { break-inside: avoid; }
+  #sec-map .near-wrap { margin-top: 10px; padding-top: 10px; }
+
+  /* 좁은 종이에서는 지도와 옆 상세가 위아래로 쌓여 한 쪽을 다 먹는다.
+     나란히 두면 그만큼이 통째로 줄어든다. */
+  #sec-map .map-flex { display: grid; grid-template-columns: 1.45fr 1fr; gap: 10px; align-items: start; }
+  #sec-map .zone-detail-wrap { max-height: 270px; overflow: hidden; }
+  /* 한 쪽에 두 지도를 담아야 하니 설명은 한 줄로 줄인다 */
+  #sec-map .sec-desc { font-size: 10.5px; line-height: 1.4; margin: 2px 0 6px; }
+  #sec-map .near-head { margin-bottom: 6px; }
+
+  /* 시설 목록은 여섯 칸으로 눕혀 두 줄에 담는다 */
+  #sec-map .near-lists { grid-template-columns: repeat(6, 1fr); gap: 6px 10px; }
+  #sec-map .near-row { font-size: 10px; line-height: 1.42; }
+  #sec-map .near-col-h { font-size: 11px; padding-bottom: 3px; margin-bottom: 3px; }
 }

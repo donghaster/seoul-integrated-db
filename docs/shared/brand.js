@@ -406,7 +406,12 @@
 
   /* ── 전체 인쇄 ── */
   var printAll = document.getElementById("printAllBtn");
-  if (printAll) printAll.addEventListener("click", function () { window.print(); });
+  /* 화면 쪽에서 인쇄 채비(지도 줄이기·타일 기다리기 등)를 할 수 있게 한 박자 준다.
+     채비가 없는 대시보드는 그대로 바로 인쇄한다. */
+  if (printAll) printAll.addEventListener("click", function () {
+    Promise.resolve(window.preparePrint ? window.preparePrint() : null)
+      .then(function () { window.print(); });
+  });
 
   /* ── TOP 10 3종 전환 탭 ──
      화면에서는 한 번에 한 섹션만 보여주고, 인쇄(@media print)에서는 CSS가 셋 다 편다. */

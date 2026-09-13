@@ -4904,8 +4904,8 @@
   var mapsShrunk = [];
   function shrinkMapsForPrint() {
     mapsShrunk = [];
-    [[document.getElementById("aptMap"), typeof map !== "undefined" ? map : null, 360],
-     [document.getElementById("nearMap"), nearMap, 420]].forEach(function (x) {
+    [[document.getElementById("aptMap"), typeof map !== "undefined" ? map : null, 270],
+     [document.getElementById("nearMap"), nearMap, 270]].forEach(function (x) {
       var el = x[0], mp = x[1];
       if (!el || !mp || el.offsetParent === null) return;
       // 보던 자리를 적어 둔다 — 인쇄가 끝나면 그대로 되돌려 놓는다
@@ -4955,7 +4955,47 @@
     if (host) host.innerHTML = "";
   }
 
-  window.addEventListener("beforeprint", function () {
+  /* 주변 입지는 단지 상세 안에 있고 TOP10 지도는 한참 아래 따로 있어, 종이로
+     뽑으면 두 지도가 다른 장에 흩어진다. 상담에서는 "여기가 어디고, 둘레에 뭐가
+     있나"를 나란히 놓고 짚는다. 인쇄할 때만 한 칸으로 모아 같은 장에 둔다. */
+  var nearHome = null;
+  function pairMaps() {
+    var near = document.getElementById("sec-near");
+    var host = document.getElementById("sec-map");
+    if (!near || !host || document.body.classList.contains("printing-one")) return;
+    nearHome = { parent: near.parentNode, next: near.nextSibling };
+    host.appendChild(near);
+  }
+  function unpairMaps() {
+    if (!nearHome) return;
+    var near = document.getElementById("sec-near");
+    if (near) nearHome.parent.insertBefore(near, nearHome.next);
+    nearHome = null;
+  }
+
+  /* 지도 칸을 줄이면 배율이 바뀌어 타일을 새로 받아야 한다. 그런데 인쇄는
+     기다려 주지 않아, 받다 만 지도가 조각난 채로 찍힌다 — 주변 입지 지도가
+     깨져 나오던 것이 그것이다. 그래서 '전체 인쇄'는 타일이 다 올 때까지
+     기다렸다 인쇄로 넘긴다. */
+  window.preparePrint = function () {
+    prepPrint();
+    return new Promise(function (done) {
+      var t0 = Date.now();
+      (function tick() {
+        var busy = false;
+        mapsShrunk.forEach(function (x) {
+          x.mp.eachLayer(function (l) { if (l._loading) busy = true; });
+        });
+        if (!busy || Date.now() - t0 > 3000) { setTimeout(done, 250); return; }
+        setTimeout(tick, 120);
+      })();
+    });
+  };
+
+  var prepped = false;
+  function prepPrint() {
+    if (prepped) return;
+    prepped = true;
     PRINTING = true;
     renderCompare();
     renderVolume();
@@ -4965,15 +5005,20 @@
     renderRise();
     buildRisePrintAll();
     moveCaveatsToBack();
+    pairMaps();
     shrinkMapsForPrint();
-  });
+  }
+
+  window.addEventListener("beforeprint", prepPrint);
   window.addEventListener("afterprint", function () {
+    prepped = false;
     PRINTING = false;
     renderDeal();
     renderPy();
     renderRise();
     renderVolume();          // 거래량 순위도 화면 쪽 서른 줄로 되돌린다
     restoreCaveats();
+    unpairMaps();
     restoreMaps();
   });
 
