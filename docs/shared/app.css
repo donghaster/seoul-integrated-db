@@ -254,15 +254,16 @@ table.rank-table tr:hover td { background: var(--accent-pale); }
 .chart-box.vol-trend-box { height: 340px; }
 .vol-trend-note { margin: 6px 0 0; font-size: 12px; line-height: 1.6; color: var(--txt-mute); }
 .vol-trend-note b { color: var(--accent-2); }
-#volRankBody .vol-pick { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
-#volRankBody .vol-pick:hover { color: var(--accent); }
-#volRankBody tr.vol-focus td { background: var(--accent-light); font-weight: 700; }
+/* 아파트·비아파트는 #volRankBody, 상가·오피스텔은 #volGuBody */
+#volRankBody .vol-pick, #volGuBody .vol-pick { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+#volRankBody .vol-pick:hover, #volGuBody .vol-pick:hover { color: var(--accent); }
+#volRankBody tr.vol-focus td, #volGuBody tr.vol-focus td { background: var(--accent-light); font-weight: 700; }
 @media (max-width: 760px) { .chart-box.vol-trend-box { height: 260px; } }
 @media print {
   /* 종이에서는 누를 수 없으니 지금 보고 있는 것 하나만 글자로 남긴다 */
   .vts-cap, .vts-chip:not(.is-on) { display: none !important; }
   .vts-chip.is-on { border: 0; background: none; padding: 0; color: var(--txt); font-size: 12px; }
-  #volRankBody .vol-pick { text-decoration: none; }
+  #volRankBody .vol-pick, #volGuBody .vol-pick { text-decoration: none; }
 }
 .chart-box { position: relative; height: 300px; }
 @media (max-width: 860px) { .chart-grid { grid-template-columns: 1fr; } }

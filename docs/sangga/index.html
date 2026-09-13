@@ -15,7 +15,7 @@
   <meta name="apple-mobile-web-app-title" content="금집부쌤" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#1a1f2a" />
-  <link rel="stylesheet" href="../shared/app.css?v=99bacf9867" />
+  <link rel="stylesheet" href="../shared/app.css?v=6dcf408013" />
   <!-- 색 테마를 첫 칠 전에 찍는다. brand.js는 본문 맨 아래라, 다크로 맞춰 둔
        폰에서 흰 화면이 한 번 번쩍인 뒤 어두워진다. -->
   <script>
@@ -285,16 +285,23 @@
       <button class="sec-print-btn" onclick="printSection('sec-volume')">이 섹션 인쇄</button>
     </div>
     <p class="sec-desc" id="volDesc">선택 지역의 <b>월별 거래건수</b>와 <b>수익형 부동산 거래량 순위</b>.</p>
-    <div class="chart-grid">
-      <div class="chart-box"><canvas id="volMonthChart"></canvas></div>
-      <div class="chart-box"><canvas id="volDonutChart"></canvas></div>
+
+    <!-- 추이는 전체 폭으로. 상가·업무용은 거래가 드물어 월간으로만 센다(주간은 두지 않는다). -->
+    <div class="vol-trend">
+      <div class="vol-trend-scope" id="volTrendScope"></div>
+      <div class="chart-box vol-trend-box"><canvas id="volMonthChart"></canvas></div>
+      <p class="vol-trend-note" id="volTrendNote"></p>
     </div>
+
     <div class="tab-row" id="volRankTabs" style="margin-top:22px;">
       <button class="active" data-r="gu">자치구별<span class="tab-tail"> 거래량 순위</span></button>
       <button data-r="dong">법정동별<span class="tab-tail"> 거래량 순위</span></button>
       <button data-r="bld">오피스텔 건물별</button>
     </div>
-    <div class="chart-box" style="height:340px; margin-top:14px;"><canvas id="volGuChart"></canvas></div>
+    <div class="chart-grid vol-rank-grid" style="margin-top:14px;">
+      <div class="chart-box" style="height:340px;"><canvas id="volGuChart"></canvas></div>
+      <div class="chart-box" style="height:340px;"><canvas id="volDonutChart"></canvas></div>
+    </div>
     <div class="deal-scroll" style="margin-top:18px;">
       <table class="rank-table deal-table">
         <thead id="volRankThead"></thead>
@@ -336,6 +343,6 @@
 <script src="../data/sangga.js?v=b0ae17d42e"></script>
 <script src="../data/geo.js?v=5f13ee09fd"></script>
 <script src="../shared/brand.js?v=09152bfd50"></script>
-<script src="app.js?v=01b6492d60"></script>
+<script src="app.js?v=9fbbb4a6ca"></script>
 </body>
 </html>

@@ -646,6 +646,8 @@
   }
 
   function syncVolRankTab() {
+    // 지역을 옮기면 앞 지역에서 눌러 둔 추이는 맞지 않는다 — 새 지역으로 돌아간다
+    volFocus = null;
     state.volRank = volRankDefault();
     document.querySelectorAll("#volRankTabs button").forEach(function (b) {
       b.classList.toggle("active", b.dataset.r === state.volRank);
@@ -706,37 +708,138 @@
     return out;
   }
 
-  function renderVolume() {
-    var r = region();
-    var labels = win().labels;
+  /* ── 거래량 추이 ──
+     아파트 대시보드와 같은 꼴로 맞춘다 — 전체 폭 추이 그래프, 그 위의 '무엇의
+     추이인가' 단추 줄, 아래 순위표에서 자치구·법정동 이름을 누르면 그곳의 추이.
+     다만 상가·업무용은 거래가 드물어(법정동은 한 달에 한 자릿수) 주간으로 끊으면
+     막대가 거의 빈다. 여기서는 고정 기간·월간 그대로 둔다(주간은 넣지 않는다).
+     오피스텔 건물별은 달마다 끊은 자료가 없어 누를 수 없다. */
+  var volFocus = null;          // null이면 위에서 고른 지역. {key, label}
+  var _hatch = {};
+
+  function hatchOf(color) {
+    if (_hatch[color]) return _hatch[color];
+    var c = document.createElement("canvas");
+    c.width = 8; c.height = 8;
+    var g = c.getContext("2d");
+    g.globalAlpha = 0.28;
+    g.fillStyle = color;
+    g.fillRect(0, 0, 8, 8);
+    g.globalAlpha = 1;
+    g.strokeStyle = color;
+    g.lineWidth = 2;
+    g.beginPath();
+    g.moveTo(0, 8); g.lineTo(8, 0);
+    g.moveTo(-2, 2); g.lineTo(2, -2);
+    g.moveTo(6, 10); g.lineTo(10, 6);
+    g.stroke();
+    _hatch[color] = g.createPattern(c, "repeat");
+    return _hatch[color];
+  }
+
+  // 조회 기간의 달(YYYYMM) — win().labels와 같은 순서
+  function winMonths() {
+    var w = win(), out = [];
+    var y = parseInt(w.start.slice(0, 4), 10), m = parseInt(w.start.slice(4), 10);
+    for (var i = 0; i < w.months; i++) {
+      out.push(y + (m < 10 ? "0" : "") + m);
+      m++;
+      if (m > 12) { m = 1; y++; }
+    }
+    return out;
+  }
+
+  function volTarget() {
+    return volFocus || { key: regionKey(), label: regionLabel() };
+  }
+
+  function renderVolScope() {
+    var host = document.getElementById("volTrendScope");
+    if (!host) return;
+    var chips = [{ f: null, label: regionLabel(), on: !volFocus }];
+    if (volFocus) chips.push({ f: volFocus, label: volFocus.label, on: true });
+    host.innerHTML = '<span class="vts-cap">추이 보기</span>' + chips.map(function (c, i) {
+      return '<button type="button" class="vts-chip' + (c.on ? " is-on" : "") +
+        '" data-i="' + i + '">' + esc(c.label) + "</button>";
+    }).join("");
+    host.querySelectorAll(".vts-chip").forEach(function (b) {
+      b.addEventListener("click", function () {
+        volFocus = chips[+b.dataset.i].f;
+        renderVolScope();
+        renderVolTrend();
+        markVolFocusRow();
+      });
+    });
+  }
+
+  function markVolFocusRow() {
+    document.querySelectorAll("#volGuBody tr[data-k]").forEach(function (tr) {
+      tr.classList.toggle("vol-focus", !!(volFocus && tr.dataset.k === volFocus.key));
+    });
+  }
+
+  var VOL_COLORS = ["#4f7fe6", "#4fada8", "#cf9a45"];
+
+  function renderVolTrend() {
+    var tg = volTarget(), r = regionOf(tg.key);
+    var labels = win().labels, months = winMonths();
+    var pend = months.map(isPending);
+    var nPend = pend.filter(Boolean).length;
+    var series = [
+      labels.map(function (_, i) {
+        return NRG_GROUPS.reduce(function (sum, g) { return sum + ((r.nrgVol[g] || [])[i] || 0); }, 0);
+      }),
+      (r.offiVol.sale || []).slice(),
+      labels.map(function (_, i) {
+        return ((r.offiVol.jeonse || [])[i] || 0) + ((r.offiVol.wolse || [])[i] || 0);
+      }),
+    ];
+    var names = ["상가·업무용 매매", "오피스텔 매매", "오피스텔 전월세"];
 
     if (volMonthChart) volMonthChart.destroy();
     volMonthChart = new Chart(document.getElementById("volMonthChart"), {
       type: "bar",
       data: {
         labels: labels,
-        datasets: [
-          { label: "상가·업무용 매매",
-            data: labels.map(function (_, i) {
-              return NRG_GROUPS.reduce(function (s, g) { return s + ((r.nrgVol[g] || [])[i] || 0); }, 0);
-            }),
-            backgroundColor: "#4f7fe6" },
-          { label: "오피스텔 매매", data: (r.offiVol.sale || []).slice(), backgroundColor: "#4fada8" },
-          { label: "오피스텔 전월세",
-            data: labels.map(function (_, i) {
-              return ((r.offiVol.jeonse || [])[i] || 0) + ((r.offiVol.wolse || [])[i] || 0);
-            }),
-            backgroundColor: "#cf9a45" },
-        ],
+        datasets: names.map(function (nm, k) {
+          return {
+            label: nm,
+            data: series[k],
+            backgroundColor: pend.map(function (on) { return on ? hatchOf(VOL_COLORS[k]) : VOL_COLORS[k]; }),
+            borderWidth: 0,
+          };
+        }),
       },
       options: {
         responsive: true, maintainAspectRatio: false,
         events: window.chartEvents ? window.chartEvents() : undefined,
         plugins: {
-          legend: { labels: { boxWidth: 12, font: { size: 11 } } },
-          title: { display: true, text: regionLabel() + " · 월별 거래건수", font: { size: 13, weight: "bold" } },
+          legend: {
+            labels: {
+              boxWidth: 12, font: { size: 11 },
+              // 빗금 칸이 앞에 오면 범례 네모까지 빗금이 된다 — 범례는 늘 제 색으로
+              generateLabels: function (chart) {
+                return chart.data.datasets.map(function (ds, i) {
+                  return { text: ds.label, fillStyle: VOL_COLORS[i], strokeStyle: VOL_COLORS[i],
+                           lineWidth: 0, hidden: !chart.isDatasetVisible(i), datasetIndex: i };
+                });
+              },
+            },
+          },
+          title: { display: true, text: tg.label + " · 월별 거래건수", font: { size: 13, weight: "bold" } },
+          tooltip: {
+            callbacks: {
+              footer: function (items) {
+                return items.length && pend[items[0].dataIndex]
+                  ? "집계중 — 신고가 더 들어올 수 있음" : "";
+              },
+            },
+          },
         },
-        scales: { y: { beginAtZero: true, title: { display: true, text: "건" } } },
+        scales: {
+          x: { stacked: true },
+          y: { stacked: true, beginAtZero: true, title: { display: true, text: "건" } },
+        },
       },
     });
 
@@ -756,10 +859,25 @@
         events: window.chartEvents ? window.chartEvents() : undefined,
         plugins: {
           legend: { position: "bottom", labels: { boxWidth: 11, font: { size: 10.5 } } },
-          title: { display: true, text: "유형별 구성비", font: { size: 13, weight: "bold" } },
+          title: { display: true, text: tg.label + " · 유형별 구성비", font: { size: 13, weight: "bold" } },
         },
       },
     });
+
+    var parts = [];
+    if (nPend) {
+      parts.push("<b>빗금 막대 = 집계중.</b> 실거래 신고 기한이 계약 후 30일이라 최근 " + nPend +
+        "개월은 아직 늘어나는 중 — 거래가 줄어든 것으로 읽으면 안 됨.");
+    }
+    parts.push("상가·업무용은 거래가 드물어 <b>월간으로만</b> 봄.");
+    parts.push('<span class="scr-only">아래 순위표에서 자치구·법정동 이름을 누르면 그곳의 추이로 바뀜.</span>');
+    var note = document.getElementById("volTrendNote");
+    if (note) note.innerHTML = parts.join(" ");
+  }
+
+  function renderVolume() {
+    renderVolScope();
+    renderVolTrend();
 
     var rank = volRankList();
     var top = rank.slice(0, 12);
@@ -834,9 +952,13 @@
 
     document.getElementById("volGuBody").innerHTML = rank.length ? rank.map(function (x, i) {
       var rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
-      var head = '<tr' + (x.k === mineKey ? ' class="rank-mine"' : "") + ">" +
+      // 자치구·법정동 줄은 눌러서 추이를 볼 수 있다(건물별은 달마다 끊은 자료가 없다)
+      var full = String(x.k).replace("|", " ");
+      var head = '<tr' + (isBld ? "" : ' data-k="' + esc(x.k) + '" data-label="' + esc(full) + '"') +
+        (x.k === mineKey ? ' class="rank-mine"' : "") + ">" +
         '<td><span class="rank-chip ' + rc + '">' + (i + 1) + "</span></td>" +
-        '<td class="rt-name">' + esc(x.label) + "</td>";
+        '<td class="rt-name' + (isBld ? "" : " vol-pick") + '"' +
+        (isBld ? "" : ' title="이곳의 거래량 추이 보기"') + ">" + esc(x.label) + "</td>";
       if (isBld) {
         return head +
           '<td class="rt-price">' + x.sale.toLocaleString() + "건</td>" +
@@ -856,6 +978,24 @@
     }).join("") : '<tr class="empty-row"><td colspan="7">해당 기간 · 지역에 거래가 있는 ' +
       (isBld ? "오피스텔 건물이" : state.volRank === "dong" ? "법정동이" : "자치구가") + " 없음.</td></tr>";
     if (window.wireScrollBoxes) window.wireScrollBoxes();
+
+    document.querySelectorAll("#volGuBody .vol-pick").forEach(function (cell) {
+      cell.addEventListener("click", function () {
+        var tr = cell.parentNode;
+        volFocus = { key: tr.dataset.k, label: tr.dataset.label };
+        renderVolScope();
+        renderVolTrend();
+        markVolFocusRow();
+        // 그래프는 표 위에 있다. 눌렀는데 아무 일도 안 일어난 것처럼 보이지 않게 올려 준다
+        var box = document.getElementById("volTrendScope");
+        if (box) {
+          var hi = (window.stickyH ? window.stickyH() : 90) + 12;
+          window.scrollTo({ top: box.getBoundingClientRect().top + window.scrollY - hi,
+                            behavior: "smooth" });
+        }
+      });
+    });
+    markVolFocusRow();
   }
 
   /* ════════════════ 지도 ════════════════ */

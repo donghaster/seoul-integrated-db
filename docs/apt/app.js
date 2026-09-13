@@ -2208,6 +2208,71 @@
     if (map && map.getContainer) map.getContainer().style.cursor = "";
   }
 
+  /* 고른 자치구(법정동)의 대략적인 범위.
+
+     비아파트는 빌라 이름이 지도 좌표표(geo.js)에 거의 없어 TOP10 원을 하나도
+     못 찍는 일이 흔하다. 그러면 지도가 서울 전체에 머물러, 자치구를 골랐는데
+     지도는 그대로인 것처럼 보였다. 원이 없어도 그 구로는 당겨 준다 — 좌표표에
+     그 구의 다른 건물(아파트·상가) 좌표가 수백 곳 있으니 그 범위를 쓴다.
+     동을 골랐는데 그 동의 좌표가 모자라면 구로 물러난다. */
+  var _areaBounds = {};
+  function areaBounds() {
+    if (state.gu === ALL) return null;
+    var want = [state.dong !== ALL ? state.gu + "|" + state.dong + "|" : null, state.gu + "|"];
+    for (var w = 0; w < want.length; w++) {
+      var pre = want[w];
+      if (!pre) continue;
+      if (!(pre in _areaBounds)) {
+        var lat = [], lng = [];
+        Object.keys(GEO).forEach(function (k) {
+          if (k.indexOf(pre) !== 0) return;
+          var c = GEO[k];
+          if (c && c.lat && c.lng) { lat.push(c.lat); lng.push(c.lng); }
+        });
+        // 좌표 한두 곳으로 범위를 잡으면 한 점으로 확 당겨진다 — 다섯 곳은 있어야 쓴다
+        if (lat.length < 5) {
+          _areaBounds[pre] = null;
+        } else {
+          // 멀리 떨어진 오기 좌표 몇 개가 범위를 끌어 늘리지 않게 양끝 5%는 버린다
+          lat.sort(function (a, b) { return a - b; });
+          lng.sort(function (a, b) { return a - b; });
+          var cut = Math.floor(lat.length * 0.05);
+          _areaBounds[pre] = L.latLngBounds([lat[cut], lng[cut]],
+                                            [lat[lat.length - 1 - cut], lng[lng.length - 1 - cut]]);
+        }
+      }
+      if (_areaBounds[pre]) return _areaBounds[pre];
+    }
+    return null;
+  }
+
+  /* 지도 범위를 옮기는 곳은 모두 이 둘을 쓴다.
+
+     Leaflet의 fitBounds와 애니메이션 달린 setView는 앞선 이동과 겹치면 조용히
+     무시된다. 자치구를 바꾸면 표·지도·브리핑이 한꺼번에 다시 그려져 이동이
+     잇달아 일어나는데, 그때 뒤의 이동이 먹혀 서초구 원 여섯 개가 다 보이는데도
+     서울 전체 배율에 머물거나, 노원구에서 서울 전체로 돌아가지 않았다.
+     자리와 배율을 직접 계산해 애니메이션 없이 옮기면 늘 먹힌다. */
+  function fitSeoul() {
+    map.invalidateSize({ animate: false });
+    map.setView([37.5535, 126.9905], 11, { animate: false });
+  }
+
+  function fitPts(pts) {
+    map.invalidateSize({ animate: false });
+    var bb = L.latLngBounds(pts).pad(0.25);
+    map.setView(bb.getCenter(), Math.min(map.getBoundsZoom(bb), 15), { animate: false });
+  }
+
+  function fitArea() {
+    var bb = areaBounds();
+    if (!bb) { fitSeoul(); return; }
+    // fitBounds는 앞선 이동과 겹치면 조용히 무시된다(인쇄 때 겪은 것) — 자리를 직접 계산해 옮긴다
+    map.invalidateSize({ animate: false });
+    bb = bb.pad(0.08);
+    map.setView(bb.getCenter(), Math.min(map.getBoundsZoom(bb), 15), { animate: false });
+  }
+
   function initMap() {
     if (!HAS_MAP) return;
     map = L.map("aptMap", { scrollWheelZoom: true }).setView([37.5535, 126.9905], 11);
@@ -2370,9 +2435,8 @@
        채워지거나 고정 막대가 줄면 지도 칸만 넓어지는데, Leaflet은 그걸 모른다.
        예전 크기로 범위를 맞추면 서울 전체처럼 넓게 볼 때 오른쪽이 빈다.
        칸 감시(watchMapSize)가 대개 먼저 잡아 주지만, 여기서도 한 번 짚는다. */
-    map.invalidateSize({ animate: false });
-    if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.25), { maxZoom: 15 });
-    else map.setView([37.5535, 126.9905], 11);
+    if (pts.length) fitPts(pts);
+    else fitArea();
 
     /* 칸 크기가 뒤늦게 잡히는 때가 있다(막대가 접히거나, 옆 상세칸이 채워지거나,
        탭으로 숨겨져 있다가 열리거나). 그러면 범위가 옛 크기로 맞춰져 원들이
@@ -2380,8 +2444,8 @@
        없다. 한 박자 뒤에 한 번 더 맞춘다. */
     setTimeout(function () {
       if (!map) return;
-      map.invalidateSize({ animate: false });
-      if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.25), { maxZoom: 15 });
+      if (pts.length) fitPts(pts);
+      else fitArea();
     }, 250);
 
     /* 칸 크기가 바뀌면 다시 맞춰야 한다. 그 방법을 지도에 붙여 둔다 — 인쇄할 때
@@ -2395,7 +2459,7 @@
       map.invalidateSize({ animate: false });
       var live = [];
       markerLayer.eachLayer(function (mk) { if (mk.getLatLng) live.push(mk.getLatLng()); });
-      if (!live.length) { map.setView([37.5535, 126.9905], 11); return; }
+      if (!live.length) { fitArea(); return; }
       /* fitBounds 대신 자리를 직접 계산해 옮긴다. fitBounds는 옮기는 동작이
          겹치면 조용히 무시될 때가 있어, 인쇄 직전처럼 한 번에 여러 일이
          일어나는 자리에서는 믿기 어렵다. */
