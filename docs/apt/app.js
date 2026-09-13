@@ -32,6 +32,18 @@
 
   var ALL = "all";
   var TYPES = ["sale", "jeonse", "wolse"];
+
+  /* 인쇄할 때 화면에 없는 나머지 두 유형(대개 전세·월세)을 함께 싣는데,
+     그쪽까지 30줄씩 찍으면 표 두 개가 종이 석 장을 먹는다. 상담에서 곁들이는
+     참고이므로 열 줄이면 충분하다. 화면에서 보고 있는 유형은 30줄 그대로다. */
+  var PRINT_EXTRA = 10;
+
+  /* 종이에서는 화면에서 보고 있는 유형까지 열 줄로 줄인다. 매매·전세·월세가
+     서른 줄씩이면 표만으로 아홉 장이 넘어간다. 상담에서 종이로 짚는 것은 위
+     열 줄이고, 서른 줄은 화면에서 본다. 인쇄 직전에 다시 그리고 끝나면
+     되돌린다. */
+  var PRINTING = false;
+  function cap(rows) { return PRINTING ? (rows || []).slice(0, PRINT_EXTRA) : rows; }
   var TYPE_LABEL = { sale: "매매", jeonse: "전세", wolse: "월세(환산)" };
   var TYPE_COLOR = { sale: "#4f7fe6", jeonse: "#4fada8", wolse: "#cf9a45" };
   var PYEONG = 3.3058;
@@ -1403,7 +1415,7 @@
 
     document.getElementById("dealPriceHead").textContent = type === "wolse" ? "보증금 / 월세" : "거래가";
     document.getElementById("dealBody").innerHTML = rows.length
-      ? dealRowsHtml(rows, type, true)
+      ? dealRowsHtml(cap(rows), type, true)
       : '<tr><td colspan="7" class="placeholder">' + esc(regionLabel()) + " · " +
         esc(b.name) + "에는 이 기간 신고된 " + TYPE_LABEL[type] + " 거래가 없음.</td></tr>";
 
@@ -1420,7 +1432,7 @@
     // 인쇄용 — 화면에 보이는 표 말고 나머지 두 유형도 함께 출력
     document.getElementById("dealPrintAll").innerHTML = TYPES.filter(function (t) { return t !== type; })
       .map(function (t) {
-        var pr = topRows(t);
+        var pr = topRows(t).slice(0, PRINT_EXTRA);
         return '<h3 style="margin:18px 0 8px; font-size:15px;">' + regionLabel() + " · " + TYPE_LABEL[t] +
           (b.k === "all" ? "" : " · " + b.name) + " 실거래가 TOP " + pr.length + "</h3>" +
           '<table class="rank-table"><thead><tr><th>순위</th><th>단지명</th>' +
@@ -4349,7 +4361,8 @@
     var pd = document.getElementById("pyDesc");
     if (pd) {
       pd.innerHTML = unit === "deal"
-        ? "금액이 아니라 <b>평당가(거래금액 ÷ " + AREA_FULL + " ÷ 3.3058)</b> 상위 30건. " +
+        ? "금액이 아니라 <b>평당가(거래금액 ÷ " + AREA_FULL + " ÷ 3.3058)</b> 상위 " +
+          (PRINTING ? PRINT_EXTRA : 30) + "건. " +
           "큰 평형이 밀리고 <b>작지만 비싼 단지</b>가 드러나므로, 금액 순위와 함께 보면 좋음."
         : "<b>" + rankScopeLabel(unit) + "</b>의 " +
           (unit === "gu" ? "자치구별" : unit === "dong" ? "법정동별" : "단지별") +
@@ -4361,23 +4374,24 @@
     if (unit === "deal") {
       document.getElementById("pyHead").innerHTML = PY_HEAD_DEAL;
       document.getElementById("pyBody").innerHTML =
-        pyRowsHtml(computeRegion(regionKey()).topPy[type], type);
+        pyRowsHtml(cap(computeRegion(regionKey()).topPy[type]), type);
     } else {
       document.getElementById("pyHead").innerHTML = pyHeadGroup(unit);
       document.getElementById("pyBody").innerHTML =
-        pyGroupRowsHtml(pyRankOf(rankScope(unit), type, unit), unit, type);
+        pyGroupRowsHtml(cap(pyRankOf(rankScope(unit), type, unit)), unit, type);
     }
     if (window.wireScrollBoxes) window.wireScrollBoxes();
     var tops = computeRegion(regionKey()).topPy;
     document.getElementById("pyPrintAll").innerHTML = TYPES
       .filter(function (t) { return t !== pyState.type; })
       .map(function (t) {
+        var pr = (tops[t] || []).slice(0, PRINT_EXTRA);
         return '<h3 style="margin:18px 0 8px; font-size:15px;">' + regionLabel() + " · " + TYPE_LABEL[t] +
-          " 평당가격 TOP " + (tops[t] || []).length + "</h3>" +
+          " 평당가격 TOP " + pr.length + "</h3>" +
           '<table class="rank-table"><thead><tr><th>순위</th><th>단지명</th>' +
           '<th>분양면적<span class="th-sub">㎡ (평) · 전용</span></th>' +
           '<th>층</th><th>거래가</th><th>평당가<span class="th-sub">공급 · 전용</span></th><th>거래일</th></tr></thead><tbody>' +
-          pyRowsHtml(tops[t], t) + "</tbody></table>";
+          pyRowsHtml(pr, t) + "</tbody></table>";
       }).join("");
   }
 
@@ -4431,7 +4445,7 @@
     document.getElementById("riseHead").textContent =
       unit === "gu" ? "자치구" : unit === "dong" ? "법정동" : "단지명";
     document.getElementById("riseBody").innerHTML =
-      riseRowsHtml(riseOf(rankScope(unit), riseState.type, unit), unit);
+      riseRowsHtml(cap(riseOf(rankScope(unit), riseState.type, unit)), unit);
     if (window.wireScrollBoxes) window.wireScrollBoxes();
 
     var uw = unit === "gu" ? "자치구별" : unit === "dong" ? "법정동별" : "단지별";
@@ -4450,9 +4464,11 @@
     document.getElementById("risePrintAll").innerHTML = TYPES
       .filter(function (t) { return t !== riseState.type; })
       .map(function (t) {
-        return '<h3 style="margin:18px 0 8px; font-size:15px;">' + regionLabel() + " · " + TYPE_LABEL[t] + " 평당가 상승률 TOP 10</h3>" +
+        var pr = riseOf(rankScope(riseState.unit), t, riseState.unit).slice(0, PRINT_EXTRA);
+        return '<h3 style="margin:18px 0 8px; font-size:15px;">' + regionLabel() + " · " + TYPE_LABEL[t] +
+          " 평당가 상승률 TOP " + pr.length + "</h3>" +
           '<table class="rank-table"><thead><tr><th>순위</th><th>단지명</th><th>전반부</th><th>후반부</th><th>변동률</th><th>거래</th></tr></thead><tbody>' +
-          riseRowsHtml(riseOf(rankScope(riseState.unit), t, riseState.unit), riseState.unit) +
+          riseRowsHtml(pr, riseState.unit) +
           "</tbody></table>";
       }).join("");
   }
@@ -4858,10 +4874,20 @@
 
   // 인쇄 시에는 세 섹션이 모두 펼쳐지므로 숨어 있던 차트를 미리 그려 둔다
   window.addEventListener("beforeprint", function () {
+    PRINTING = true;
     renderCompare();
     renderVolume();
     renderIndex();
+    renderDeal();
+    renderPy();
+    renderRise();
     buildRisePrintAll();
+  });
+  window.addEventListener("afterprint", function () {
+    PRINTING = false;
+    renderDeal();
+    renderPy();
+    renderRise();
   });
 
   /* 주소에 조건이 담겨 있으면 그 화면으로 연다. 순서가 있다 —

@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="금집부쌤" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#1a1f2a" />
-  <link rel="stylesheet" href="../shared/app.css?v=13899de4fe" />
+  <link rel="stylesheet" href="../shared/app.css?v=c6c626240a" />
   <!-- 색 테마를 첫 칠 전에 찍는다. brand.js는 본문 맨 아래라, 다크로 맞춰 둔
        폰에서 흰 화면이 한 번 번쩍인 뒤 어두워진다. -->
   <script>
@@ -329,10 +329,10 @@
   <!-- ─────────────── ① 실거래가 TOP 10 ─────────────── -->
   <section class="card-section" id="sec-top10" data-tabpanel="deal">
     <div class="sec-head">
-      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 아파트 실거래가 TOP 30</h2>
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 아파트 실거래가 TOP <span class="n-scr">30</span><span class="n-prn">10</span></h2>
       <button class="sec-print-btn" onclick="printSection('sec-top10')">이 섹션 인쇄</button>
     </div>
-    <p class="sec-desc">선택 지역의 실거래 중 <b>금액 상위 30건</b>. 표에는 <b>10건만 보이고</b>, 아래 <b>펼치기</b>로 30위까지.<br />
+    <p class="sec-desc"><span class="scr-only">선택 지역의 실거래 중 <b>금액 상위 30건</b>. 표에는 <b>10건만 보이고</b>, 아래 <b>펼치기</b>로 30위까지.</span><span class="prn-only">선택 지역의 실거래 중 <b>금액 상위 10건</b>. 서른 위까지는 화면에서 볼 것.</span><br />
       아래 <b>평형대</b>를 고르면 그 평형대 안에서 다시 금액 상위 30건 — <b>분양 평수 기준</b>이라 손님이 말씀하시는 “34평”과 같은 잣대. 위 지도도 고른 평형대를 따라감.<br />
       <b>분양면적은 실거래 자료에 없음.</b> 건축물대장에서 <b>실제 공급면적(전유+주거공용)</b>을 찾아 씀 — 같은 전용면적이 대장에 있으면 그 값, 없으면 <b>같은 평형대</b>의 대장 값.<br />
       대장에 아직 없는 평형만 전용률로 어림하고 <span class="est-mark">*</span>를 붙임(<b><span class="est-mark">*</span>가 없으면 대장에서 확인한 값</b>). 어림할 때는 그 단지가 대장에 있으면 <b>그 단지에서 잰 전용률</b>로, 아예 없으면 <b>76.9%</b>로 환산.<br />
@@ -415,7 +415,7 @@
   <!-- ─────────────── ④ 평당가격 TOP 30 ─────────────── -->
   <section class="card-section" id="sec-py" data-tabpanel="py">
     <div class="sec-head">
-      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 아파트 평당가격 TOP 30</h2>
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 아파트 평당가격 TOP <span class="n-scr">30</span><span class="n-prn">10</span></h2>
       <button class="sec-print-btn" onclick="printSection('sec-py')">이 섹션 인쇄</button>
     </div>
     <p class="sec-desc" id="pyDesc">금액이 아니라 <b>평당가(거래금액 ÷ 전용면적 ÷ 3.3058)</b> 상위 30건.
@@ -451,7 +451,7 @@
   <!-- ─────────────── ⑤ 평당가 상승률 TOP 30 ─────────────── -->
   <section class="card-section" id="sec-rise" data-tabpanel="rise">
     <div class="sec-head">
-      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 평당가 상승률 TOP 30</h2>
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 평당가 상승률 TOP <span class="n-scr">30</span><span class="n-prn">10</span></h2>
       <button class="sec-print-btn" onclick="printSection('sec-rise')">이 섹션 인쇄</button>
     </div>
     <p class="sec-desc" id="riseDesc"></p>
@@ -536,6 +536,6 @@
 <script src="../data/locinfo.js?v=e97bc091b7"></script>
 <script src="../data/newtown.js?v=8ba14b3baf"></script>
 <script src="../shared/brand.js?v=026e71b33d"></script>
-<script src="app.js?v=ebca59c6fc"></script>
+<script src="app.js?v=2a91abea84"></script>
 </body>
 </html>

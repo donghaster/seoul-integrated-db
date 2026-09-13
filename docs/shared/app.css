@@ -1929,3 +1929,11 @@ html[data-theme="dark"] .near-tag { color: var(--accent); }
 }
 
 @media print { .stickytop { position: static; box-shadow: none; border: 0; } }
+
+/* 화면에서만 / 종이에서만 보이는 짧은 글귀. 제목의 '30'을 종이에서 '10'으로
+   바꾸는 것처럼, 같은 자리에 다른 말이 들어가야 할 때 쓴다. */
+.n-prn, .prn-only { display: none; }
+@media print {
+  .n-scr, .scr-only { display: none; }
+  .n-prn, .prn-only { display: inline; }
+}
