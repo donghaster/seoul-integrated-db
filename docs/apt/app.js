@@ -1948,10 +1948,11 @@
 
   function markerStyle(g, on) {
     return {
-      radius: (16 - g.rank) + (on ? 3 : 0),
+      radius: (g.mine ? 11 : 16 - g.rank) + (on ? 3 : 0),
       color: on ? "#232a38" : "#fff",
       weight: on ? 3.5 : 2.5,
-      fillColor: TYPE_COLOR[state.dealType],
+      // 찾아본 단지는 TOP10과 다른 색으로 — 같은 색이면 어느 게 그 단지인지 모른다
+      fillColor: g.mine ? "#bc3d3d" : TYPE_COLOR[state.dealType],
       fillOpacity: on ? 1 : 0.92,
     };
   }
@@ -2014,6 +2015,36 @@
       g.marker.on("click", function () { selectMarker(key); showDetail(key); });
     });
 
+    /* 찾아본 단지를 함께 찍는다.
+
+       지도는 TOP10만 그린다. 그런데 고객이 물어본 단지는 대개 TOP10에 없다 —
+       서초구 최고가는 90억대인데 트리니원은 44억대다. 그래서 단지를 찾아 놓고
+       지도를 봐도 그 단지가 없었고, "왜 안 보이지" 하며 엉뚱한 원을 누르게 됐다.
+       TOP10에 이미 있으면 그대로 두고, 없을 때만 다른 색으로 하나 더 찍는다. */
+    if (openAptKey && BY_APT[openAptKey]) {
+      var mine = BY_APT[openAptKey];
+      var mc = coordOf(mine.gu, mine.dg, mine.n);
+      if (mc) {
+        var mk = mc.lat.toFixed(5) + "," + mc.lng.toFixed(5);
+        if (!markers[mk]) {
+          var mrows = mine.deals.filter(function (x) {
+            return x.t === state.dealType && x.d >= state.start && x.d <= state.end;
+          }).sort(function (x, y) { return convOf(y) - convOf(x); }).slice(0, 10);
+          markers[mk] = { marker: null, coord: mc, mine: true, rank: 0,
+                          name: mine.n, names: [mine.n],
+                          rows: mrows.map(function (r, i) { return { row: r, rank: i }; }) };
+          nameIndex[openAptKey] = mk;
+          pts.push([mc.lat, mc.lng]);
+          markers[mk].marker = L.circleMarker([mc.lat, mc.lng], markerStyle(markers[mk], false))
+            .addTo(markerLayer)
+            .bindTooltip("찾은 단지 · " + mine.n, { direction: "top", className: "zone-tooltip" });
+          markers[mk].marker.on("click", function () { selectMarker(mk); showDetail(mk); });
+        } else {
+          nameIndex[openAptKey] = mk;   // TOP10에 이미 있으면 그 원을 가리킨다
+        }
+      }
+    }
+
     document.getElementById("mapMissNote").textContent =
       miss ? "좌표 미확인 " + miss + "곳은 지도에 표시되지 않음" : "";
 
@@ -2032,6 +2063,12 @@
   function showDetail(key, focusRank) {
     var g = markers[key];
     if (!g) return;
+    if (g.mine && !g.rows.length) {
+      document.getElementById("aptDetail").innerHTML =
+        '<p class="placeholder"><b>' + esc(g.name) + "</b><br />이 기간에 " +
+        TYPE_LABEL[state.dealType] + " 신고가 없음.</p>";
+      return;
+    }
     var t = state.dealType;
     var first = g.rows[0].row;
 
@@ -2051,7 +2088,9 @@
 
     document.getElementById("aptDetail").innerHTML =
       '<span class="zone-tag" style="background:' + TYPE_COLOR[t] + '">' + TYPE_LABEL[t] +
-        (g.rows.length > 1 ? " TOP10 " + g.rows.length + "건" : " " + (g.rank + 1) + "위") + "</span>" +
+        // 찾아본 단지는 지역 TOP10이 아니라 그 단지의 거래다 — 그렇게 적는다
+        (g.mine ? " 이 단지 " + g.rows.length + "건"
+                : g.rows.length > 1 ? " TOP10 " + g.rows.length + "건" : " " + (g.rank + 1) + "위") + "</span>" +
       "<h3>" + esc(mapTitle(g)) + "</h3>" +
       '<p class="detail-where">' + esc(first.gu) + " " + esc(first.dg) +
         (first.y ? " · " + first.y + "년 준공" : "") + "</p>" +
@@ -2472,6 +2511,7 @@
     if (!a || state.gu === a.gu) {
       scopeMoved = "";
       showApt(key);
+      renderMap();        // 찾은 단지를 지도에도 얹는다(자치구가 그대로면 여기서만 다시 그린다)
       return;
     }
     state.gu = a.gu;

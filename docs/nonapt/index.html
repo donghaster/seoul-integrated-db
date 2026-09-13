@@ -175,13 +175,15 @@
       <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 실거래 TOP10 위치 지도</h2>
       <button class="sec-print-btn" onclick="printSection('sec-map')">이 섹션 인쇄</button>
     </div>
-    <p class="sec-desc">선택한 지역의 <b>매매 실거래가 TOP10</b> 단지 위치. 아래 표에서 단지명을 클릭하면 지도가 그 단지로 이동.</p>
+    <p class="sec-desc">선택한 지역의 <b>매매 실거래가 TOP10</b> 단지 위치. 아래 표에서 단지명을 클릭하면 지도가 그 단지로 이동.<br />
+      <b>단지 찾아보기</b>에서 찾은 단지는 TOP10에 없어도 <b>붉은 원</b>으로 함께 찍힘.</p>
     <div class="map-flex">
       <div class="leaflet-map-wrap">
         <div id="aptMap" class="leaflet-map"></div>
         <div class="map-legend">
           <span><i style="background:#4f7fe6"></i> 매매 TOP10 단지</span>
           <span>원의 크기 = 거래금액 순위</span>
+          <span><i style="background:#bc3d3d"></i> 찾아본 단지</span>
           <span id="mapMissNote"></span>
         </div>
       </div>
@@ -543,7 +545,7 @@
 <script src="../data/locinfo.js?v=e97bc091b7"></script>
 <script src="../data/newtown.js?v=8ba14b3baf"></script>
 <script src="../shared/brand.js?v=a705ff2195"></script>
-<script src="../apt/app.js?v=d5434a17eb"></script>
+<script src="../apt/app.js?v=7a2577351c"></script>
 <script src="app.js?v=caf8a064c6"></script>
 </body>
 </html>
