@@ -15,7 +15,7 @@
   <meta name="apple-mobile-web-app-title" content="금집부쌤" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#1a1f2a" />
-  <link rel="stylesheet" href="../shared/app.css?v=2819646822" />
+  <link rel="stylesheet" href="../shared/app.css?v=99bacf9867" />
   <!-- 색 테마를 첫 칠 전에 찍는다. brand.js는 본문 맨 아래라, 다크로 맞춰 둔
        폰에서 흰 화면이 한 번 번쩍인 뒤 어두워진다. -->
   <script>
@@ -408,11 +408,15 @@
       <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 아파트 실거래량 TOP <span class="n-scr">30</span><span class="n-prn">10</span></h2>
       <button class="sec-print-btn" onclick="printSection('sec-volume')">이 섹션 인쇄</button>
     </div>
-    <p class="sec-desc">선택 지역의 <b>월별 거래건수 추이</b>와 <b>거래량 순위</b>. 위에서 자치구를 고르면 <b>그 구의 법정동별</b>, 법정동까지 고르면 <b>그 동의 단지별</b> 순위로 따라 내려감. 실거래 신고는 계약일로부터 30일 이내라 <b>마지막 달은 계속 늘어남</b>.</p>
-    <div class="chart-grid">
-      <div class="chart-box"><canvas id="volMonthChart"></canvas></div>
-      <div class="chart-box"><canvas id="volDonutChart"></canvas></div>
+    <p class="sec-desc">선택 지역의 <b>거래건수 추이</b>(위 집계 기준의 주간·월간을 따름)와 <b>거래량 순위</b>. <span class="scr-only">아래 순위표에서 <b>구·동·단지 이름을 누르면</b> 위 그래프가 그곳의 추이로 바뀜. </span>위에서 자치구를 고르면 <b>그 구의 법정동별</b>, 법정동까지 고르면 <b>그 동의 단지별</b> 순위로 따라 내려감. <b>빗금 막대는 집계중</b> — 실거래 신고 기한이 계약 후 30일이라 최근 구간은 계속 늘어남.</p>
+
+    <!-- 추이는 전체 폭으로. 무엇의 추이인지는 위 단추 줄이 말해 준다(지금 지역 / 표에서 누른 곳 / 찾은 단지). -->
+    <div class="vol-trend">
+      <div class="vol-trend-scope" id="volTrendScope"></div>
+      <div class="chart-box vol-trend-box"><canvas id="volMonthChart"></canvas></div>
+      <p class="vol-trend-note" id="volTrendNote"></p>
     </div>
+
     <div class="tab-row" id="volRankTabs" style="margin-top:22px;">
       <!-- 좁은 화면에서는 "거래량 TOP 30"을 접는다. 셋이 세로로 쌓이면
            그것만 120px을 먹는데, 어느 단위인지는 앞 세 글자로 충분하다. -->
@@ -420,7 +424,10 @@
       <button data-r="dong">법정동별<span class="tab-tail"> 거래량 TOP <span class="n-scr">30</span><span class="n-prn">10</span></span></button>
       <button data-r="apt">단지별<span class="tab-tail"> 거래량 TOP <span class="n-scr">30</span><span class="n-prn">10</span></span></button>
     </div>
-    <div class="chart-box" style="height:320px;"><canvas id="volRankChart"></canvas></div>
+    <div class="chart-grid vol-rank-grid">
+      <div class="chart-box" style="height:320px;"><canvas id="volRankChart"></canvas></div>
+      <div class="chart-box" style="height:320px;"><canvas id="volDonutChart"></canvas></div>
+    </div>
     <div class="deal-scroll" style="margin-top:18px;">
       <table class="rank-table deal-table">
         <thead><tr><th>순위</th><th id="volRankHead">자치구</th><th>총 거래</th><th>매매</th><th>전세</th><th>월세</th><th>중위 평당가</th></tr></thead>
@@ -562,7 +569,7 @@
 <script src="../data/around/index.js?v=0a7c703b19"></script>
 <script src="../data/locinfo.js?v=e97bc091b7"></script>
 <script src="../data/newtown.js?v=8ba14b3baf"></script>
-<script src="../shared/brand.js?v=a561268bff"></script>
-<script src="app.js?v=74a05ad211"></script>
+<script src="../shared/brand.js?v=09152bfd50"></script>
+<script src="app.js?v=3216561308"></script>
 </body>
 </html>

@@ -1696,9 +1696,132 @@
 
   var volMonthChart = null, volDonutChart = null, volRankChart = null;
 
-  function renderVolume() {
-    var r = region();
-    var labels = bucketLabels();
+  /* ════════════════ 거래량 추이 ════════════════
+
+     "요즘 거래가 붙었나, 끊겼나"는 값보다 먼저 나오는 질문이다. 그래서 추이
+     그래프를 전체 폭으로 두고, 아래 순위표에서 구·동·단지 이름을 누르면 그곳의
+     추이로 바꿔 본다. "반포동은 어떻고, 그중 트리니원은 어떤가"를 한 그래프에서
+     눌러 가며 견준다.
+
+     두 가지를 조심한다.
+     - 최근 구간은 신고가 덜 들어와 있다. 실거래 신고 기한이 계약 후 30일이라
+       마지막 4~5주는 막대가 갈수록 짧아진다. 시장이 식은 게 아니다. 그 구간은
+       빗금으로 칠해 '집계중'임을 그림으로 알린다 — 브리핑의 집계중과 같은 기준.
+     - 작은 단위의 주간 막대는 판단이 안 된다. 단지는 한 주 0~2건이라 막대가
+       거의 비므로 늘 월간으로 센다. 법정동은 주간도 보여 주되 들쭉날쭉하다고
+       적어 둔다. */
+  var volFocus = null;          // null이면 위에서 고른 지역. {kind:"region"|"apt", key, label}
+  var _hatch = {};
+
+  function hatchOf(color) {
+    if (_hatch[color]) return _hatch[color];
+    var c = document.createElement("canvas");
+    c.width = 8; c.height = 8;
+    var g = c.getContext("2d");
+    g.globalAlpha = 0.28;
+    g.fillStyle = color;
+    g.fillRect(0, 0, 8, 8);
+    g.globalAlpha = 1;
+    g.strokeStyle = color;
+    g.lineWidth = 2;
+    g.beginPath();
+    g.moveTo(0, 8); g.lineTo(8, 0);
+    g.moveTo(-2, 2); g.lineTo(2, -2);
+    g.moveTo(6, 10); g.lineTo(10, 6);
+    g.stroke();
+    _hatch[color] = g.createPattern(c, "repeat");
+    return _hatch[color];
+  }
+
+  // 위 집계 기준(주간/월간)과 상관없이, 조회 기간을 달로 끊는다 — 단지용
+  function monthKeysInWindow() {
+    var out = [], pad = function (n) { return n < 10 ? "0" + n : "" + n; };
+    var cur = new Date(state.start + "T00:00:00");
+    cur.setDate(1);
+    var last = new Date(state.end + "T00:00:00");
+    while (cur <= last) {
+      out.push(cur.getFullYear() + "-" + pad(cur.getMonth() + 1));
+      cur.setMonth(cur.getMonth() + 1);
+    }
+    return out;
+  }
+
+  // 이 구간이 아직 신고가 덜 들어온 구간인가. 달은 브리핑과 같은 규칙,
+  // 주는 그 주 일요일에 계약해도 30일 뒤까지 신고할 수 있다는 같은 셈.
+  function bucketPending(k) {
+    if (k.length === 7) return isPending(k);
+    var today = (D.today || D.builtAt || "").slice(0, 10);
+    if (!today) return false;
+    var due = new Date(k + "T00:00:00");
+    due.setDate(due.getDate() + 6 + 30);
+    return due > new Date(today + "T00:00:00");
+  }
+
+  function volTarget() {
+    return volFocus || { kind: "region", key: regionKey(), label: regionLabel() };
+  }
+
+  function volTrendData(tg) {
+    if (tg.kind === "apt") {
+      var ks = monthKeysInWindow(), bag = {};
+      var cnt = { sale: 0, jeonse: 0, wolse: 0 };
+      var a = BY_APT[tg.key];
+      (a ? a.deals : []).forEach(function (x) {
+        if (x.d < state.start || x.d > state.end) return;
+        var k = x.d.slice(0, 7);
+        bag[k] = bag[k] || { sale: 0, jeonse: 0, wolse: 0 };
+        bag[k][x.t]++;
+        cnt[x.t]++;
+      });
+      var ser = {};
+      TYPES.forEach(function (t) {
+        ser[t] = ks.map(function (k) { return bag[k] ? bag[k][t] : 0; });
+      });
+      return { keys: ks, monthly: true, cnt: cnt, series: ser };
+    }
+    return { keys: bucketList(), monthly: state.gran === "month",
+             cnt: countRegion(tg.key).cnt, series: volSeries(tg.key) };
+  }
+
+  /* 그래프 위의 '무엇의 추이인가' 단추 줄. 지금 지역, 순위표에서 누른 곳,
+     단지 찾기로 연 단지 — 셋 사이를 오간다. */
+  function renderVolScope() {
+    var host = document.getElementById("volTrendScope");
+    if (!host) return;
+    var chips = [{ f: null, label: regionLabel(), on: !volFocus }];
+    var mineOn = !!(volFocus && volFocus.kind === "apt" && volFocus.key === openAptKey);
+    if (volFocus && !mineOn) chips.push({ f: volFocus, label: volFocus.label, on: true });
+    if (openAptKey && BY_APT[openAptKey]) {
+      chips.push({ f: { kind: "apt", key: openAptKey, label: BY_APT[openAptKey].n },
+                   label: "이 단지 · " + BY_APT[openAptKey].n, on: mineOn });
+    }
+    host.innerHTML = '<span class="vts-cap">추이 보기</span>' + chips.map(function (c, i) {
+      return '<button type="button" class="vts-chip' + (c.on ? " is-on" : "") +
+        '" data-i="' + i + '">' + esc(c.label) + "</button>";
+    }).join("");
+    host.querySelectorAll(".vts-chip").forEach(function (b) {
+      b.addEventListener("click", function () {
+        volFocus = chips[+b.dataset.i].f;
+        renderVolScope();
+        renderVolTrend();
+        markVolFocusRow();
+      });
+    });
+  }
+
+  function markVolFocusRow() {
+    document.querySelectorAll("#volRankBody tr[data-k]").forEach(function (tr) {
+      tr.classList.toggle("vol-focus", !!(volFocus && tr.dataset.k === volFocus.key));
+    });
+  }
+
+  function renderVolTrend() {
+    var tg = volTarget(), dt = volTrendData(tg);
+    var labels = dt.keys.map(function (k) {
+      return dt.monthly ? k.slice(2).replace("-", ".") : k.slice(5).replace("-", "/");
+    });
+    var pend = dt.keys.map(bucketPending);
+    var nPend = pend.filter(Boolean).length;
 
     if (volMonthChart) volMonthChart.destroy();
     volMonthChart = new Chart(document.getElementById("volMonthChart"), {
@@ -1708,8 +1831,8 @@
         datasets: TYPES.map(function (t) {
           return {
             label: TYPE_LABEL[t] === "월세(환산)" ? "월세" : TYPE_LABEL[t],
-            data: (r.vol[t] || []).slice(),
-            backgroundColor: TYPE_COLOR[t],
+            data: (dt.series[t] || []).slice(),
+            backgroundColor: pend.map(function (on) { return on ? hatchOf(TYPE_COLOR[t]) : TYPE_COLOR[t]; }),
             borderWidth: 0,
           };
         }),
@@ -1719,10 +1842,37 @@
         events: window.chartEvents ? window.chartEvents() : undefined,
         animation: { duration: 400 },
         plugins: {
-          legend: { labels: { boxWidth: 12, font: { size: 11 } } },
-          title: { display: true, text: regionLabel() + " · 월별 실거래 건수", font: { size: 13, weight: "bold" } },
+          legend: {
+            labels: {
+              boxWidth: 12, font: { size: 11 },
+              // 빗금 칸이 앞에 오면 범례 네모까지 빗금이 된다 — 범례는 늘 제 색으로
+              generateLabels: function (chart) {
+                return chart.data.datasets.map(function (ds, i) {
+                  var col = TYPE_COLOR[TYPES[i]];
+                  return { text: ds.label, fillStyle: col, strokeStyle: col, lineWidth: 0,
+                           hidden: !chart.isDatasetVisible(i), datasetIndex: i };
+                });
+              },
+            },
+          },
+          title: {
+            display: true,
+            text: tg.label + " · " + (dt.monthly ? "월별" : "주별") + " 실거래 건수",
+            font: { size: 13, weight: "bold" },
+          },
+          tooltip: {
+            callbacks: {
+              footer: function (items) {
+                return items.length && pend[items[0].dataIndex]
+                  ? "집계중 — 신고가 더 들어올 수 있음" : "";
+              },
+            },
+          },
         },
-        scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, title: { display: true, text: "건" } } },
+        scales: {
+          x: { stacked: true },
+          y: { stacked: true, beginAtZero: true, title: { display: true, text: "건" } },
+        },
       },
     });
 
@@ -1731,7 +1881,7 @@
       type: "doughnut",
       data: {
         labels: ["매매", "전세", "월세"],
-        datasets: [{ data: TYPES.map(function (t) { return r.cnt[t] || 0; }),
+        datasets: [{ data: TYPES.map(function (t) { return dt.cnt[t] || 0; }),
                      backgroundColor: TYPES.map(function (t) { return TYPE_COLOR[t]; }) }],
       },
       options: {
@@ -1740,11 +1890,29 @@
         animation: { duration: 400 },
         plugins: {
           legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 11 } } },
-          title: { display: true, text: "거래유형 구성비", font: { size: 13, weight: "bold" } },
+          title: { display: true, text: tg.label + " · 거래유형 구성비", font: { size: 13, weight: "bold" } },
         },
       },
     });
 
+    var parts = [];
+    if (nPend) {
+      parts.push("<b>빗금 막대 = 집계중.</b> 실거래 신고 기한이 계약 후 30일이라 최근 " + nPend +
+        (dt.monthly ? "개월은" : "주는") + " 아직 늘어나는 중 — 거래가 줄어든 것으로 읽으면 안 됨.");
+    }
+    if (tg.kind === "apt" && state.gran === "week") {
+      parts.push("단지는 한 주 거래가 0~2건이라 <b>월간으로만</b> 보여 줌.");
+    } else if (tg.kind === "region" && tg.key.indexOf("|") !== -1 && !dt.monthly) {
+      parts.push("법정동은 한 주 거래가 몇 건뿐이라 주간 막대가 들쭉날쭉함 — 흐름은 <b>월간</b>으로 보길 권함.");
+    }
+    parts.push('<span class="scr-only">아래 순위표에서 이름을 누르면 그곳의 추이로 바뀜.</span>');
+    var note = document.getElementById("volTrendNote");
+    if (note) note.innerHTML = parts.join(" ");
+  }
+
+  function renderVolume() {
+    renderVolScope();
+    renderVolTrend();
     renderVolRank();
   }
 
@@ -1831,6 +1999,8 @@
   }
 
   function syncVolRankTab() {
+    // 지역을 옮기면 앞 지역에서 눌러 둔 추이는 맞지 않는다 — 새 지역으로 돌아간다
+    volFocus = null;
     state.volRank = volRankDefault();
     document.querySelectorAll("#volRankTabs button").forEach(function (b) {
       b.classList.toggle("active", b.dataset.r === state.volRank);
@@ -1895,9 +2065,12 @@
       var reg = x.stat;
       var rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
       var name = rowName(x);
-      return '<tr' + (name === mineName(mode) ? ' class="rank-mine"' : "") + ">" +
+      // 추이 그래프 제목에 쓸 온전한 이름 — 표 칸의 줄임 이름으로는 어디인지 모른다
+      var full = x.apt ? x.label : x.gu && x.gu !== x.label ? x.gu + " " + x.label : x.label;
+      return '<tr data-k="' + esc(x.k) + '" data-apt="' + (x.apt ? 1 : 0) + '" data-label="' + esc(full) + '"' +
+        (name === mineName(mode) ? ' class="rank-mine"' : "") + ">" +
         '<td><span class="rank-chip ' + rc + '">' + (i + 1) + "</span></td>" +
-        '<td class="rt-name">' + esc(name) + "</td>" +
+        '<td class="rt-name vol-pick" title="이곳의 거래량 추이 보기">' + esc(name) + "</td>" +
         '<td class="rt-price">' + (x.c || 0).toLocaleString() + "건</td>" +
         "<td>" + (reg.cnt.sale || 0).toLocaleString() + "</td>" +
         "<td>" + (reg.cnt.jeonse || 0).toLocaleString() + "</td>" +
@@ -1907,6 +2080,25 @@
     }).join("") : '<tr class="empty-row"><td colspan="7">해당 기간 · 지역에 ' +
         (mode === "apt" ? "거래된 단지가" : "표시할 지역이") + ' 없음.</td></tr>';
     if (window.wireScrollBoxes) window.wireScrollBoxes();
+
+    document.querySelectorAll("#volRankBody .vol-pick").forEach(function (cell) {
+      cell.addEventListener("click", function () {
+        var tr = cell.parentNode;
+        volFocus = { kind: tr.dataset.apt === "1" ? "apt" : "region",
+                     key: tr.dataset.k, label: tr.dataset.label };
+        renderVolScope();
+        renderVolTrend();
+        markVolFocusRow();
+        // 그래프는 표 위에 있다. 눌렀는데 아무 일도 안 일어난 것처럼 보이지 않게 올려 준다
+        var box = document.getElementById("volTrendScope");
+        if (box) {
+          var hi = (window.stickyH ? window.stickyH() : 90) + 12;
+          window.scrollTo({ top: box.getBoundingClientRect().top + window.scrollY - hi,
+                            behavior: "smooth" });
+        }
+      });
+    });
+    markVolFocusRow();
   }
 
   document.querySelectorAll("#volRankTabs button").forEach(function (b) {
@@ -2682,6 +2874,7 @@
       scopeMoved = "";
       showApt(key);
       renderMap();        // 찾은 단지를 지도에도 얹는다(자치구가 그대로면 여기서만 다시 그린다)
+      renderVolScope();   // 거래량 추이에 '이 단지' 단추를 얹는다
       return;
     }
     state.gu = a.gu;

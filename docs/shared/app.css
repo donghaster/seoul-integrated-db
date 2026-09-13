@@ -238,6 +238,32 @@ table.rank-table tr:hover td { background: var(--accent-pale); }
 .stat-box .sub { font-size: 11px; color: var(--txt-mute); margin-top: 3px; }
 
 .chart-grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 20px; align-items: stretch; }
+
+/* ── 거래량 추이 — 전체 폭 그래프와 '무엇의 추이인가' 단추 줄 ── */
+.vol-trend { margin-bottom: 4px; }
+.vol-trend-scope { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; }
+.vts-cap { font-size: 12px; font-weight: 800; color: var(--txt-mute); margin-right: 2px; }
+.vts-chip {
+  border: 1px solid var(--line); background: var(--card); color: var(--txt-dim);
+  font-family: inherit; font-size: 12.5px; font-weight: 700;
+  padding: 5px 12px; border-radius: 999px; cursor: pointer;
+}
+.vts-chip:hover { border-color: var(--accent); color: var(--accent); }
+.vts-chip.is-on { background: var(--accent); border-color: transparent; color: #fff; }
+/* .chart-box(300px)가 바로 아래 줄에 있어 같은 무게로는 덮인다 — 둘을 겹쳐 적는다 */
+.chart-box.vol-trend-box { height: 340px; }
+.vol-trend-note { margin: 6px 0 0; font-size: 12px; line-height: 1.6; color: var(--txt-mute); }
+.vol-trend-note b { color: var(--accent-2); }
+#volRankBody .vol-pick { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+#volRankBody .vol-pick:hover { color: var(--accent); }
+#volRankBody tr.vol-focus td { background: var(--accent-light); font-weight: 700; }
+@media (max-width: 760px) { .chart-box.vol-trend-box { height: 260px; } }
+@media print {
+  /* 종이에서는 누를 수 없으니 지금 보고 있는 것 하나만 글자로 남긴다 */
+  .vts-cap, .vts-chip:not(.is-on) { display: none !important; }
+  .vts-chip.is-on { border: 0; background: none; padding: 0; color: var(--txt); font-size: 12px; }
+  #volRankBody .vol-pick { text-decoration: none; }
+}
 .chart-box { position: relative; height: 300px; }
 @media (max-width: 860px) { .chart-grid { grid-template-columns: 1fr; } }
 

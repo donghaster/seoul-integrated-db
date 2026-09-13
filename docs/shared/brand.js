@@ -139,7 +139,13 @@
     new ResizeObserver(function () {
       // 잇달아 들어오는 변화는 한 번으로 묶는다. 다시 재는 일이 무겁다.
       clearTimeout(t);
-      t = setTimeout(function () { map.invalidateSize({ animate: false }); }, 80);
+      t = setTimeout(function () {
+        /* 단지 카드를 다시 그리면 옛 지도는 걷히고 칸도 문서에서 빠진다. 그때도
+           감시는 "크기가 0이 됐다"고 알려 오는데, 걷힌 지도에 다시 재라고 하면
+           오류가 난다(_leaflet_pos). 문서에 붙어 있을 때만 잰다. */
+        if (!el.isConnected) return;
+        try { map.invalidateSize({ animate: false }); } catch (e) { /* 이미 걷힌 지도 */ }
+      }, 80);
     }).observe(el);
   };
 
