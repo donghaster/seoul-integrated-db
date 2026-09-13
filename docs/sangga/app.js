@@ -1475,6 +1475,8 @@
 
   function renderAll() {
     renderTitles();
+    // 좁은 화면에서 접힌 한 줄에 적을 말
+    if (window.setStickyMini) window.setStickyMini(scopeLabel() + " · " + (win() || {}).label);
     var has = toggleSections();
     renderKpi();
     renderBrief();

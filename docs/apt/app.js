@@ -4357,6 +4357,14 @@
 
   function renderAll() {
     syncUrl();                             // 지금 조건을 주소창에도 적어 둔다
+    /* 접힌 한 줄에 지금 무엇을 보고 있는지를 적는다(좁은 화면에서만 쓰인다).
+       기간은 '최근 3개월'처럼 고른 이름으로 적는다 — 날짜를 그대로 적으면
+       한 줄이 길어져 자치구 이름이 밀려 잘린다. 직접 고른 날짜일 때만 적는다. */
+    if (window.setStickyMini) {
+      var pn = PRESETS.filter(function (x) { return x.k === state.win; })[0];
+      window.setStickyMini(regionLabel() + " · " + (pn ? pn.name : win().label) +
+        (state.dealBand !== "all" ? " · " + bandOf(state.dealBand).name : ""));
+    }
     if (openAptKey) showApt(openAptKey);   // 기간이 바뀌면 단지 상세도 따라간다
     renderKpi();
     renderIndex();

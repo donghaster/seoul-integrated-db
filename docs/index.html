@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="금집부쌤" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#1a1f2a" />
-  <link rel="stylesheet" href="shared/app.css?v=fe395e72fc" />
+  <link rel="stylesheet" href="shared/app.css?v=f04ab52602" />
   <!-- 색 테마를 첫 칠 전에 찍는다. brand.js는 본문 맨 아래라, 다크로 맞춰 둔
        폰에서 흰 화면이 한 번 번쩍인 뒤 어두워진다. -->
   <script>
@@ -80,13 +80,18 @@
     html[data-theme="dark"] .trust-points li > b { color: var(--accent); }
     .trust-points li span { color: var(--txt-mute); }
     .trust-points li span b { color: var(--txt); font-weight: 800; }
+    /* 이 한 줄이 이 화면의 결론이다. 제목(20px)만 한 크기로 세워
+       고객이 화면을 처음 볼 때 여기부터 읽게 한다. */
     .trust-tail {
-      margin: 0; padding-top: 12px; border-top: 1px solid var(--line);
-      font-size: 13.5px; font-weight: 800; color: var(--txt);
+      margin: 0; padding-top: 14px; border-top: 1px solid var(--line);
+      font-size: 20px; font-weight: 800; line-height: 1.45; color: var(--txt);
+      letter-spacing: -.01em; text-wrap: balance;
     }
+    .trust-tail b { color: var(--accent); }
     @media (max-width: 560px) {
       .hub-trust { padding: 16px 16px 14px; }
       .trust-lead { font-size: 14px; }
+      .trust-tail { font-size: 17px; }
     }
   </style>
 </head>
@@ -141,7 +146,7 @@
       <li><b>매일 갱신</b><span>새벽마다 자동으로 새 신고분을 받아옵니다</span></li>
       <li><b>근거를 함께</b><span>건수·표본 기간을 늘 같이 보여 판단의 무게를 밝힙니다</span></li>
     </ul>
-    <p class="trust-tail">숫자로 확인하고, 근거를 밝혀, 고객의 판단을 돕습니다.</p>
+    <p class="trust-tail"><b>숫자로 확인하고, 근거를 밝혀,</b><br />고객의 판단을 돕습니다.</p>
   </div>
 
   <div class="hub-grid">
@@ -193,6 +198,6 @@
   데이터 출처: 국토교통부 실거래가(공공데이터포털) · 서울 열린데이터광장 · 서울시 정비사업 정보몽땅 · 한국부동산원
 </footer>
 
-<script src="shared/brand.js?v=ea3f4339a8"></script>
+<script src="shared/brand.js?v=7670813547"></script>
 </body>
 </html>

@@ -226,11 +226,44 @@
   function stickyH() { return sticky ? sticky.getBoundingClientRect().height : 90; }
   window.stickyH = stickyH;        // 대시보드 쪽에서도 이 높이를 피해 스크롤한다
 
+  /* ── 좁은 화면에서 아래로 내리면 막대를 한 줄로 접는다 ──────────────────
+     폰을 눕히면 화면 높이가 375px뿐인데 막대가 168px을 먹어, 정작 보려는
+     표는 늘 반쪽만 보였다. 조건은 한 번 맞춰 두고 한참 읽는 것이므로,
+     읽기 시작하면(= 아래로 내리면) 접어 두고 자리를 내준다.
+
+     접힌 줄에는 지금 무엇을 보고 있는지만 남긴다 — '서초구 반포동 · 최근
+     3개월'. 이게 없으면 한참 내려간 뒤 무슨 조건이었는지 알 수 없다.
+     그 줄을 누르면 다시 펴진다. 위로 끝까지 올려도 펴진다. */
+  var mini = null;
+
+  function buildMini() {
+    if (!sticky || mini) return;
+    mini = document.createElement("button");
+    mini.type = "button";
+    mini.className = "sticky-mini";
+    mini.innerHTML = '<span class="mini-what"></span><span class="mini-more">조건 펼치기 ▾</span>';
+    mini.addEventListener("click", function () {
+      sticky.classList.toggle("mini-open");
+    });
+    sticky.insertBefore(mini, sticky.firstChild);
+  }
+
+  /* 대시보드가 자기 상태를 한 줄로 적어 보낸다. 안 보내면 접기를 안 쓴다 —
+     무엇을 보고 있는지 모르는 채로 접으면 길을 잃는다. */
+  window.setStickyMini = function (text) {
+    buildMini();
+    if (!mini) return;
+    mini.querySelector(".mini-what").textContent = text || "";
+    sticky.classList.toggle("has-mini", !!text);
+  };
+
   if (sticky) {
     // 조금만 내려가도 부제와 로고를 접어 막대를 한 단 낮춘다.
     // 고정 막대가 두꺼우면 정작 볼 내용이 좁아진다.
     var shrink = function () {
       sticky.classList.toggle("is-scrolled", window.scrollY > 40);
+      // 맨 위로 돌아오면 손으로 펴 둔 것도 함께 닫는다 — 이제 원래 막대가 보인다
+      if (window.scrollY <= 40) sticky.classList.remove("mini-open");
     };
     window.addEventListener("scroll", shrink, { passive: true });
     shrink();

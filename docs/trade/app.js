@@ -650,6 +650,8 @@
 
   function render(t, list) {
     destroyCharts();
+    // 좁은 화면에서 접힌 한 줄에 적을 말
+    if (window.setStickyMini) window.setStickyMini(scopeName());
     var host = document.getElementById("trResult");
     if (!t) {
       host.innerHTML = '<section class="card-section"><p class="placeholder">이 범위에는 상권이 없음.</p></section>';
