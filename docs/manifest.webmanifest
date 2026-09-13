@@ -1,0 +1,23 @@
+{
+  "name": "금집부쌤의 서울시 통합 부동산 대시보드",
+  "short_name": "금집부쌤",
+  "description": "국토교통부 실거래가·서울 열린데이터광장 자료로 보는 서울 25개 자치구 부동산 현황판",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1a1f2a",
+  "theme_color": "#1a1f2a",
+  "lang": "ko",
+  "icons": [
+    { "src": "/assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/assets/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "아파트", "url": "/apt/index.html", "icons": [{ "src": "/assets/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "상가·오피스텔", "url": "/sangga/index.html" },
+    { "name": "상권분석", "url": "/trade/index.html" },
+    { "name": "뉴타운", "url": "/newtown/index.html" }
+  ]
+}
