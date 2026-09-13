@@ -1929,8 +1929,8 @@
      열리면 "눌러도 아무 반응이 없다"가 된다. 겹친 원은 맨 위 하나만 클릭을
      받으므로 아래 깔린 원은 영영 못 누른다. 지도 아무 데나 누르면 그 자리에서
      가장 가까운 원을 찾아 연다 — 40px 안에 있을 때만. */
-  function pickNearest(e) {
-    var best = null, bestD = 40;
+  function nearestKey(e, reach) {
+    var best = null, bestD = reach || 40;
     for (var k in markers) {
       var g = markers[k];
       if (!g.marker) continue;
@@ -1938,13 +1938,59 @@
       var d = p.distanceTo(e.containerPoint);
       if (d < bestD) { bestD = d; best = k; }
     }
-    if (best) { selectMarker(best); showDetail(best); }
+    return best;
+  }
+
+  function pickNearest(e) {
+    var k = nearestKey(e);
+    if (k) { selectMarker(k); showDetail(k); }
+  }
+
+  /* 이름표도 가장 가까운 원을 따라다니게 한다.
+
+     원에 정확히 올려야만 이름이 뜨니, 조금만 빗나가도 이름이 사라졌다
+     나타났다 했다. 겹친 원은 맨 위 하나만 올려짐을 받으므로 아래 깔린
+     원은 이름을 볼 길이 아예 없다. 그래서 마우스가 지도 위를 지날 때마다
+     40px 안의 가장 가까운 원을 찾아 그 이름을 띄운다 — 그러면 지금 누르면
+     무엇이 열리는지가 늘 보인다(누르는 규칙과 같은 잣대다). */
+  var hoverKey = null;
+
+  function hoverNearest(e) {
+    var k = nearestKey(e);
+    if (k === hoverKey) return;
+    if (hoverKey && markers[hoverKey] && markers[hoverKey].marker) {
+      markers[hoverKey].marker.closeTooltip();
+      if (hoverKey !== selectedKey) {
+        markers[hoverKey].marker.setStyle(markerStyle(markers[hoverKey], false));
+      }
+    }
+    hoverKey = k;
+    if (k && markers[k] && markers[k].marker) {
+      markers[k].marker.openTooltip().bringToFront();
+      if (k !== selectedKey) markers[k].marker.setStyle(markerStyle(markers[k], true));
+    }
+    if (map && map.getContainer) {
+      map.getContainer().style.cursor = k ? "pointer" : "";
+    }
+  }
+
+  function clearHover() {
+    if (hoverKey && markers[hoverKey] && markers[hoverKey].marker) {
+      markers[hoverKey].marker.closeTooltip();
+      if (hoverKey !== selectedKey) {
+        markers[hoverKey].marker.setStyle(markerStyle(markers[hoverKey], false));
+      }
+    }
+    hoverKey = null;
+    if (map && map.getContainer) map.getContainer().style.cursor = "";
   }
 
   function initMap() {
     if (!HAS_MAP) return;
     map = L.map("aptMap", { scrollWheelZoom: true }).setView([37.5535, 126.9905], 11);
     map.on("click", pickNearest);
+    map.on("mousemove", hoverNearest);
+    map.on("mouseout", clearHover);
     if (window.watchMapSize) window.watchMapSize(map, document.getElementById("aptMap"));
     window.osmTiles(map);
     markerLayer = L.layerGroup().addTo(map);
@@ -1994,6 +2040,7 @@
     markerLayer.clearLayers();
     markers = {};
     selectedKey = null;
+    hoverKey = null;
 
     /* 위 표가 평형대로 좁혀져 있으면 지도도 같이 좁힌다. 표와 지도가 다른
        목록을 들고 있으면, 표에서 단지 이름을 눌렀을 때 그 단지가 지도에 없어
