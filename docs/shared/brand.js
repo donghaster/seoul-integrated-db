@@ -220,6 +220,16 @@
       : "화면 열람: " + now;
   }
 
+  /* 손가락으로 쓰는 화면에서는 그래프 설명을 '탭했을 때만' 띄운다.
+
+     Chart.js는 기본으로 touchmove에도 반응한다. 그래서 그래프 위를 지나
+     화면을 넘기기만 해도 설명 상자가 떠서 그래프를 덮어 버렸다(폰 가로보기).
+     마우스가 있는 화면은 그대로 둔다 — 거기서는 올려 보는 것이 자연스럽다. */
+  window.chartEvents = function () {
+    var coarse = window.matchMedia && window.matchMedia("(hover: none)").matches;
+    return coarse ? ["click"] : ["mousemove", "mouseout", "click", "touchstart"];
+  };
+
   /* ── 상단 고정 막대 ── */
   var sticky = document.getElementById("stickyTop");
 

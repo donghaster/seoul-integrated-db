@@ -828,6 +828,7 @@
       options: {
         indexAxis: "y",
         responsive: true, maintainAspectRatio: false,
+        events: window.chartEvents ? window.chartEvents() : undefined,
         layout: { padding: { right: 16 } },
         plugins: {
           legend: { display: false },

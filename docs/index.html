@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="금집부쌤" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#1a1f2a" />
-  <link rel="stylesheet" href="shared/app.css?v=f04ab52602" />
+  <link rel="stylesheet" href="shared/app.css?v=7e9b633de1" />
   <!-- 색 테마를 첫 칠 전에 찍는다. brand.js는 본문 맨 아래라, 다크로 맞춰 둔
        폰에서 흰 화면이 한 번 번쩍인 뒤 어두워진다. -->
   <script>
@@ -88,10 +88,21 @@
       letter-spacing: -.01em; text-wrap: balance;
     }
     .trust-tail b { color: var(--accent); }
+    /* 넓은 화면은 한 줄로 쭉 — 줄을 끊으면 오히려 힘이 빠진다.
+       좁은 화면에서만 끊는다. */
+    .trust-tail .only-narrow { display: none; }
+
+    /* ④ 주택(아파트·뉴타운)을 윗줄에, 주택 외(상가·상권)를 아랫줄에.
+       auto-fit로 두면 화면 폭에 따라 3+1로 흩어져 묶음이 안 보인다. */
+    @media (min-width: 900px) {
+      .hub-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
     @media (max-width: 560px) {
       .hub-trust { padding: 16px 16px 14px; }
       .trust-lead { font-size: 14px; }
       .trust-tail { font-size: 17px; }
+      .trust-tail .only-narrow { display: inline; }
     }
   </style>
 </head>
@@ -146,7 +157,7 @@
       <li><b>매일 갱신</b><span>새벽마다 자동으로 새 신고분을 받아옵니다</span></li>
       <li><b>근거를 함께</b><span>건수·표본 기간을 늘 같이 보여 판단의 무게를 밝힙니다</span></li>
     </ul>
-    <p class="trust-tail"><b>숫자로 확인하고, 근거를 밝혀,</b><br />고객의 판단을 돕습니다.</p>
+    <p class="trust-tail"><b>숫자로 확인하고, 근거를 밝혀,</b><br class="only-narrow" /> 고객의 판단을 돕습니다.</p>
   </div>
 
   <div class="hub-grid">
@@ -198,6 +209,6 @@
   데이터 출처: 국토교통부 실거래가(공공데이터포털) · 서울 열린데이터광장 · 서울시 정비사업 정보몽땅 · 한국부동산원
 </footer>
 
-<script src="shared/brand.js?v=7670813547"></script>
+<script src="shared/brand.js?v=c1f50f4543"></script>
 </body>
 </html>

@@ -601,6 +601,7 @@
       },
       options: {
         responsive: true, maintainAspectRatio: false,
+        events: window.chartEvents ? window.chartEvents() : undefined,
         plugins: {
           legend: { labels: { boxWidth: 12, font: { size: 11 } } },
           title: { display: true, text: regionLabel() + " · 오피스텔 매매·전세·월세 TOP10 가격 비교 (억원)", font: { size: 13, weight: "bold" } },
@@ -730,6 +731,7 @@
       },
       options: {
         responsive: true, maintainAspectRatio: false,
+        events: window.chartEvents ? window.chartEvents() : undefined,
         plugins: {
           legend: { labels: { boxWidth: 12, font: { size: 11 } } },
           title: { display: true, text: regionLabel() + " · 월별 거래건수", font: { size: 13, weight: "bold" } },
@@ -751,6 +753,7 @@
       },
       options: {
         responsive: true, maintainAspectRatio: false,
+        events: window.chartEvents ? window.chartEvents() : undefined,
         plugins: {
           legend: { position: "bottom", labels: { boxWidth: 11, font: { size: 10.5 } } },
           title: { display: true, text: "유형별 구성비", font: { size: 13, weight: "bold" } },
@@ -783,6 +786,7 @@
       options: {
         indexAxis: "y",
         responsive: true, maintainAspectRatio: false,
+        events: window.chartEvents ? window.chartEvents() : undefined,
         plugins: {
           legend: { labels: { boxWidth: 12, font: { size: 11 } } },
           title: { display: true,

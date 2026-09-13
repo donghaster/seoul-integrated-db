@@ -1529,6 +1529,7 @@
 
     var opts = {
       responsive: true, maintainAspectRatio: false,
+      events: window.chartEvents ? window.chartEvents() : undefined,
       animation: { duration: 400 },
       plugins: {
         legend: { display: true, labels: { boxWidth: 12, font: { size: 11 } } },
@@ -1588,6 +1589,7 @@
       data: { labels: monthLabels, datasets: monthSets },
       options: {
         responsive: true, maintainAspectRatio: false,
+        events: window.chartEvents ? window.chartEvents() : undefined,
         animation: { duration: 400 },
         plugins: {
           legend: { labels: { boxWidth: 12, font: { size: 11 } } },
@@ -1678,6 +1680,7 @@
       },
       options: {
         responsive: true, maintainAspectRatio: false,
+        events: window.chartEvents ? window.chartEvents() : undefined,
         animation: { duration: 400 },
         plugins: {
           legend: { labels: { boxWidth: 12, font: { size: 11 } } },
@@ -1697,6 +1700,7 @@
       },
       options: {
         responsive: true, maintainAspectRatio: false,
+        events: window.chartEvents ? window.chartEvents() : undefined,
         animation: { duration: 400 },
         plugins: {
           legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 11 } } },
@@ -1837,6 +1841,7 @@
       options: {
         indexAxis: "y",
         responsive: true, maintainAspectRatio: false,
+        events: window.chartEvents ? window.chartEvents() : undefined,
         animation: { duration: 400 },
         plugins: {
           legend: { labels: { boxWidth: 12, font: { size: 11 } } },
@@ -3678,6 +3683,7 @@
       data: { labels: labels, datasets: sets },
       options: {
         responsive: true, maintainAspectRatio: false,
+        events: window.chartEvents ? window.chartEvents() : undefined,
         interaction: { mode: "index", intersect: false },
         plugins: {
           legend: { labels: { boxWidth: 12, font: { size: 11 } } },

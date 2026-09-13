@@ -518,6 +518,7 @@
       options: {
         indexAxis: horizontal ? "y" : "x",
         responsive: true, maintainAspectRatio: false,
+        events: window.chartEvents ? window.chartEvents() : undefined,
         plugins: {
           legend: { display: false },
           tooltip: { callbacks: { label: function (x) { return fmt ? fmt(x.parsed[horizontal ? "x" : "y"]) : comma(x.parsed[horizontal ? "x" : "y"]); } } },
@@ -539,7 +540,8 @@
       type: "doughnut",
       data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderWidth: 0 }] },
       options: {
-        responsive: true, maintainAspectRatio: false, cutout: "58%",
+        responsive: true, maintainAspectRatio: false,
+        events: window.chartEvents ? window.chartEvents() : undefined, cutout: "58%",
         plugins: { legend: { position: "right", labels: { color: c.txt, boxWidth: 10, font: { size: 11 } } } },
       },
     });
@@ -922,7 +924,8 @@
         }],
       },
       options: {
-        responsive: true, maintainAspectRatio: false, cutout: "66%",
+        responsive: true, maintainAspectRatio: false,
+        events: window.chartEvents ? window.chartEvents() : undefined, cutout: "66%",
         plugins: {
           legend: { display: false },
           tooltip: { callbacks: { label: function (x) { return x.label + " " + comma(x.parsed) + "개"; } } },
@@ -1311,6 +1314,7 @@
       data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderRadius: 4 }] },
       options: {
         responsive: true, maintainAspectRatio: false,
+        events: window.chartEvents ? window.chartEvents() : undefined,
         plugins: {
           legend: { display: false },
           tooltip: { callbacks: { label: function (x) {
@@ -1462,6 +1466,7 @@
       },
       options: {
         responsive: true, maintainAspectRatio: false,
+        events: window.chartEvents ? window.chartEvents() : undefined,
         plugins: { legend: { labels: { color: c.txt, boxWidth: 12, font: { size: 11 } } } },
         scales: {
           x: { ticks: { color: c.txt, font: { size: 10 } }, grid: { display: false } },
@@ -1693,7 +1698,8 @@
         }],
       },
       options: {
-        responsive: true, maintainAspectRatio: false, cutout: "68%",
+        responsive: true, maintainAspectRatio: false,
+        events: window.chartEvents ? window.chartEvents() : undefined, cutout: "68%",
         plugins: {
           legend: { display: false },
           tooltip: { callbacks: { label: function (x) { return x.label + " " + comma(x.parsed) + "개"; } } },
