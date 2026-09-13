@@ -376,6 +376,7 @@
       "<b>" + esc(scopeName()) + "</b> · 상권 " + comma(list.length) + "곳" +
       (state.code === ALL && list.length > 1 ? " 합산" : "");
     render(aggregate(list), list);
+    syncFinder();
   }
 
   function gotoTrade(code) {
@@ -459,6 +460,235 @@
       }
     });
   })();
+
+  /* ════════════════ 지도 공통 — 원 고르기 ════════════════
+     아파트·상가 지도에서 다듬은 방식을 그대로 쓴다.
+     - 원이 작고 겹치기도 해서, 정확히 짚어야만 열리면 "눌러도 반응이 없다"가
+       된다. 지도 아무 데나 누르면 40px 안의 가장 가까운 원을 연다.
+     - 이름표는 Leaflet에 맡기지 않고 하나를 직접 들고 그린다. Leaflet 이름표는
+       원에 마우스가 들고 날 때마다 스스로 열고 닫아 언저리에서 깜빡인다.
+     - 범위는 fitBounds 대신 자리·배율을 직접 계산해 옮긴다. fitBounds는 앞선
+       이동과 겹치면 조용히 무시된다. */
+  function fitMap(m, pts, pad, maxZ) {
+    m.invalidateSize({ animate: false });
+    var bb = L.latLngBounds(pts).pad(pad);
+    m.setView(bb.getCenter(), Math.min(m.getBoundsZoom(bb), maxZ), { animate: false });
+  }
+
+  function nearPicker(m, opts) {
+    var labelEl = document.createElement("div");
+    labelEl.className = "map-label";
+    m.getContainer().appendChild(labelEl);
+    var hover = null;
+
+    /* 잡는 거리. 원이 몇십 개인 지도는 40px로 넉넉히 잡는다. 그런데 1,650곳을
+       다 찍는 '지도에서 찾기'는 도심에서 어느 자리든 40px 안에 원이 있어, 빈
+       곳을 눌러 '이 자리 반경 상권'을 볼 길이 없었다. 거기서는 원 크기에
+       맞춰(반지름 + 10px) 좁힌다 — opts.reach로 받는다. */
+    function nearest(pt) {
+      var best = null, bestD = Infinity;
+      opts.items().forEach(function (it) {
+        if (it.hidden) return;
+        var d = m.latLngToContainerPoint([it.lat, it.lng]).distanceTo(pt);
+        var reach = opts.reach ? opts.reach(it) : 40;
+        if (d <= reach && d < bestD) { bestD = d; best = it; }
+      });
+      return best;
+    }
+    function show(it) {
+      if (!it) { labelEl.style.display = "none"; return; }
+      var pt = m.latLngToContainerPoint([it.lat, it.lng]);
+      labelEl.textContent = it.label;
+      labelEl.style.display = "block";
+      labelEl.style.left = Math.round(pt.x) + "px";
+      labelEl.style.top = Math.round(pt.y - (it.r || 8) - 12) + "px";
+    }
+    function setHover(it) {
+      if (hover === it) return;
+      if (hover && opts.unhover) opts.unhover(hover);
+      hover = it;
+      if (it && opts.hover) opts.hover(it);
+    }
+    m.on("mousemove", function (e) {
+      var it = nearest(e.containerPoint);
+      setHover(it);
+      show(it);
+      m.getContainer().style.cursor = it ? "pointer" : (opts.onEmpty ? "crosshair" : "");
+    });
+    m.on("mouseout movestart zoomstart", function () { setHover(null); show(null); });
+    m.on("click", function (e) {
+      var it = nearest(e.containerPoint);
+      if (it) opts.onPick(it);
+      else if (opts.onEmpty) opts.onEmpty(e.latlng);
+    });
+  }
+
+  /* ════════════════ 지도에서 찾기 ════════════════
+
+     이름이나 주소를 몰라도 "이 근처 어때요?"에 답할 수 있게, 서울 1,650개 상권을
+     지도에 먼저 펼쳐 놓고 짚어서 고르게 한다. 새로 받아 오는 자료는 없다 —
+     상권마다 좌표가 이미 들어 있다(서울시 상권분석서비스 영역 중심점).
+
+     - 원 색은 상권 유형, 원 크기는 일평균 유동인구. 표를 안 봐도 큰 상권이 보인다.
+     - 서울 전체를 볼 때는 골목상권(1,090곳)이 도심을 덮으므로 흐리게 두고,
+       확대(배율 13 이상)하면 또렷하게 한다.
+     - 원을 누르면 이름으로 찾았을 때와 같은 상세 분석이 열린다.
+     - 빈 곳을 누르면 그 자리 반경 500m 안의 상권을 모아 보여 준다 — 영역 가장자리
+       까지의 거리로 잰다(큰 상권은 중심이 멀어도 가장자리가 가깝다).
+     - 좌표는 영역의 중심점 하나라 상권의 경계선은 그리지 않는다. */
+  var TYPE_ORDER = ["발달상권", "골목상권", "전통시장", "관광특구"];
+  var FINDER_R = 500;
+  var finder = null, finderItems = [], finderOff = {}, finderPin = null;
+
+  function finderStyle(it, on) {
+    var off = !!finderOff[it.t.t];
+    var sel = state.code !== ALL && it.t.c === state.code;
+    var faint = !on && !sel && finder && finder.getZoom() < 13 && it.t.t === "골목상권";
+    return {
+      radius: it.r + (on || sel ? 3 : 0),
+      color: on || sel ? "#232a38" : "#fff",
+      weight: on || sel ? 2.5 : 1,
+      fillColor: TYPE_COLOR[it.t.t] || "#8a93a3",
+      opacity: off ? 0 : faint ? 0.35 : 1,
+      fillOpacity: off ? 0 : faint ? 0.28 : 0.85,
+    };
+  }
+
+  function restyleFinder() {
+    finderItems.forEach(function (it) {
+      it.hidden = !!finderOff[it.t.t];
+      it.marker.setStyle(finderStyle(it, false));
+      if (state.code !== ALL && it.t.c === state.code) it.marker.bringToFront();
+    });
+  }
+
+  function paintFinderTypes() {
+    var host = document.getElementById("trfTypes");
+    if (!host) return;
+    var cnt = {};
+    TRADES.forEach(function (t) { cnt[t.t] = (cnt[t.t] || 0) + 1; });
+    host.innerHTML = '<button type="button" class="trf-chip" data-k="">전체</button>' +
+      TYPE_ORDER.filter(function (k) { return cnt[k]; }).map(function (k) {
+        return '<button type="button" class="trf-chip' + (finderOff[k] ? " is-off" : "") +
+          '" data-k="' + esc(k) + '" style="--dot:' + TYPE_COLOR[k] + '"><i></i>' + esc(k) +
+          '<span class="trf-n">' + comma(cnt[k]) + "</span></button>";
+      }).join("");
+    host.querySelectorAll(".trf-chip").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var k = b.dataset.k;
+        if (!k) finderOff = {};
+        else finderOff[k] = !finderOff[k];
+        paintFinderTypes();
+        restyleFinder();
+        if (finderPin) nearAt(finderPin.latlng);
+      });
+    });
+  }
+
+  function clearPin() {
+    if (finderPin) { finder.removeLayer(finderPin.layer); finderPin = null; }
+    var host = document.getElementById("trfNear");
+    if (host) host.innerHTML = "";
+  }
+
+  function nearAt(latlng) {
+    if (finderPin) finder.removeLayer(finderPin.layer);
+    var grp = L.layerGroup().addTo(finder);
+    L.circle(latlng, { radius: FINDER_R, color: "#232a38", weight: 1.5, dashArray: "6 5",
+                       fill: true, fillOpacity: 0.05, interactive: false }).addTo(grp);
+    L.circleMarker(latlng, { radius: 5, color: "#fff", weight: 2, fillColor: "#bc3d3d",
+                             fillOpacity: 1, interactive: false }).addTo(grp);
+    finderPin = { layer: grp, latlng: latlng };
+
+    var rows = TRADES.filter(function (t) { return !finderOff[t.t]; }).map(function (t) {
+      return { t: t, d: Math.max(0, Math.round(distM(latlng.lat, latlng.lng, t.lat, t.lng) - radiusOf(t))) };
+    }).filter(function (x) { return x.d <= FINDER_R; })
+      .sort(function (a, b) { return a.d - b.d; });
+
+    var host = document.getElementById("trfNear");
+    if (!host) return;
+    host.innerHTML =
+      '<h4 class="tr-h4">누른 자리 반경 ' + FINDER_R + "m 안의 상권 " +
+        '<span class="h4-sub">' + comma(rows.length) + "곳 · 줄을 누르면 그 상권 분석으로</span> " +
+        '<button type="button" class="mini-btn" id="trfClear">지우기</button></h4>' +
+      (rows.length
+        ? '<div class="deal-scroll" style="--tbl-h:300px"><table class="rank-table tr-list deal-table"><thead><tr>' +
+          "<th>거리</th><th>상권</th><th>유형</th><th>자치구 · 행정동</th>" +
+          '<th>일평균 유동인구 <span class="th-sub">(명)</span></th>' +
+          '<th>점포 <span class="th-sub">(개)</span></th></tr></thead><tbody>' +
+          rows.map(function (x) {
+            var col = TYPE_COLOR[x.t.t] || "#8a93a3";
+            return '<tr class="tr-row" data-c="' + esc(x.t.c) + '">' +
+              "<td>" + (x.d ? x.d + "m" : "영역 안") + "</td>" +
+              '<td class="tr-name">' + esc(x.t.n) + "</td>" +
+              '<td><span class="tr-tag" style="background:' + col + ";color:" + inkOn(col) + '">' +
+                esc(x.t.t) + "</span></td>" +
+              "<td>" + esc(x.t.gu + " " + x.t.dong) + "</td>" +
+              '<td class="rt-price">' + comma(perDay(val(x.t, "fp"))) + "</td>" +
+              "<td>" + comma(val(x.t, "st")) + "</td></tr>";
+          }).join("") + "</tbody></table></div>"
+        : '<p class="placeholder">이 자리 반경 ' + FINDER_R + "m 안에는 서울시가 정한 상권이 없음. " +
+          "조금 더 큰길이나 역 쪽을 눌러 볼 것.</p>");
+    if (window.wireScrollBoxes) window.wireScrollBoxes();
+    host.querySelectorAll(".tr-row").forEach(function (r) {
+      r.addEventListener("click", function () { gotoTrade(r.dataset.c); });
+    });
+    var cl = document.getElementById("trfClear");
+    if (cl) cl.addEventListener("click", clearPin);
+  }
+
+  function initFinder() {
+    var el = document.getElementById("trFinderMap");
+    if (!el || typeof L === "undefined") return;
+    // 원 1,650개를 SVG로 그리면 움직일 때마다 버벅인다 — 캔버스 한 장에 그린다
+    finder = L.map(el, { scrollWheelZoom: false, preferCanvas: true });
+    if (window.watchMapSize) window.watchMapSize(finder, el);
+    finder.attributionControl.setPrefix("");
+    window.osmTiles(finder);
+    var mx = Math.max.apply(null, TRADES.map(function (t) { return val(t, "fp") || 0; })) || 1;
+    var layer = L.layerGroup().addTo(finder);
+    // 작은 상권부터 그려 큰 상권이 위에 오게 한다
+    TRADES.slice().sort(function (a, b) { return val(a, "fp") - val(b, "fp"); }).forEach(function (t) {
+      var it = { t: t, lat: t.lat, lng: t.lng, r: 3 + Math.sqrt((val(t, "fp") || 0) / mx) * 11 };
+      it.label = t.n + " · " + t.t + " · 일평균 " + comma(perDay(val(t, "fp"))) + "명 · 점포 " +
+        comma(val(t, "st")) + "개";
+      it.marker = L.circleMarker([t.lat, t.lng], { interactive: false }).addTo(layer);
+      finderItems.push(it);
+    });
+    fitMap(finder, TRADES.map(function (t) { return [t.lat, t.lng]; }), 0.02, 13);
+    restyleFinder();
+    finder.on("zoomend", restyleFinder);
+    nearPicker(finder, {
+      items: function () { return finderItems; },
+      onPick: function (it) { gotoTrade(it.t.c); },
+      onEmpty: nearAt,
+      // 원 크기만큼 + 10px — 도심에서도 원 사이 빈 곳을 누를 수 있게
+      reach: function (it) { return it.r + 10; },
+      hover: function (it) { it.marker.setStyle(finderStyle(it, true)); it.marker.bringToFront(); },
+      unhover: function (it) { it.marker.setStyle(finderStyle(it, false)); },
+    });
+    paintFinderTypes();
+    // 칸 크기가 뒤늦게 잡히는 때를 대비해 한 박자 뒤 한 번 더
+    setTimeout(syncFinder, 300);
+  }
+
+  // 위 '보는 범위'를 바꾸거나 상권을 고르면 지도도 그리로 옮긴다
+  function syncFinder() {
+    if (!finder) return;
+    restyleFinder();
+    if (state.code !== ALL && BY_CODE[state.code]) {
+      var t = BY_CODE[state.code];
+      finder.invalidateSize({ animate: false });
+      finder.setView([t.lat, t.lng], 15, { animate: false });
+      return;
+    }
+    var list = scopeTrades();
+    if (!list.length) return;
+    fitMap(finder, list.map(function (x) { return [x.lat, x.lng]; }),
+           state.gu === ALL ? 0.02 : 0.12, state.gu === ALL ? 13 : 15);
+  }
+
+  initFinder();
 
   /* 주소는 카카오 키를 브라우저에 노출하지 않으려고 지오코딩을 쓰지 않는다.
      자치구·행정동 이름을 뽑아 그 범위로 좁혀 준다. */
@@ -1602,21 +1832,31 @@
 
     // 원 크기를 유동인구에 비례시킨다 — 목록을 안 봐도 큰 상권이 어디인지 보인다
     var mx = Math.max.apply(null, show.map(function (x) { return val(x.t, "fp") || 0; })) || 1;
-    var pts = [];
+    var pts = [], items = [];
     show.forEach(function (x) {
       var me = single && x.t.c === state.code;
-      L.circleMarker([x.t.lat, x.t.lng], {
+      var base = {
         radius: me ? 14 : Math.max(5, Math.min(17, 5 + Math.sqrt(val(x.t, "fp") / mx) * 12)),
         color: me ? "#232a38" : "#fff", weight: me ? 3.5 : 2,
         fillColor: TYPE_COLOR[x.t.t] || "#8a93a3", fillOpacity: me ? 1 : 0.85,
-      }).addTo(layer)
-        .bindTooltip(x.t.n + (me ? " (지금 보는 곳)" : " · 일평균 " + comma(perDay(val(x.t, "fp"))) + "명"),
-          { direction: "top", className: "zone-tooltip" })
-        .on("click", function () { if (!me) gotoTrade(x.t.c); });
+      };
+      var mk = L.circleMarker([x.t.lat, x.t.lng], Object.assign({ interactive: false }, base)).addTo(layer);
+      items.push({ lat: x.t.lat, lng: x.t.lng, r: base.radius, marker: mk, base: base, t: x.t, me: me,
+        label: x.t.n + (me ? " (지금 보는 곳)" : " · 일평균 " + comma(perDay(val(x.t, "fp"))) + "명") });
       pts.push([x.t.lat, x.t.lng]);
     });
-    if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.2), { maxZoom: 15 });
-    setTimeout(function () { if (map) map.invalidateSize(); }, 60);
+    // 원을 빗맞혀도 가장 가까운 상권을 집고, 이름표는 깜빡이지 않게(지도 공통)
+    nearPicker(map, {
+      items: function () { return items; },
+      onPick: function (it) { if (!it.me) gotoTrade(it.t.c); },
+      hover: function (it) {
+        it.marker.setStyle({ radius: it.base.radius + 3, color: "#232a38", weight: 3 });
+        it.marker.bringToFront();
+      },
+      unhover: function (it) { it.marker.setStyle(it.base); },
+    });
+    if (pts.length) fitMap(map, pts, 0.2, 15);
+    setTimeout(function () { if (map && pts.length) fitMap(map, pts, 0.2, 15); }, 250);
 
     var rows = single ? near.filter(function (x) { return x.t.c !== state.code; }) : near.slice(0, 120);
     document.getElementById("nearList").innerHTML =

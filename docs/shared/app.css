@@ -1443,6 +1443,32 @@ html[data-theme="dark"] .find-go:hover { background: #4a76d4; }
 }
 .find-go:hover { background: var(--accent-2); }
 
+/* ── 상권 지도에서 찾기 ── */
+.tr-finder { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.trf-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+.trf-cap { font-size: 14px; font-weight: 800; color: var(--txt); margin-right: 4px; }
+.trf-types { display: flex; flex-wrap: wrap; gap: 6px; }
+.trf-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--line); background: var(--card); color: var(--txt-dim);
+  font-family: inherit; font-size: 12.5px; font-weight: 700;
+  padding: 5px 11px; border-radius: 999px; cursor: pointer;
+}
+.trf-chip:hover { border-color: var(--accent); color: var(--accent); }
+.trf-chip i { width: 9px; height: 9px; border-radius: 50%; background: var(--dot); flex: 0 0 auto; }
+.trf-chip.is-off { opacity: .42; }
+.trf-chip .trf-n { font-size: 11px; font-weight: 800; color: var(--txt-mute); }
+.trf-map {
+  height: 540px; border-radius: var(--radius); overflow: hidden;
+  border: 1px solid var(--line); background: var(--card-2);
+}
+.trf-help { margin: 6px 0 0; line-height: 1.6; }
+#trfNear { margin-top: 12px; }
+#trfNear .tr-h4 .mini-btn { margin-left: 6px; vertical-align: 1px; }
+@media (max-width: 760px) { .trf-map { height: 380px; } }
+/* 종이에서는 짚어 고를 수 없다 — 찾기 도구는 뺀다 */
+@media print { .tr-finder { display: none !important; } }
+
 .scope-bar {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   padding: 11px 14px; background: var(--card-2);

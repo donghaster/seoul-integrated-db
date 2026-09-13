@@ -15,7 +15,7 @@
   <meta name="apple-mobile-web-app-title" content="금집부쌤" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#1a1f2a" />
-  <link rel="stylesheet" href="../shared/app.css?v=6dcf408013" />
+  <link rel="stylesheet" href="../shared/app.css?v=1c1e1b915f" />
   <!-- 색 테마를 첫 칠 전에 찍는다. brand.js는 본문 맨 아래라, 다크로 맞춰 둔
        폰에서 흰 화면이 한 번 번쩍인 뒤 어두워진다. -->
   <script>
@@ -107,7 +107,8 @@
     </div>
     <p class="sec-desc">
       상가 <b>주소</b>나 <b>상권 이름</b>을 넣으면 바로 그 자리부터 표시.
-      좁히거나 넓힐 때는 아래 <b>자치구 · 행정동 · 상권</b>을 바꾸면 됨.
+      이름을 모르면 <b>아래 지도</b>에서 짚어 고르면 됨.
+      좁히거나 넓힐 때는 위 <b>자치구 · 행정동 · 상권</b>을 바꾸면 됨.
       자료는 서울시 상권분석서비스 <b id="qNote">최신 분기</b> 기준.
     </p>
 
@@ -121,6 +122,19 @@
       <button type="button" class="mini-btn" id="trSample">예시로 보기</button>
     </div>
     <p class="dim-note" id="trAddrNote"></p>
+
+    <!-- 지도에서 찾기 — 이름·주소를 몰라도 지도에서 짚어 고른다(app.js initFinder) -->
+    <div class="tr-finder">
+      <div class="trf-bar">
+        <span class="trf-cap">🗺️ 지도에서 찾기</span>
+        <div class="trf-types" id="trfTypes"></div>
+      </div>
+      <div id="trFinderMap" class="trf-map"></div>
+      <p class="dim-note trf-help"><b>원 색</b> = 상권 유형 · <b>원 크기</b> = 일평균 유동인구.
+        원을 누르면 그 상권 분석으로, <b>빈 곳을 누르면</b> 그 자리 반경 500m 안의 상권을 아래에 모아 보여 줌.
+        서울 전체를 볼 때는 골목상권을 흐리게 둠 — 확대하면 또렷해짐.</p>
+      <div id="trfNear"></div>
+    </div>
 
   </section>
 
@@ -139,6 +153,6 @@
 <script src="../data/sangga.js?v=b0ae17d42e"></script>
 <script src="../data/rent.js?v=4c7e01d298"></script>
 <script src="../shared/brand.js?v=09152bfd50"></script>
-<script src="app.js?v=be53b42289"></script>
+<script src="app.js?v=51485d9553"></script>
 </body>
 </html>
