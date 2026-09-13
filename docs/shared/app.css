@@ -1986,7 +1986,15 @@ html[data-theme="dark"] .near-tag { color: var(--accent); }
   padding-bottom: 4px; border-bottom: 1px solid var(--line);
 }
 .caveat-from:first-child { margin-top: 4px; }
-@media print { #sec-caveats .read-guide { margin-top: 6px !important; } }
+/* 맨 뒤 '주의점 모아 보기'는 걸릴 때 찾아보는 자리다. 본문과 같은 간격으로
+   두면 열 줄 남짓이 다음 장으로 넘어가 한 쪽을 거의 비운 채 차지한다.
+   여기만 촘촘히 해 한 쪽에 담는다 — 읽는 데 지장 없는 선까지만. */
+@media print {
+  #sec-caveats .read-guide { margin-top: 5px !important; padding: 7px 10px; }
+  #sec-caveats .read-guide ol { padding-left: 15px; }
+  #sec-caveats li { font-size: 11px; line-height: 1.38; margin-bottom: 2px; }
+  #sec-caveats .caveat-from { margin: 9px 0 3px; font-size: 11.5px; }
+}
 
 /* 지도 두 장은 각각 한 쪽 안에 들어가게 둔다.
 
