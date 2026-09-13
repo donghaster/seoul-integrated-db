@@ -324,7 +324,20 @@ def main() -> None:
 
     yms = month_range(months, end_ym)
     jobs = [(kind, gu, ym) for kind in KINDS for gu in SEOUL_GU for ym in yms]
-    print(f"기간 {yms[0]} ~ {yms[-1]} · {len(SEOUL_GU)}개 구 · {len(KINDS)}종 = {len(jobs)}개 요청", flush=True)
+
+    # 아직 한 번도 못 받은 달을 앞에 세운다.
+    #
+    # 시간 예산은 '이미 가진 달'만 건너뛰게 돼 있었다(빈 달을 건너뛰면 그 달이
+    # 통째로 비니까). 그런데 러너에 캐시가 덜 복원된 날에는 빈 달이 태반이라
+    # 예산이 아무것도 막지 못했고, 150분을 다 쓰고 통째로 취소됐다
+    # (2026-09-10 · 09-03 · 09-02 · 09-01 …).
+    #
+    # 순서를 바꾸면 그 걱정이 사라진다. 빈 달을 먼저 다 받아 두므로, 예산이
+    # 다 됐을 때 남는 것은 '이미 가진 달' 뿐이고 그건 다음 실행에 미뤄도 된다.
+    jobs.sort(key=lambda j: os.path.exists(_path(j[0], SEOUL_GU[j[1]], j[2])))
+    miss = sum(1 for j in jobs if not os.path.exists(_path(j[0], SEOUL_GU[j[1]], j[2])))
+    print(f"기간 {yms[0]} ~ {yms[-1]} · {len(SEOUL_GU)}개 구 · {len(KINDS)}종 = {len(jobs)}개 요청"
+          f" (아직 못 받은 달 {miss}개를 먼저)", flush=True)
 
     done = {"n": 0}
     errors: list[str] = []
@@ -350,10 +363,10 @@ def main() -> None:
     gave_up = {"n": 0}
 
     def guarded(job):
-        kind, gu, ym = job
-        # 시간이 찼어도, 캐시에 아예 없는 달은 건너뛰면 그 달이 통째로 빈다.
-        # 이미 가진 달(조금 묵었을 뿐인 것)만 다음으로 미룬다.
-        if budget and time.time() - t0 > budget and os.path.exists(_path(kind, SEOUL_GU[gu], ym)):
+        # 시간이 차면 무엇이든 멈춘다. 빈 달을 앞에 세워 뒀으므로, 여기까지
+        # 왔다면 남은 것은 이미 가진 달이거나 오늘 안에는 어차피 못 받을 것이다.
+        # 예외를 두면 예산이 예산이 아니게 된다 — 그래서 150분을 다 썼다.
+        if budget and time.time() - t0 > budget:
             gave_up["n"] += 1
             return 0
         return work(job)

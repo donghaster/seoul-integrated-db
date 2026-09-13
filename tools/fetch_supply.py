@@ -485,7 +485,7 @@ def tidy(area_lists):
     return out, dropped
 
 
-def fetch_site(sig, cd, bun, ji, cap=PAGE_CAP):
+def fetch_site(sig, cd, bun, ji, cap=PAGE_CAP, deadline=None):
     """한 지번을 받는다. 새 평형이 안 나오면 일찍 끊는다.
 
     쪽수를 고정으로 끊으면 평형이 서너 개뿐인 단지에도 열 번을 쓴다. 서울 전체가
@@ -496,6 +496,12 @@ def fetch_site(sig, cd, bun, ji, cap=PAGE_CAP):
     got, page, total = [], 1, 0
     seen, quiet = set(), 0
     while page <= cap:
+        # 한 지번이 끝없이 늘어지지 않게 마감을 본다.
+        # 한 쪽을 부르는 데 최악이면 6번 재시도 x 90초 = 9분이고 쪽수는 12쪽이라,
+        # 지번 하나가 두 시간을 먹을 수 있다. 실제로 '20분만 쓰라'고 해 둔 수집이
+        # 58분을 썼다(2026-09-12). 쪽 사이에서 끊으면 받아 둔 쪽은 그대로 쓴다.
+        if deadline and time.time() > deadline and got:
+            break
         b = call("getBrExposPubuseAreaInfo", sigunguCd=sig, bjdongCd=cd,
                  bun=bun, ji=ji, pageNo=str(page))
         r = rows(b)
@@ -533,6 +539,9 @@ def progress(cs, store):
 
 
 def collect(budget=None, minutes=None, only=None, retry=False):
+    # 시계는 맨 앞에서 켠다. 단지 목록을 훑고 법정동 코드를 받는 준비 과정도
+    # 시간을 먹는데, 그걸 빼고 재면 '20분'이 20분이 아니게 된다.
+    t0 = time.time()
     store = json.load(open(STORE, encoding="utf-8")) if os.path.exists(STORE) else {}
     cs = complexes()
     if only:
@@ -557,7 +566,7 @@ def collect(budget=None, minutes=None, only=None, retry=False):
     print()
 
     ok = bad = later = tied = 0
-    t0 = time.time()
+    deadline = t0 + minutes * 60 if minutes else None
     start = STATE["calls"]
     for (sig, cd, bun, ji), group in todo:
         if all("%s|%s|%s" % (c["gu"], c["dong"], c["name"]) in store for c in group):
@@ -578,7 +587,7 @@ def collect(budget=None, minutes=None, only=None, retry=False):
             print("\n※ 이번에 쓰기로 한 %d번을 다 썼다. 다시 돌리면 이어받는다." % budget)
             break
         try:
-            raw, total = fetch_site(sig, cd, bun, ji)
+            raw, total = fetch_site(sig, cd, bun, ji, deadline=deadline)
         except Exception as exc:                     # noqa: BLE001
             # 서버가 잠깐 안 준 것(빈 본문·503·429)을 '이 단지는 자료가 없다'로
             # 적어 두면 영영 다시 묻지 않는다. 그런 건 아무것도 안 적고 넘긴다 —
