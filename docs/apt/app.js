@@ -2759,6 +2759,54 @@
       });
     });
 
+    /* 한 자리에 포갠 표시는 조금 벌려 놓는다.
+
+       세화중·세화고처럼 한 재단의 학교가 주소를 같이 쓰면 좌표가 똑같이 나와
+       점이 정확히 겹친다. 위의 것만 보이니 아래 것은 눌러도, 마우스를 올려도
+       반응이 없는 것처럼 보인다 — 래미안퍼스티지에서 고등학교가 그랬다.
+
+       갈래를 가리지 않고 35m 안에 모인 것들을 한 묶음으로 보고 무게중심
+       둘레에 고르게 돌려 놓는다. 좌표가 똑같은 학교뿐 아니라 한 부지를
+       쓰는 서초소방서·반포119안전센터처럼 지도에서 사실상 붙어 있는 것들도
+       이 안에 들어온다. 제 자리에서 돌리면 붙은 둘이 되레 더 붙을 수 있어
+       무게중심을 쓴다. */
+    var packs = [];
+    spots.forEach(function (sp) {
+      if (sp.moved) return;
+      var same = spots.filter(function (o) {
+        return !o.moved && metres(sp.lat, sp.lng, o.lat, o.lng) <= 35;
+      });
+      same.forEach(function (o) { o.moved = true; });
+      if (same.length < 2) return;
+      var clat = 0, clng = 0;
+      same.forEach(function (o) { clat += o.lat; clng += o.lng; });
+      clat /= same.length; clng /= same.length;
+      same.forEach(function (o) { o.blat = clat; o.blng = clng; });
+      packs.push(same);
+    });
+
+    /* 벌리는 폭은 미터가 아니라 화면 픽셀로 잡는다.
+
+       미터로 고정하면 축척에 따라 제멋대로가 된다 — 처음 화면에서 겨우 붙어
+       있던 것이 확대하면 한 블록 떨어진 것처럼 보인다. 픽셀로 잡으면 어느
+       배율에서든 서로 가리지 않을 만큼만 떨어져 있고, 확대할수록 제자리로
+       모인다. 목록에 적는 거리는 원래 값 그대로다. */
+    function spread() {
+      if (!packs.length || !nearMap) return;
+      var mpp = nearMap.distance(nearMap.containerPointToLatLng([0, 0]),
+                                 nearMap.containerPointToLatLng([100, 0])) / 100;
+      packs.forEach(function (pack) {
+        var rad = 9 / Math.sin(Math.PI / pack.length) * mpp;   // 이웃 간 18px쯤
+        pack.forEach(function (o, i) {
+          var th = -Math.PI / 2 + i * 2 * Math.PI / pack.length;
+          o.lat = o.blat + rad * Math.sin(th) / 111000;
+          o.lng = o.blng + rad * Math.cos(th) / (111000 * Math.cos(o.blat * Math.PI / 180));
+          o.m.setLatLng([o.lat, o.lng]);
+        });
+      });
+    }
+    nearMap.on("zoomend", spread);
+
     /* 표시가 작아(반지름 7px) 정확히 올려야만 이름이 뜨면 "가져가도 안 나온다"가
        된다. TOP10 지도에서 쓰던 방법을 그대로 쓴다 — 마우스가 지도 위를 지날
        때마다 40px 안의 가장 가까운 표시를 찾아 그 이름을 띄운다. 이름표도
@@ -2808,9 +2856,9 @@
       nearMap.invalidateSize({ animate: false });
       nearMap.fitBounds(L.latLng(coord.lat, coord.lng).toBounds(3000), { padding: [8, 8] });
     }
-    fitNear();
+    fitNear(); spread();
     // 칸 크기가 뒤늦게 잡히면 범위가 어긋난다 — 한 박자 뒤에 한 번 더
-    setTimeout(fitNear, 250);
+    setTimeout(function () { fitNear(); spread(); }, 250);
 
     // 갈래 켜고 끄기
     document.querySelectorAll(".near-chip").forEach(function (b) {
