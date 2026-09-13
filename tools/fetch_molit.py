@@ -62,6 +62,13 @@ KINDS = {
     "offiSale":   "1613000/RTMSDataSvcOffiTrade/getRTMSDataSvcOffiTrade",
     "offiRent":   "1613000/RTMSDataSvcOffiRent/getRTMSDataSvcOffiRent",
     "nrgSale":    "1613000/RTMSDataSvcNrgTrade/getRTMSDataSvcNrgTrade",
+    # 비아파트 주택 — 연립·다세대와 단독·다가구.
+    # 서울 아파트 매매가 얇아진 구간에도 이쪽은 거래가 돌아, 고객이
+    # "빌라는 어떠냐"고 물을 때 답할 자리가 필요하다.
+    "rhSale":     "1613000/RTMSDataSvcRHTrade/getRTMSDataSvcRHTrade",
+    "rhRent":     "1613000/RTMSDataSvcRHRent/getRTMSDataSvcRHRent",
+    "shSale":     "1613000/RTMSDataSvcSHTrade/getRTMSDataSvcSHTrade",
+    "shRent":     "1613000/RTMSDataSvcSHRent/getRTMSDataSvcSHRent",
 }
 
 PAGE_SIZE = 1000
@@ -256,6 +263,100 @@ def _parse_nrg(item, gu, ym):
     }
 
 
+def _parse_rh_sale(item, gu, ym):
+    """연립·다세대 매매. 아파트와 같은 꼴이되 이름 칸이 mhouseNm이다.
+
+    건물명이 '(58-1)'처럼 지번만 적혀 오는 일이 흔하다. 빌라는 이름이
+    없거나 신고자가 안 적는 경우가 많다. 그래도 지번이 살아 있으므로
+    이름이 비면 지번을 이름 자리에 세운다 — 지도에도 표에도 올려야 한다.
+    """
+    amount = _num(item.findtext("dealAmount"))
+    area = _num(item.findtext("excluUseAr"))
+    day = _num(item.findtext("dealDay"))
+    if not amount or not area or not day:
+        return None
+    if _txt(item, "cdealType") == "O":
+        return None
+    jibun = _txt(item, "jibun")
+    name = _txt(item, "mhouseNm") or jibun or "(이름 없음)"
+    return {
+        "t": "sale", "gu": gu, "dong": _txt(item, "umdNm"), "name": name,
+        "jibun": jibun, "htype": _txt(item, "houseType") or "연립다세대",
+        "date": f"{ym[:4]}-{ym[4:]}-{int(day):02d}",
+        "area": area, "land": _num(item.findtext("landAr")) or 0.0,
+        "floor": int(_num(item.findtext("floor")) or 0),
+        "build": int(_num(item.findtext("buildYear")) or 0),
+        "amount": amount, "deposit": 0.0, "rent": 0.0,
+    }
+
+
+def _parse_rh_rent(item, gu, ym):
+    """연립·다세대 전월세."""
+    deposit = _num(item.findtext("deposit"))
+    rent = _num(item.findtext("monthlyRent")) or 0.0
+    area = _num(item.findtext("excluUseAr"))
+    day = _num(item.findtext("dealDay"))
+    if not deposit or not area or not day:
+        return None
+    jibun = _txt(item, "jibun")
+    name = _txt(item, "mhouseNm") or jibun or "(이름 없음)"
+    return {
+        "t": "jeonse" if rent == 0 else "wolse", "gu": gu, "dong": _txt(item, "umdNm"),
+        "name": name, "jibun": jibun, "htype": _txt(item, "houseType") or "연립다세대",
+        "date": f"{ym[:4]}-{ym[4:]}-{int(day):02d}",
+        "area": area, "floor": int(_num(item.findtext("floor")) or 0),
+        "build": int(_num(item.findtext("buildYear")) or 0),
+        "amount": 0.0, "deposit": deposit, "rent": rent,
+    }
+
+
+def _parse_sh_sale(item, gu, ym):
+    """단독·다가구 매매.
+
+    아파트와 결이 다르다 — 단지명도 동·호도 없고 지번은 '7**'처럼 가려져
+    온다(개인정보). 전용면적 대신 연면적(totalFloorAr)과 대지면적
+    (plottageAr)만 온다. 그래서 '이 집 34평 얼마'가 아니라 '이 동네
+    단독주택이 얼마'까지만 말할 수 있다. 이름 자리에는 법정동을 세운다.
+    """
+    amount = _num(item.findtext("dealAmount"))
+    area = _num(item.findtext("totalFloorAr"))
+    day = _num(item.findtext("dealDay"))
+    if not amount or not area or not day:
+        return None
+    if _txt(item, "cdealType") == "O":
+        return None
+    dong = _txt(item, "umdNm")
+    return {
+        "t": "sale", "gu": gu, "dong": dong,
+        "name": dong + " " + (_txt(item, "houseType") or "단독"),
+        "jibun": _txt(item, "jibun"), "htype": _txt(item, "houseType") or "단독",
+        "date": f"{ym[:4]}-{ym[4:]}-{int(day):02d}",
+        "area": area, "land": _num(item.findtext("plottageAr")) or 0.0,
+        "floor": 0, "build": int(_num(item.findtext("buildYear")) or 0),
+        "amount": amount, "deposit": 0.0, "rent": 0.0,
+    }
+
+
+def _parse_sh_rent(item, gu, ym):
+    """단독·다가구 전월세. 연면적만 오고 지번도 없다."""
+    deposit = _num(item.findtext("deposit"))
+    rent = _num(item.findtext("monthlyRent")) or 0.0
+    area = _num(item.findtext("totalFloorAr"))
+    day = _num(item.findtext("dealDay"))
+    if not deposit or not day:
+        return None
+    dong = _txt(item, "umdNm")
+    return {
+        "t": "jeonse" if rent == 0 else "wolse", "gu": gu, "dong": dong,
+        "name": dong + " " + (_txt(item, "houseType") or "단독"),
+        "jibun": "", "htype": _txt(item, "houseType") or "단독",
+        "date": f"{ym[:4]}-{ym[4:]}-{int(day):02d}",
+        "area": area or 0.0, "floor": 0,
+        "build": int(_num(item.findtext("buildYear")) or 0),
+        "amount": 0.0, "deposit": deposit, "rent": rent,
+    }
+
+
 PARSERS = {
     "aptSale":    lambda it, gu, ym: _parse_sale(it, gu, ym, "aptNm"),
     "aptRent":    lambda it, gu, ym: _parse_rent(it, gu, ym, "aptNm"),
@@ -263,6 +364,10 @@ PARSERS = {
     "offiSale":   lambda it, gu, ym: _parse_sale(it, gu, ym, "offiNm"),
     "offiRent":   lambda it, gu, ym: _parse_rent(it, gu, ym, "offiNm"),
     "nrgSale":    lambda it, gu, ym: _parse_nrg(it, gu, ym),
+    "rhSale":     lambda it, gu, ym: _parse_rh_sale(it, gu, ym),
+    "rhRent":     lambda it, gu, ym: _parse_rh_rent(it, gu, ym),
+    "shSale":     lambda it, gu, ym: _parse_sh_sale(it, gu, ym),
+    "shRent":     lambda it, gu, ym: _parse_sh_rent(it, gu, ym),
 }
 
 
