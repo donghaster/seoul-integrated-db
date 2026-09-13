@@ -2915,7 +2915,9 @@
       nearMap.invalidateSize({ animate: false });
       /* fitBounds가 아니라 자리를 직접 계산해 옮긴다 — 인쇄 직전처럼 한꺼번에
          여러 일이 일어나면 fitBounds가 조용히 무시되곤 한다. */
-      var bb = L.latLng(coord.lat, coord.lng).toBounds(3000);
+      /* 종이에서는 더 바싹 당겨 본다. 시설이 모두 1km 안에 있으므로 지름
+         2.2km면 다 들어오고, 그만큼 길과 단지 이름이 크게 보인다. */
+      var bb = L.latLng(coord.lat, coord.lng).toBounds(PRINTING ? 2200 : 3000);
       nearMap.setView(bb.getCenter(),
                       nearMap.getBoundsZoom(bb, false, L.point(8, 8)), { animate: false });
     }
@@ -4901,13 +4903,59 @@
      CSS가 칸을 줄인 것을 제때 알지 못해, 예전 크기 그대로 그린다 — 가운데
      있어야 할 단지 원이 아래로 밀려 잘린다. 인쇄로 넘어가기 전에 여기서 직접
      줄여 알려 주고 범위를 다시 맞춘다. 끝나면 되돌린다. */
+  /* 그래프도 같은 병이다.
+
+     Chart.js는 칸 크기를 재서 캔버스에 픽셀 크기를 박아 둔다. @media print로
+     칸만 줄이면 캔버스는 화면에서 잡은 300px 그대로라 칸 밖으로 넘쳐, 아래
+     본문 글자 위에 겹쳐 찍히고 막대도 잘려 깨져 보인다. 칸을 직접 줄이고
+     다시 그리라고 일러 준 뒤에 인쇄로 넘긴다. */
+  var PRINT_CHART_H = 178;
+  var chartsShrunk = [];
+  var panelsShown = [];
+
+  /* 화면에서는 TOP10 세 갈래 중 한 판만 보이고 나머지는 숨어 있다. 인쇄에서는
+     CSS가 셋 다 펴는데, 숨은 채로 만들어진 그래프는 캔버스가 0픽셀이라 펴 봐야
+     빈 칸이 나온다. 막대가 안 보이거나 글자 위에 겹쳐 찍히던 것이 그것이다.
+
+     Chart.js에 다시 재라고 시켜도(resize) 0에서 되살아나지 않는다. 그래서
+     판을 먼저 펼쳐 놓고 — 그래야 칸에 진짜 크기가 생긴다 — 그 뒤에 그래프를
+     다시 그린다. 그리는 쪽(renderCompare 등)은 매번 새로 만들므로, 그때
+     비로소 제 크기를 잰다. */
+  function showPanelsForPrint() {
+    panelsShown = [];
+    document.querySelectorAll("section[data-tabpanel]").forEach(function (sec) {
+      if (sec.offsetParent !== null) return;
+      panelsShown.push({ el: sec, was: sec.style.display });
+      sec.style.display = "block";
+    });
+  }
+
+  function restorePanels() {
+    panelsShown.forEach(function (x) { x.el.style.display = x.was; });
+    panelsShown = [];
+  }
+
+  function shrinkChartsForPrint() {
+    chartsShrunk = [];
+    document.querySelectorAll(".chart-box").forEach(function (b) {
+      chartsShrunk.push({ el: b, was: b.style.height });
+      b.style.setProperty("height", PRINT_CHART_H + "px", "important");
+    });
+  }
+
+  function restoreCharts() {
+    chartsShrunk.forEach(function (x) { x.el.style.height = x.was; });
+    chartsShrunk = [];
+  }
+
   var mapsShrunk = [];
   function shrinkMapsForPrint() {
     mapsShrunk = [];
     /* 지도 쪽을 지도 전용으로 쓰기로 했으니(뒤에 다른 섹션이 붙지 않는다)
        남는 자리를 주변 입지 지도에 몰아 준다. 짝을 못 지었을 때는 원래 크기. */
-    var nearH = document.getElementById("sec-map").classList.contains("has-pair") ? 365 : 270;
-    [[document.getElementById("aptMap"), typeof map !== "undefined" ? map : null, 270],
+    var nearH = document.getElementById("sec-map").classList.contains("has-pair") ? 420 : 270;
+    var topH = document.getElementById("sec-map").classList.contains("has-pair") ? 215 : 270;
+    [[document.getElementById("aptMap"), typeof map !== "undefined" ? map : null, topH],
      [document.getElementById("nearMap"), nearMap, nearH]].forEach(function (x) {
       var el = x[0], mp = x[1];
       if (!el || !mp || el.offsetParent === null) return;
@@ -5003,6 +5051,9 @@
     if (prepped) return;
     prepped = true;
     PRINTING = true;
+    // 그래프가 제 크기를 재려면, 다시 그리기 전에 판이 펼쳐져 있어야 한다
+    showPanelsForPrint();
+    shrinkChartsForPrint();
     renderCompare();
     renderVolume();
     renderIndex();
@@ -5026,6 +5077,11 @@
     restoreCaveats();
     unpairMaps();
     restoreMaps();
+    restoreCharts();
+    restorePanels();
+    // 다시 숨긴 뒤 화면 쪽 크기로 한 번 더 그린다
+    renderCompare();
+    renderIndex();
   });
 
   /* 주소에 조건이 담겨 있으면 그 화면으로 연다. 순서가 있다 —

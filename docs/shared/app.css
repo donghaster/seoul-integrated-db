@@ -2004,7 +2004,10 @@ html[data-theme="dark"] .near-tag { color: var(--accent); }
      대신 그만큼 지도를 키워 쪽을 채운다. 짝을 지었을 때만 — 단지를 안 고르면
      주변 입지가 없어 지도 한 장뿐이고, 그때 쪽을 통째로 비우면 낭비다. */
   #sec-map.has-pair { break-after: page; }
-  #sec-map.has-pair .near-map { height: 365px !important; }
+  #sec-map.has-pair .near-map { height: 420px !important; }
+  #sec-map.has-pair .leaflet-map { height: 215px !important; }
+  /* 지도 쪽은 자리가 빠듯하다. 제목이 이미 무엇인지 말해 주므로 설명은 뺀다. */
+  #sec-map.has-pair > .sec-desc { display: none; }
   #sec-map .near-wrap { margin-top: 10px; padding-top: 10px; }
 
   /* 좁은 종이에서는 지도와 옆 상세가 위아래로 쌓여 한 쪽을 다 먹는다.
