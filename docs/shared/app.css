@@ -2040,3 +2040,40 @@ table.rank-table caption {
   font-size: 15px; font-weight: 800; color: var(--txt);
   margin: 18px 0 8px;
 }
+
+/* ════════════════ 인쇄물 첫 장의 머리말 ════════════════
+
+   화면에는 없고 종이에만 나온다. 메인 화면에 걸어 둔 것과 같은 말이지만,
+   종이는 자리가 귀하므로 한 덩이로 눌러 담았다(110px 남짓). 상담에서 이
+   한 덩이가 "이 숫자는 어디서 났는가"에 먼저 답한다. */
+.print-trust { margin: 0 0 10px; }
+
+@media print {
+  .print-trust {
+    padding: 8px 12px 9px; break-inside: avoid;
+    border: 1px solid var(--accent); border-left: 4px solid var(--accent);
+    border-radius: 8px; background: var(--card);
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .pt-badge {
+    display: inline-block; font-size: 9.5px; font-weight: 800;
+    color: #fff; background: var(--accent); border-radius: 999px;
+    padding: 1px 9px; margin-bottom: 5px;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .pt-lead { margin: 0 0 6px; font-size: 12px; line-height: 1.45; font-weight: 700; color: var(--txt); }
+  .pt-lead b { color: var(--accent); font-weight: 800; }
+  .pt-points {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 16px;
+    margin: 0 0 6px; padding: 0; list-style: none;
+  }
+  .pt-points li { font-size: 10px; line-height: 1.42; color: var(--txt-mute); }
+  /* 바로 아래 자식만 제목으로 세운다 — 설명 속의 <b>까지 블록이 되면
+     한 줄이 셋으로 쪼개진다(메인 화면에서 겪은 것과 같은 함정). */
+  .pt-points li > b { display: block; font-size: 10.5px; color: var(--accent-2); }
+  .pt-tail {
+    margin: 0; padding-top: 6px; border-top: 1px solid var(--line);
+    font-size: 13px; font-weight: 700; color: var(--txt);
+  }
+  .pt-tail b { color: var(--accent); font-weight: 800; }
+}

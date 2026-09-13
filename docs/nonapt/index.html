@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="금집부쌤" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#1a1f2a" />
-  <link rel="stylesheet" href="../shared/app.css?v=ab85416ac8" />
+  <link rel="stylesheet" href="../shared/app.css?v=eee5f35953" />
   <!-- 색 테마를 첫 칠 전에 찍는다. brand.js는 본문 맨 아래라, 다크로 맞춰 둔
        폰에서 흰 화면이 한 번 번쩍인 뒤 어두워진다. -->
   <script>
@@ -136,6 +136,20 @@
 
 <div class="wrap">
   <div id="printBanner" class="print-only print-page-banner"></div>
+
+  <!-- 이 보고서가 무엇을 근거로 말하는지. 첫 화면(메인)에 걸어 둔 것과 같은
+       내용을, 종이로 건넬 때도 첫 장 맨 위에서 먼저 읽히게 둔다. 손님은
+       숫자보다 "이거 어디서 난 숫자냐"를 먼저 물으신다. -->
+  <div class="print-trust print-only">
+    <span class="pt-badge">공공데이터 기반</span>
+    <p class="pt-lead"><b>국토교통부·서울시 공공데이터 API</b>로 받은 <b>최신 실거래 원본</b>을 그대로 집계합니다.</p>
+    <ul class="pt-points">
+      <li><b>원본 그대로</b><span>호가나 광고가 아닌 <b>신고된 실거래</b>만 씁니다</span></li>
+      <li><b>매일 갱신</b><span>새벽마다 자동으로 새 신고분을 받아옵니다</span></li>
+      <li><b>근거를 함께</b><span>건수·표본 기간을 늘 같이 보여 판단의 무게를 밝힙니다</span></li>
+    </ul>
+    <p class="pt-tail"><b>숫자로 확인하고, 근거를 밝혀,</b> 고객의 판단을 돕습니다.</p>
+  </div>
 
   <!-- ─────────────── 핵심 요약 ─────────────── -->
   <section class="card-section" id="sec-kpi">
