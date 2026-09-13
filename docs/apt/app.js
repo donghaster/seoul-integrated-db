@@ -1444,7 +1444,7 @@
 
     document.querySelectorAll("#dealBody .rt-name-clickable").forEach(function (el, i) {
       el.addEventListener("click", function () {
-        focusApt(el.dataset.gu, el.dataset.dong, el.dataset.apt, i);
+        focusOnMap(el.dataset.gu, el.dataset.dong, el.dataset.apt, i);
       });
     });
   }
@@ -2126,21 +2126,47 @@
       var mc = coordOf(mine.gu, mine.dg, mine.n);
       if (mc) {
         var mk = mc.lat.toFixed(5) + "," + mc.lng.toFixed(5);
-        if (!markers[mk]) {
-          var mrows = mine.deals.filter(function (x) {
-            return x.t === state.dealType && x.d >= state.start && x.d <= state.end;
-          }).sort(function (x, y) { return convOf(y) - convOf(x); }).slice(0, 10);
+        var mrows = mine.deals.filter(function (x) {
+          return x.t === state.dealType && x.d >= state.start && x.d <= state.end;
+        }).sort(function (x, y) { return convOf(y) - convOf(x); }).slice(0, 10);
+        nameIndex[openAptKey] = mk;
+
+        /* 찾은 단지가 마침 TOP10에 들어 있어도 똑같이 보여야 한다.
+
+           예전에는 TOP10에 없으면 붉은 원(이 단지 거래 8건), 있으면 TOP10의
+           파란 원(그 단지가 차지한 순위 2건)을 그대로 썼다. 같은 단지를 찾았는데
+           기간·동·평형대에 따라 TOP10에 들고 나는 데 따라 색도, 눌렀을 때
+           나오는 목록도 달라져 "어떨 때는 8건, 어떨 때는 2건"이 됐다.
+           이제는 늘 붉은 원에 그 단지의 거래를 싣고, TOP10에 든 거래에는
+           그 순위를 옆에 적어 둔다 — 두 정보를 한 자리에서 본다. */
+        var topOf = {};
+        var g0 = markers[mk];
+        if (g0) {
+          g0.rows.forEach(function (x) {
+            if (x.row.n === mine.n) topOf[dealSig(x.row)] = x.rank;
+          });
+        }
+        var mineRows = mrows.map(function (r, i) {
+          var tr = topOf[dealSig(r)];
+          return { row: r, rank: i, top: tr == null ? null : tr };
+        });
+
+        if (!g0) {
           markers[mk] = { marker: null, coord: mc, mine: true, rank: 0,
-                          name: mine.n, names: [mine.n],
-                          rows: mrows.map(function (r, i) { return { row: r, rank: i }; }) };
-          nameIndex[openAptKey] = mk;
+                          name: mine.n, names: [mine.n], rows: mineRows };
           pts.push([mc.lat, mc.lng]);
           markers[mk].label = "찾은 단지 · " + mine.n;
           markers[mk].marker = L.circleMarker([mc.lat, mc.lng], markerStyle(markers[mk], false))
             .addTo(markerLayer);
           markers[mk].marker.on("click", function () { selectMarker(mk); showDetail(mk); });
         } else {
-          nameIndex[openAptKey] = mk;   // TOP10에 이미 있으면 그 원을 가리킨다
+          // TOP10 원을 찾은 단지 원으로 바꿔 입힌다(클릭은 markers[mk]를 그때그때 읽는다)
+          g0.mine = true;
+          g0.name = mine.n;
+          g0.names = [mine.n];
+          g0.rows = mineRows;
+          g0.label = "찾은 단지 · " + mine.n;
+          g0.marker.setStyle(markerStyle(g0, false));
         }
       }
     }
@@ -2202,11 +2228,15 @@
     var first = g.rows[0].row;
 
     var multi = g.names.length > 1;
+    var topHits = g.rows.filter(function (x) { return x.top != null; }).length;
     var list = g.rows.map(function (x) {
-      var on = (focusRank != null && x.rank === focusRank);
+      // 찾은 단지의 줄은 '이 단지 안 순서'이고, 표에서 누른 순위는 TOP10 순위다
+      var on = focusRank != null && (g.mine ? x.top === focusRank : x.rank === focusRank);
       return '<tr' + (on ? ' class="is-on"' : "") + ">" +
         '<td><span class="rank-chip ' + (x.rank === 0 ? "r1" : x.rank === 1 ? "r2" : x.rank === 2 ? "r3" : "") +
-          '">' + (x.rank + 1) + "</span></td>" +
+          '">' + (x.rank + 1) + "</span>" +
+          (x.top != null ? '<span class="top-hit">TOP10 ' + (x.top + 1) + "위</span>" : "") +
+          "</td>" +
         (multi ? '<td class="dl-name">' + esc(x.row.n) + "</td>" : "") +
         "<td>" + areaBoth(x.row.a, x.row) + "</td>" +
         "<td>" + (x.row.f ? x.row.f + "층" : "-") + "</td>" +
@@ -2218,7 +2248,7 @@
     document.getElementById("aptDetail").innerHTML =
       '<span class="zone-tag" style="background:' + TYPE_COLOR[t] + '">' + TYPE_LABEL[t] +
         // 찾아본 단지는 지역 TOP10이 아니라 그 단지의 거래다 — 그렇게 적는다
-        (g.mine ? " 이 단지 " + g.rows.length + "건"
+        (g.mine ? " 이 단지 " + g.rows.length + "건" + (topHits ? " · TOP10 " + topHits + "건" : "")
                 : g.rows.length > 1 ? " TOP10 " + g.rows.length + "건" : " " + (g.rank + 1) + "위") + "</span>" +
       "<h3>" + esc(mapTitle(g)) + "</h3>" +
       '<p class="detail-where">' + esc(first.gu) + " " + esc(first.dg) +
@@ -2231,7 +2261,18 @@
       "</tr></thead><tbody>" + list + "</tbody></table></div>";
   }
 
-  function focusApt(gu, dong, name, rank) {
+  /* 거래 하나를 가려내는 표. TOP10 목록과 단지 거래 목록이 같은 거래를
+     서로 다른 배열로 들고 있어, 날짜·면적·층·금액으로 맞춰 본다. */
+  function dealSig(r) {
+    return r.d + "|" + r.a + "|" + (r.f || "") + "|" + convOf(r);
+  }
+
+  /* 지도에서 단지를 짚는다(표의 단지명·'지도에서 보기'가 부른다).
+
+     예전 이름이 focusApt였는데, 단지 찾아보기 쪽에도 같은 이름의 함수가
+     있었다. 같은 이름이면 뒤에 선언된 것 하나만 남아, 표에서 단지명을
+     누르면 지도가 움직이는 대신 엉뚱하게 단지 카드가 닫혔다. */
+  function focusOnMap(gu, dong, name, rank) {
     var key = nameIndex[gu + "|" + dong + "|" + name];
     var hit = key && markers[key];
     if (!hit) {
@@ -3030,7 +3071,7 @@
     var go = document.getElementById("aptGoMap");
     if (go) {
       go.addEventListener("click", function () {
-        focusApt(a.gu, a.dg, a.n);
+        focusOnMap(a.gu, a.dg, a.n);
       });
     }
     // 10줄만 보이게 접고 넘치면 펼치기 단추를 붙인다
