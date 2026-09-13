@@ -269,12 +269,21 @@ def encode_deals(deals: list[dict], yms: list[str]) -> dict:
 
 
 def build_apt(yms: list[str]) -> dict:
-    sale = load_all("aptSale", yms)
-    rent = load_all("aptRent", yms)
     # 분양권·입주권 전매 — 소유권보존등기 전이라 일반 매매 API엔 안 잡히는 거래.
     # 준공 직후 단지가 "실거래가 없다"고 나오는 사례의 원인이라 합쳐 둔다.
-    presale = load_all("aptPresale", yms)
-    deals = sale + rent + presale
+    return build_homes(yms, ["aptSale", "aptRent", "aptPresale"])
+
+
+def build_homes(yms: list[str], kinds: list[str]) -> dict:
+    """주택 실거래를 화면이 쓰는 꼴로 접는다.
+
+    아파트·연립다세대·단독다가구가 같은 얼개를 쓴다. 셋 다 '거래 하나 =
+    지역·이름·면적·금액'이라 집계 방식이 다를 이유가 없다. 다른 것은
+    화면 쪽 사정(단독은 단지명이 없다 같은)이라 거기서 가린다.
+    """
+    deals = []
+    for k in kinds:
+        deals += load_all(k, yms)
     deals = [d for d in deals if d["date"] <= TODAY]     # 미래 날짜 오신고 제외
 
     by_region: dict[str, dict[str, list]] = defaultdict(lambda: {"sale": [], "jeonse": [], "wolse": []})
@@ -917,7 +926,7 @@ def bump_cache_version(stamp: str) -> None:
         return digests[path]
 
     pages = [os.path.join(docs, "index.html")]
-    pages += [os.path.join(docs, p, "index.html") for p in ("apt", "newtown", "sangga", "trade")]
+    pages += [os.path.join(docs, p, "index.html") for p in ("apt", "nonapt", "newtown", "sangga", "trade")]
 
     for path in pages:
         if not os.path.exists(path):
@@ -970,7 +979,20 @@ def main() -> None:
     sangga["today"] = TODAY
     print(f"  상가·오피스텔 실거래 {sangga['total']:,}건 · 지역 {len(sangga['regions']):,}개")
 
+    # 비아파트 주택 — 연립·다세대와 단독·다가구를 따로 굽는다.
+    # 한 파일로 합치면 화면이 늘 둘 다 받아야 하는데, 브리핑 중에는
+    # 둘 중 하나만 본다. 고르는 쪽만 받게 나눠 둔다.
+    rh = build_homes(yms, ["rhSale", "rhRent"])
+    rh["builtAt"], rh["today"] = built, TODAY
+    print(f"  연립·다세대 실거래 {rh['total']:,}건 · 법정동 {sum(len(v) for v in rh['dongs'].values()):,}개")
+
+    sh = build_homes(yms, ["shSale", "shRent"])
+    sh["builtAt"], sh["today"] = built, TODAY
+    print(f"  단독·다가구 실거래 {sh['total']:,}건")
+
     write_js("apt.js", "APT_DATA", apt)
+    write_js("rh.js", "RH_DATA", rh)
+    write_js("sh.js", "SH_DATA", sh)
     write_js("sangga.js", "SANGGA_DATA", sangga)
     bump_cache_version(time.strftime("%Y%m%d%H%M"))
 

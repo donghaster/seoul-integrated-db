@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>금집부쌤의 서울시 통합 부동산 대시보드 — 아파트</title>
+  <title>금집부쌤의 서울시 통합 부동산 대시보드 — 비아파트</title>
   <!-- 홈 화면에 앱처럼 얹기 위한 것들. 이게 없으면 안드로이드가 아이콘을
        화면 조각으로 만들고 이름도 제목 전체를 그대로 쓴다. -->
   <link rel="manifest" href="../manifest.webmanifest" />
@@ -28,7 +28,7 @@
     })();
   </script>
   <link rel="stylesheet" href="../vendor/leaflet/leaflet.css" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🏘️</text></svg>" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🏠</text></svg>" />
 </head>
 <body>
 
@@ -46,8 +46,8 @@
       <img class="geumjib-badge" src="../assets/geumjib-logo.png" alt="금집부쌤"
            onerror="this.classList.add('img-missing')" />
       <div class="brand-titles">
-        <h1><a href="../index.html">금집부쌤의 서울시 통합 부동산 대시보드</a> <span class="brand-scope">🏘️ 아파트</span></h1>
-        <p class="brand-sub">국토교통부 아파트 매매·전월세 실거래가 · 서울시 25개 자치구 전역 · 구/법정동 단위 조회</p>
+        <h1><a href="../index.html">금집부쌤의 서울시 통합 부동산 대시보드</a> <span class="brand-scope">🏠 <span id="kindName">연립·다세대</span></span></h1>
+        <p class="brand-sub" id="kindSub">국토교통부 연립·다세대 매매·전월세 실거래가 · 서울시 25개 자치구 전역</p>
       </div>
     </div>
   </div>
@@ -68,6 +68,17 @@
 
   <!-- ─────────────── 조회 조건 ─────────────── -->
   <!-- 조회 조건 — 세로로 쌓지 않고 한눈에 들어오도록 가로로 편다 -->
+<section class="filter-bar" aria-label="주택 종류">
+  <div class="ctl">
+    <label>주택 종류</label>
+    <div class="tab-row seg-sm" id="kindTabs">
+      <button data-k="rh">연립·다세대</button>
+      <button data-k="sh">단독·다가구</button>
+    </div>
+  </div>
+  <div class="filter-note" id="kindNote"></div>
+</section>
+
 <section class="filter-bar" aria-label="지역 선택">
   <div class="ctl">
     <label for="guSelect">자치구</label>
@@ -185,7 +196,7 @@
   <!-- ─────────────── 아파트 실거래 가격지수 ─────────────── -->
   <section class="card-section" id="sec-index">
     <div class="sec-head">
-      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> <span id="idxSecTitle">아파트</span> 실거래 가격지수</h2>
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> <span id="idxSecTitle">비아파트</span> 실거래 가격지수</h2>
       <button class="sec-print-btn" onclick="printSection('sec-index')">이 섹션 인쇄</button>
     </div>
     <p class="gran-purpose" id="idxPurpose"></p>
@@ -306,16 +317,16 @@
        (@media print의 `section[data-tabpanel] { display:block !important }`) -->
   <nav class="top-tabs" id="topTabs" role="tablist" aria-label="TOP 10 보기 전환">
     <button type="button" class="top-tab is-on" role="tab" data-tab="deal">
-      <b>💰 아파트 실거래가 TOP 30</b><em>금액 상위 30건 · 10건씩 보기</em>
+      <b>💰 실거래가 TOP 30</b><em>금액 상위 30건 · 10건씩 보기</em>
     </button>
     <button type="button" class="top-tab" role="tab" data-tab="price">
       <b>📊 매매·전세·월세 가격비교</b><em>TOP10 기준 세 가지 가격을 한 축에서</em>
     </button>
     <button type="button" class="top-tab" role="tab" data-tab="vol">
-      <b>📈 아파트 실거래량 TOP 30</b><em>월별 추이 + 구·동 거래량 순위</em>
+      <b>📈 실거래량 TOP 30</b><em>월별 추이 + 구·동 거래량 순위</em>
     </button>
     <button type="button" class="top-tab" role="tab" data-tab="py">
-      <b>📐 아파트 평당가격 TOP 30</b><em>단위면적 가격 상위 30건</em>
+      <b>📐 평당가격 TOP 30</b><em>단위면적 가격 상위 30건</em>
     </button>
     <button type="button" class="top-tab" role="tab" data-tab="rise">
       <b>🚀 평당가 상승률 TOP 30</b><em>전반부 → 후반부 변동률</em>
@@ -325,15 +336,13 @@
   <!-- ─────────────── ① 실거래가 TOP 10 ─────────────── -->
   <section class="card-section" id="sec-top10" data-tabpanel="deal">
     <div class="sec-head">
-      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 아파트 실거래가 TOP 30</h2>
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 실거래가 TOP 30</h2>
       <button class="sec-print-btn" onclick="printSection('sec-top10')">이 섹션 인쇄</button>
     </div>
     <p class="sec-desc">선택 지역의 실거래 중 <b>금액 상위 30건</b>. 표에는 <b>10건만 보이고</b>, 아래 <b>펼치기</b>로 30위까지.<br />
-      아래 <b>평형대</b>를 고르면 그 평형대 안에서 다시 금액 상위 30건 — <b>분양 평수 기준</b>이라 손님이 말씀하시는 “34평”과 같은 잣대. 위 지도도 고른 평형대를 따라감.<br />
-      <b>분양면적은 실거래 자료에 없음.</b> 건축물대장에서 <b>실제 공급면적(전유+주거공용)</b>을 찾아 씀 — 같은 전용면적이 대장에 있으면 그 값, 없으면 <b>같은 평형대</b>의 대장 값.<br />
-      대장에 아직 없는 평형만 전용률로 어림하고 <span class="est-mark">*</span>를 붙임(<b><span class="est-mark">*</span>가 없으면 대장에서 확인한 값</b>). 어림할 때는 그 단지가 대장에 있으면 <b>그 단지에서 잰 전용률</b>로, 아예 없으면 <b>76.9%</b>로 환산.<br />
-      — 실제와 1~2평 차이 날 수 있음.<br />
-      고객이 말씀하시는 <b>“34평”은 분양 평수</b>라 그 기준으로 적음. 월세는 <b>환산보증금(보증금 + 월세×100)</b> 기준으로 줄을 세움. 단지명을 클릭하면 위 지도에 위치 표시.</p>
+      아래 <b>평형대</b>를 고르면 그 평형대 안에서 다시 금액 상위 30건.<br />
+      <b>면적은 실거래에 신고된 값 그대로</b> &mdash; 아파트와 달리 분양면적으로 바꾸지 않음. 건축물대장을 건물 이름으로 찾을 수가 없어(이름이 없거나 지번뿐) 어림하면 오히려 틀림.<br />
+      월세는 <b>환산보증금(보증금 + 월세×100)</b> 기준으로 줄을 세움.</p>
     <div class="tab-row" id="dealTypeTabs">
       <button class="active" data-t="sale">매매</button>
       <button data-t="jeonse">전세</button>
@@ -344,7 +353,7 @@
     <p class="band-note" id="dealBandNote"></p>
     <div class="deal-scroll" style="--tbl-h:560px">
       <table class="rank-table deal-table">
-        <thead><tr><th>순위</th><th>단지명</th><th>분양면적 <span class="th-sub">㎡ (평) · 아래 전용</span></th><th>층</th><th id="dealPriceHead">거래가</th><th>평당가 <span class="th-sub">공급 기준 · 아래 전용</span></th><th>거래일</th></tr></thead>
+        <thead><tr><th>순위</th><th>단지명</th><th>면적 <span class="th-sub">㎡ (평)</span></th><th>층</th><th id="dealPriceHead">거래가</th><th>평당가 <span class="th-sub">만원</span></th><th>거래일</th></tr></thead>
         <tbody id="dealBody"></tbody>
       </table>
     </div>
@@ -361,7 +370,7 @@
     <p class="sec-desc"><b>점 하나 = 실거래 한 건</b>. 평균이 아니라 그 기간 가장 비싼 거래를 1위부터 10위까지 줄 세운 것.<br />
       아래 막대는 그 열 건이 <b>실제로 어느 달에 있었는지</b> 되돌려 놓은 것 — 천장이 언제 찍혔는지가 여기서 보임.<br />
       매매가·전세보증금·월세 환산보증금을 <b>같은 억원 축</b>에 올림. 아래 버튼으로 항목을 껐다 켤 수 있음.<br />
-      <b>평형대</b>를 고르면 세 유형을 모두 그 평형대 안에서 다시 줄 세움 &mdash; <b>분양 평수 기준</b>이라 고객이 말씀하시는 평수와 같음.</p>
+      <b>평형대</b>를 고르면 세 유형을 모두 그 평형대 안에서 다시 줄 세움 &mdash; <b>신고된 면적 기준</b>.</p>
     <div class="tab-row" id="compareToggle">
       <button class="active" data-type="sale">매매</button>
       <button class="active" data-type="jeonse">전세</button>
@@ -384,7 +393,7 @@
   <!-- ─────────────── ③ 실거래량 ─────────────── -->
   <section class="card-section" id="sec-volume" data-tabpanel="vol">
     <div class="sec-head">
-      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 아파트 실거래량 TOP 30</h2>
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 실거래량 TOP 30</h2>
       <button class="sec-print-btn" onclick="printSection('sec-volume')">이 섹션 인쇄</button>
     </div>
     <p class="sec-desc">선택 지역의 <b>월별 거래건수 추이</b>와 <b>거래량 순위</b>. 위에서 자치구를 고르면 <b>그 구의 법정동별</b>, 법정동까지 고르면 <b>그 동의 단지별</b> 순위로 따라 내려감. 실거래 신고는 계약일로부터 30일 이내라 <b>마지막 달은 계속 늘어남</b>.</p>
@@ -411,10 +420,10 @@
   <!-- ─────────────── ④ 평당가격 TOP 30 ─────────────── -->
   <section class="card-section" id="sec-py" data-tabpanel="py">
     <div class="sec-head">
-      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 아파트 평당가격 TOP 30</h2>
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 평당가격 TOP 30</h2>
       <button class="sec-print-btn" onclick="printSection('sec-py')">이 섹션 인쇄</button>
     </div>
-    <p class="sec-desc" id="pyDesc">금액이 아니라 <b>평당가(거래금액 ÷ 전용면적 ÷ 3.3058)</b> 상위 30건.
+    <p class="sec-desc" id="pyDesc">금액이 아니라 <b>평당가(거래금액 ÷ 신고면적 ÷ 3.3058)</b> 상위 30건.
       큰 평형이 밀리고 <b>작지만 비싼 단지</b>가 드러나므로, 금액 순위와 함께 보면 좋음.</p>
     <div class="view-bar">
       <div class="view-ctl">
@@ -505,7 +514,7 @@
   <!-- ─────────────── 정책 동향 ─────────────── -->
   <section class="card-section" id="sec-policy">
     <div class="sec-head">
-      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 서울 아파트 시장·정책 체크포인트</h2>
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 서울 주택 시장·정책 체크포인트</h2>
       <button class="sec-print-btn" onclick="printSection('sec-policy')">이 섹션 인쇄</button>
     </div>
     <p class="sec-desc">고객 상담에서 자주 나오는 제도 항목을 정리. <b>시행 시점·요건은 수시로 바뀌므로 계약 전 반드시 원문을 확인</b>.</p>
@@ -522,13 +531,28 @@
 
 <script src="../vendor/leaflet/leaflet.js"></script>
 <script src="../vendor/chart.umd.min.js"></script>
-<script src="../data/apt.js?v=cf03185994"></script>
-<script src="../data/supply.js?v=f8a085a5aa"></script>
+<script>
+  /* 종류에 맞는 자료만 받는다. 둘 다 받으면 11.5MB이고, 브리핑 중에는 둘 중
+     하나만 본다. document.write를 쓰는 까닭은 app.js가 자료가 이미 있다고
+     보고 바로 그리기 때문이다 — 순서를 지키려면 이 자리에서 끼워 넣어야 한다. */
+  (function () {
+    var q = new URLSearchParams(location.search);
+    var k = q.get("type") === "sh" ? "sh" : "rh";
+    window.DASH_KIND = k;
+    window.DASH_CFG = k === "sh"
+      ? { dataVar: "SH_DATA", finder: false, map: false, dong: false,
+          supply: false, areaWord: "연면적", areaFull: "연면적" }
+      : { dataVar: "RH_DATA", finder: true, map: true, dong: true,
+          supply: false, areaWord: "전용" };
+    document.write('<scr' + 'ipt src="../data/' + k + '.js"></scr' + 'ipt>');
+  })();
+</script>
 <script src="../data/geo.js?v=5f13ee09fd"></script>
 <!-- 입지분석: 지하철·학교·공원·상권·인구(locinfo) + 개발 호재는 뉴타운 자료를 재사용 -->
 <script src="../data/locinfo.js?v=e97bc091b7"></script>
 <script src="../data/newtown.js?v=8ba14b3baf"></script>
 <script src="../shared/brand.js?v=c1f50f4543"></script>
-<script src="app.js?v=353e5e4f4b"></script>
+<script src="../apt/app.js?v=353e5e4f4b"></script>
+<script src="app.js?v=9138e73f01"></script>
 </body>
 </html>

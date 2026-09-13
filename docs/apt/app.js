@@ -5,7 +5,21 @@
 (function () {
   "use strict";
 
-  var D = window.APT_DATA;
+  /* 이 화면은 주택 셋(아파트·연립다세대·단독다가구)을 함께 그린다.
+     집계는 셋이 똑같고(거래 하나 = 지역·이름·면적·금액), 다른 것은 자료의
+     사정뿐이다 — 단독다가구는 단지명도 지번도 없고 전용면적 대신 연면적만
+     온다. 그 차이를 아래 한 곳에 모아 두고 나머지 코드는 건드리지 않는다.
+     설정이 없으면 아파트로 본다. */
+  var CFG = window.DASH_CFG || {};
+  var HAS_FINDER = CFG.finder !== false;   // 단지 찾아보기(이름으로 찾기)
+  var HAS_MAP = CFG.map !== false;         // 지도(지번이 있어야 한다)
+  var HAS_DONG = CFG.dong !== false;       // 법정동까지 좁히기
+  var HAS_SUPPLY = CFG.supply !== false;   // 분양면적 환산(건축물대장이 있어야 한다)
+  var AREA_WORD = CFG.areaWord || "전용";  // 면적의 이름 — 단독은 '연면적'
+  // '전용' + '면적'은 되지만 '연면적' + '면적'은 겹친다. 따로 들고 있는다.
+  var AREA_FULL = CFG.areaFull || (AREA_WORD + "면적");
+
+  var D = window[CFG.dataVar || "APT_DATA"];
   var GEO = window.GEO_COORDS || {};
   if (!D) {
     document.querySelector(".wrap").insertAdjacentHTML("afterbegin",
@@ -453,6 +467,9 @@
      잰 전용률로(ratioOf), 아예 없으면 서울 평균 76.9%로. 어림한 값에만 *를
      붙인다. */
   function supplyOf(a, gu, dg, name) {
+    // 연립·단독은 건축물대장을 단지 이름으로 찾을 수가 없다(이름이 없거나
+    // 지번뿐이다). 어림한 분양면적을 적느니 신고된 면적을 그대로 쓴다.
+    if (!HAS_SUPPLY) return { v: a, exact: true };
     var t = SUPPLY_TBL[gu + "|" + dg + "|" + name];
     if (t) {
       var best = null, gap = AREA_TOL;
@@ -557,13 +574,16 @@
   }
 
   function manNum(man) { return man ? Math.round(man).toLocaleString() : "-"; }
-  function pyBaseLabel() { return "전용 기준"; }
-  function pyBaseWord() { return "전용"; }
+  function pyBaseLabel() { return AREA_WORD + " 기준"; }
+  function pyBaseWord() { return AREA_WORD; }
 
   /* 분양면적 ㎡(평)을 크게, 전용 ㎡를 그 아래 옅게.
      row를 주면 그 단지의 실제 공급면적을 찾아 쓰고, 없으면 어림한다. */
   function areaBoth(a, row) {
     if (!a) return "-";
+    // 분양면적이 없는 자료는 신고된 면적 한 줄이면 된다.
+    // 칸마다 '전용 기준'을 되풀이하면 표만 시끄러워진다 — 머리글이 이미 말한다.
+    if (!HAS_SUPPLY) return a.toFixed(1) + "㎡ (" + (a / PYEONG).toFixed(1) + "평)";
     var r = row ? supplyOf(a, row.gu, row.dg, row.n) : { v: supplyArea(a), exact: false };
     return r.v.toFixed(1) + "㎡ (" + (r.v / PYEONG).toFixed(1) + "평)" + estMark(r.exact) +
       '<div class="rt-sub">전용 ' + a.toFixed(2) + "㎡</div>";
@@ -574,6 +594,7 @@
   function pyBoth(row, type) {
     if (!row.a) return "-";
     var v = convValue(row, type);
+    if (!HAS_SUPPLY) return Math.round(v / (row.a / PYEONG)).toLocaleString() + "만원";
     var sup = supplyOf(row.a, row.gu, row.dg, row.n).v;
     return Math.round(v / (sup / PYEONG)).toLocaleString() + "만원" +
       '<div class="rt-sub">전용 ' + Math.round(v / (row.a / PYEONG)).toLocaleString() + "만원</div>";
@@ -1261,6 +1282,7 @@
 
   /* 법정동은 칩으로 펼친다 — 선택한 구 안에서만 */
   function fillDong() {
+    if (!HAS_DONG) { state.dong = ALL; return; }
     if (state.gu === ALL) {
       state.dong = ALL;
       dongChips.innerHTML = '<button class="active" data-d="all">전체</button>' +
@@ -1313,7 +1335,7 @@
       { label: "전세 거래", value: r.cnt.jeonse.toLocaleString() + "건", sub: "중위 보증금 " + eokman(r.med.jeonse) },
       { label: "월세 거래", value: r.cnt.wolse.toLocaleString() + "건", sub: "중위 월세 " + (r.med.wolse || 0).toLocaleString() + "만원" },
       { label: "중위 매매 평당가 (" + pyBaseWord() + ")", value: pyNum(r.med.pyeong) + "만원",
-        sub: "매매가 ÷ (" + pyBaseWord() + "면적 ÷ 3.3058)" },
+        sub: "매매가 ÷ (" + AREA_FULL + " ÷ 3.3058)" },
       { label: "전월세 중 월세 비중", value: pctText(r.cnt.wolse, r.cnt.jeonse + r.cnt.wolse), sub: "전세 " + pctText(r.cnt.jeonse, r.cnt.jeonse + r.cnt.wolse) },
     ];
     document.getElementById("kpiRow").innerHTML = box.map(function (b) {
@@ -1882,11 +1904,26 @@
     });
   });
 
+  /* 섹션과 그 바로가기 단추를 함께 지운다. 하나만 지우면 단추를 눌렀을 때
+     아무 데도 안 가는 죽은 단추가 남는다. */
+  function hideBlocks(ids, sel) {
+    ids.forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.remove();
+      var nav = document.querySelector('.section-nav [data-target="' + id + '"]');
+      if (nav) nav.remove();
+    });
+    if (sel) {
+      document.querySelectorAll(sel).forEach(function (el) { el.remove(); });
+    }
+  }
+
   /* ════════════════ 지도 ════════════════ */
 
   var map = null, markerLayer = null, markers = {};
 
   function initMap() {
+    if (!HAS_MAP) return;
     map = L.map("aptMap", { scrollWheelZoom: true }).setView([37.5535, 126.9905], 11);
     if (window.watchMapSize) window.watchMapSize(map, document.getElementById("aptMap"));
     window.osmTiles(map);
@@ -1931,6 +1968,7 @@
   }
 
   function renderMap() {
+    if (!HAS_MAP) return;
     if (!map) return;
     markerLayer.clearLayers();
     markers = {};
@@ -2096,6 +2134,7 @@
   }
 
   (function initFinder() {
+    if (!HAS_FINDER) return;
     var input = document.getElementById("aptSearch");
     var drop = document.getElementById("aptDrop");
     if (!input) return;
@@ -3072,7 +3111,7 @@
       priceIndexHtml() +
       dongVsGuHtml() +
       "<p style='margin-top:10px;color:var(--txt-mute);font-size:12.5px'>" +
-      "※ 평당가 = 거래금액 ÷ (" + pyBaseWord() + "면적 ÷ 3.3058). 매매 신고 3건 이상인 지역만 순위에 넣음." +
+      "※ 평당가 = 거래금액 ÷ (" + AREA_FULL + " ÷ 3.3058). 매매 신고 3건 이상인 지역만 순위에 넣음." +
       (state.pyBase === "supply"
         ? " <b>분양면적은 실거래 자료에 없어</b> 전용률 74%로 환산." : "") + "</p>";
   }
@@ -3884,7 +3923,7 @@
     var pd = document.getElementById("pyDesc");
     if (pd) {
       pd.innerHTML = unit === "deal"
-        ? "금액이 아니라 <b>평당가(거래금액 ÷ 전용면적 ÷ 3.3058)</b> 상위 30건. " +
+        ? "금액이 아니라 <b>평당가(거래금액 ÷ " + AREA_FULL + " ÷ 3.3058)</b> 상위 30건. " +
           "큰 평형이 밀리고 <b>작지만 비싼 단지</b>가 드러나므로, 금액 순위와 함께 보면 좋음."
         : "<b>" + rankScopeLabel(unit) + "</b>의 " +
           (unit === "gu" ? "자치구별" : unit === "dong" ? "법정동별" : "단지별") +
@@ -4402,6 +4441,12 @@
      기간·자치구를 먼저 정해야 법정동 칩이 그 구의 것으로 채워진다. */
   var urlWant = readUrl();
   applyUrl(urlWant);
+  /* 이 자료로는 못 하는 칸을 통째로 지운다. 비워 두면 "왜 아무것도 안 나오지"
+     하게 되고, 설명을 달아 두면 그 설명이 자리를 먹는다. */
+  if (!HAS_FINDER) hideBlocks(["sec-finder"], '[data-target="sec-finder"]');
+  if (!HAS_MAP) hideBlocks(["sec-map"], '[data-target="sec-map"]');
+  if (!HAS_DONG) hideBlocks([], ".stickytop .filter-bar .ctl-full");
+
   fillGu();
   guSelect.value = state.gu;
   fillDong();
