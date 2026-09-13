@@ -1739,6 +1739,18 @@ html[data-theme="dark"] .mine-tag { background: #3a63bd; }
   .stickytop .print-btn::first-letter { font-size: 14px; }
 }
 
+/* 지도 이름표 — Leaflet에 맡기지 않고 우리가 그린다.
+   원 언저리에서 마우스를 굴릴 때 떴다 사라졌다 하던 것을 없애려고 가져왔다. */
+.map-label {
+  position: absolute; z-index: 650; display: none;
+  transform: translate(-50%, -100%);
+  padding: 4px 9px; border-radius: 7px; white-space: nowrap;
+  font-size: 12px; font-weight: 800; line-height: 1.3;
+  color: #fff; background: rgba(28, 34, 48, .92);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .25);
+  pointer-events: none;        /* 이름표가 마우스를 가로채면 원을 못 누른다 */
+}
+
 /* ── 접힌 한 줄 ────────────────────────────────────────────────────────
    좁은 화면에서 아래로 내리면 막대 전체를 이 한 줄로 갈음한다.
    기본은 숨김 — 넓은 화면에서는 쓸 일이 없다. */

@@ -1943,7 +1943,7 @@
 
   function pickNearest(e) {
     var k = nearestKey(e);
-    if (k) { selectMarker(k); showDetail(k); }
+    if (k) { selectMarker(k); showDetail(k); showLabel(k); }
   }
 
   /* 이름표도 가장 가까운 원을 따라다니게 한다.
@@ -1953,35 +1953,53 @@
      원은 이름을 볼 길이 아예 없다. 그래서 마우스가 지도 위를 지날 때마다
      40px 안의 가장 가까운 원을 찾아 그 이름을 띄운다 — 그러면 지금 누르면
      무엇이 열리는지가 늘 보인다(누르는 규칙과 같은 잣대다). */
-  var hoverKey = null;
+  var hoverKey = null, labelEl = null;
+
+  /* 이름표를 Leaflet에 맡기지 않고 직접 그린다.
+
+     Leaflet의 이름표는 그 원에 마우스가 '들어오고 나감'으로 스스로 열고
+     닫는다. 우리는 가장 가까운 원을 따로 골라 띄우므로, 둘이 같은 이름표를
+     두고 싸운다 — 원 언저리에서 마우스를 굴리면 떴다 사라졌다 하는 까닭이
+     이것이다. 이름표 하나를 우리가 들고 있으면 깜빡일 일이 없다. */
+  function showLabel(k) {
+    if (!labelEl) {
+      labelEl = document.createElement("div");
+      labelEl.className = "map-label";
+      map.getContainer().appendChild(labelEl);
+    }
+    var g = markers[k];
+    if (!g || !g.marker) { labelEl.style.display = "none"; return; }
+    var p = map.latLngToContainerPoint([g.coord.lat, g.coord.lng]);
+    labelEl.textContent = g.label || g.name;
+    labelEl.style.display = "block";
+    labelEl.style.left = Math.round(p.x) + "px";
+    labelEl.style.top = Math.round(p.y - (markerStyle(g, true).radius + 10)) + "px";
+  }
+
+  function hideLabel() { if (labelEl) labelEl.style.display = "none"; }
 
   function hoverNearest(e) {
     var k = nearestKey(e);
-    if (k === hoverKey) return;
-    if (hoverKey && markers[hoverKey] && markers[hoverKey].marker) {
-      markers[hoverKey].marker.closeTooltip();
-      if (hoverKey !== selectedKey) {
+    if (k !== hoverKey) {
+      if (hoverKey && markers[hoverKey] && markers[hoverKey].marker && hoverKey !== selectedKey) {
         markers[hoverKey].marker.setStyle(markerStyle(markers[hoverKey], false));
       }
+      hoverKey = k;
+      if (k && markers[k] && markers[k].marker) {
+        markers[k].marker.bringToFront();
+        if (k !== selectedKey) markers[k].marker.setStyle(markerStyle(markers[k], true));
+      }
     }
-    hoverKey = k;
-    if (k && markers[k] && markers[k].marker) {
-      markers[k].marker.openTooltip().bringToFront();
-      if (k !== selectedKey) markers[k].marker.setStyle(markerStyle(markers[k], true));
-    }
-    if (map && map.getContainer) {
-      map.getContainer().style.cursor = k ? "pointer" : "";
-    }
+    if (k) showLabel(k); else hideLabel();
+    if (map && map.getContainer) map.getContainer().style.cursor = k ? "pointer" : "";
   }
 
   function clearHover() {
-    if (hoverKey && markers[hoverKey] && markers[hoverKey].marker) {
-      markers[hoverKey].marker.closeTooltip();
-      if (hoverKey !== selectedKey) {
-        markers[hoverKey].marker.setStyle(markerStyle(markers[hoverKey], false));
-      }
+    if (hoverKey && markers[hoverKey] && markers[hoverKey].marker && hoverKey !== selectedKey) {
+      markers[hoverKey].marker.setStyle(markerStyle(markers[hoverKey], false));
     }
     hoverKey = null;
+    hideLabel();
     if (map && map.getContainer) map.getContainer().style.cursor = "";
   }
 
@@ -1991,6 +2009,8 @@
     map.on("click", pickNearest);
     map.on("mousemove", hoverNearest);
     map.on("mouseout", clearHover);
+    // 지도를 끌거나 줌을 바꾸면 이름표 자리가 틀어진다 — 그때는 감춘다
+    map.on("movestart zoomstart", hideLabel);
     if (window.watchMapSize) window.watchMapSize(map, document.getElementById("aptMap"));
     window.osmTiles(map);
     markerLayer = L.layerGroup().addTo(map);
@@ -2041,6 +2061,7 @@
     markers = {};
     selectedKey = null;
     hoverKey = null;
+    hideLabel();
 
     /* 위 표가 평형대로 좁혀져 있으면 지도도 같이 좁힌다. 표와 지도가 다른
        목록을 들고 있으면, 표에서 단지 이름을 눌렀을 때 그 단지가 지도에 없어
@@ -2075,9 +2096,9 @@
       var label = (g.rows.length > 1)
         ? mapTitle(g) + " (TOP10 " + g.rows.length + "건)"
         : (g.rank + 1) + "위 " + g.name;
+      g.label = label;
       g.marker = L.circleMarker([g.coord.lat, g.coord.lng], markerStyle(g, false))
-        .addTo(markerLayer)
-        .bindTooltip(label, { direction: "top", className: "zone-tooltip" });
+        .addTo(markerLayer);
       g.marker.on("click", function () { selectMarker(key); showDetail(key); });
     });
 
@@ -2101,9 +2122,9 @@
                           rows: mrows.map(function (r, i) { return { row: r, rank: i }; }) };
           nameIndex[openAptKey] = mk;
           pts.push([mc.lat, mc.lng]);
+          markers[mk].label = "찾은 단지 · " + mine.n;
           markers[mk].marker = L.circleMarker([mc.lat, mc.lng], markerStyle(markers[mk], false))
-            .addTo(markerLayer)
-            .bindTooltip("찾은 단지 · " + mine.n, { direction: "top", className: "zone-tooltip" });
+            .addTo(markerLayer);
           markers[mk].marker.on("click", function () { selectMarker(mk); showDetail(mk); });
         } else {
           nameIndex[openAptKey] = mk;   // TOP10에 이미 있으면 그 원을 가리킨다
