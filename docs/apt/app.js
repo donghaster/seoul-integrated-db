@@ -26,6 +26,7 @@
     gu: ALL, dong: ALL,
     start: "", end: "",            // 조회 시작·종료일(자유 선택)
     gran: "month",                 // 집계 단위: week | month
+    win: "3m",                     // 눌려 있는 빠른 기간. 날짜를 직접 고치면 빈 문자열
     dealType: "sale",
     dealBand: "all",               // 실거래 TOP30 평형대 — all | u20 | 20 | 30 … | 80
     cmpBand: "all",                // 가격비교 평형대 — 같은 칸을 따로 기억한다
@@ -1095,6 +1096,7 @@
     state.start = clampDate(iso(start));
     state.end = clampDate(iso(end));
     state.gran = (p.k === "4w") ? "week" : "month";
+    state.win = p.k;
     syncControls();
   }
 
@@ -1114,6 +1116,107 @@
     endInput.min = DATA_START; endInput.max = DATA_END;
     document.querySelectorAll("#granTabs button").forEach(function (b2) {
       b2.classList.toggle("active", b2.dataset.g === state.gran);
+    });
+  }
+
+  /* ════════════════ 주소에 조건 담기 ════════════════
+
+     지금까지는 링크를 열면 늘 '서울시 전체 · 최근 3개월'에서 시작했다.
+     고객을 만날 때마다 자치구·법정동·기간을 다시 골라야 했고, 고객에게
+     링크를 보내도 "서초구 반포동을 고르고 6개월로 바꿔서 보세요"라고
+     따로 말해야 했다.
+
+     주소가 곧 화면이 되게 한다.
+       /apt/?gu=서초구&dong=반포동&w=6m&apt=반포 래미안 트리니원
+
+     조건을 바꿀 때마다 주소창도 따라 바뀌므로(replaceState — 뒤로 가기
+     기록은 더럽히지 않는다), 원하는 화면을 만든 뒤 주소를 그대로 복사해
+     보내면 된다. 자주 쓰는 조건은 북마크로 여러 개 만들어 두면 된다.
+
+     값은 사람이 읽을 수 있게 한글 그대로 둔다. 카톡으로 보낼 때 한 번
+     보고 "아 서초구 반포동이구나" 하고 알아볼 수 있는 편이 낫다. */
+
+  var URL_KEYS = ["gu", "dong", "w", "from", "to", "g", "band", "apt"];
+
+  function readUrl() {
+    var out = {};
+    try {
+      var q = new URLSearchParams(window.location.search);
+      URL_KEYS.forEach(function (k) {
+        var v = q.get(k);
+        if (v) out[k] = v.trim();
+      });
+    } catch (e) { /* 아주 옛 브라우저 — 그냥 기본값으로 연다 */ }
+    return out;
+  }
+
+  /* 주소에 담긴 조건을 상태에 얹는다. 없는 자치구·동이 적혀 있으면 그냥
+     무시한다 — 잘못된 링크를 받았다고 빈 화면을 보여 줄 이유는 없다. */
+  function applyUrl(u) {
+    if (u.w && PRESETS.some(function (p) { return p.k === u.w; })) applyPreset(u.w);
+    else applyPreset("3m");
+
+    if (u.gu && D.gus.indexOf(u.gu) >= 0) state.gu = u.gu;
+    if (u.dong && state.gu !== ALL && (D.dongs[state.gu] || []).indexOf(u.dong) >= 0) {
+      state.dong = u.dong;
+    }
+    // 직접 지정한 날짜가 있으면 빠른 기간보다 우선한다 — 눌린 칸도 없앤다
+    if (u.from || u.to) state.win = "";
+    if (u.from) state.start = clampDate(u.from);
+    if (u.to) state.end = clampDate(u.to);
+    if (state.start > state.end) { var t = state.start; state.start = state.end; state.end = t; }
+
+    if (u.g === "week" || u.g === "month") state.gran = u.g;
+    if (u.band && DEAL_BANDS.some(function (b) { return b.k === u.band; })) {
+      state.dealBand = u.band;
+      state.cmpBand = u.band;
+    }
+    syncControls();
+  }
+
+  /* 지금 화면을 주소에 적는다. 기본값은 안 적는다 — 주소가 길수록
+     카톡에서 잘려 보이고, 무엇이 특별한 조건인지도 안 보인다. */
+  function syncUrl() {
+    if (!window.history || !history.replaceState) return;
+    var q = [];
+    var add = function (k, v) { q.push(k + "=" + encodeURIComponent(v)); };
+
+    if (state.gu !== ALL) add("gu", state.gu);
+    if (state.dong !== ALL) add("dong", state.dong);
+
+    if (state.win && state.win !== "3m") add("w", state.win);
+    if (!state.win) { add("from", state.start); add("to", state.end); }
+
+    // 집계 단위는 빠른 기간이 정해 주는 값과 다를 때만 적는다
+    if (state.gran !== (state.win === "4w" ? "week" : "month")) add("g", state.gran);
+    if (state.dealBand !== "all") add("band", state.dealBand);
+    if (openAptKey && BY_APT[openAptKey]) add("apt", BY_APT[openAptKey].n);
+
+    var url = window.location.pathname + (q.length ? "?" + q.join("&") : "");
+    if (url !== window.location.pathname + window.location.search) {
+      history.replaceState(null, "", url);
+    }
+  }
+
+  /* 평형대 칸의 눌린 표시를 상태에 맞춘다. 칸은 화면을 읽어 들일 때
+     '전체'로 그려지는데, 주소로 30평대를 받아 열면 표만 좁아지고 칸은
+     '전체'에 남아 무엇을 보고 있는지 알 수 없다. */
+  function syncBandTabs() {
+    [["dealBandTabs", state.dealBand], ["cmpBandTabs", state.cmpBand]].forEach(function (pair) {
+      var host = document.getElementById(pair[0]);
+      if (!host) return;
+      host.querySelectorAll("button").forEach(function (x) {
+        x.classList.toggle("active", x.dataset.b === pair[1]);
+      });
+    });
+  }
+
+  /* 빠른 기간 칸의 눌린 표시를 지금 상태에 맞춘다. 주소로 6개월을 받아
+     열었는데 '최근 3개월'이 눌려 있으면 화면이 거짓말을 한다. */
+  function syncWindowTabs() {
+    if (!windowTabs) return;
+    windowTabs.querySelectorAll("button").forEach(function (x) {
+      x.classList.toggle("active", !!state.win && x.dataset.p === state.win);
     });
   }
 
@@ -1142,6 +1245,7 @@
     var lo = clampDate(startInput.value), hi = clampDate(endInput.value);
     if (lo > hi) { var t = lo; lo = hi; hi = t; }
     state.start = lo; state.end = hi;
+    state.win = "";
     windowTabs.querySelectorAll("button").forEach(function (x) { x.classList.remove("active"); });
     syncControls();
     renderAll();
@@ -2346,8 +2450,9 @@
   function showApt(key) {
     var sum = aptSummary(key);
     var host = document.getElementById("aptResult");
-    if (!sum) { host.innerHTML = ""; openAptKey = null; return; }
+    if (!sum) { host.innerHTML = ""; openAptKey = null; syncUrl(); return; }
     openAptKey = key;
+    syncUrl();            // 펼친 단지도 주소에 남겨 그대로 보낼 수 있게 한다
 
     var a = sum.apt;
     var mainBand = sum.main || null;    // 표는 작은 평형부터, 대표는 거래 많은 평형
@@ -4251,6 +4356,7 @@
   }
 
   function renderAll() {
+    syncUrl();                             // 지금 조건을 주소창에도 적어 둔다
     if (openAptKey) showApt(openAptKey);   // 기간이 바뀌면 단지 상세도 따라간다
     renderKpi();
     renderIndex();
@@ -4278,10 +4384,26 @@
     buildRisePrintAll();
   });
 
+  /* 주소에 조건이 담겨 있으면 그 화면으로 연다. 순서가 있다 —
+     기간·자치구를 먼저 정해야 법정동 칩이 그 구의 것으로 채워진다. */
+  var urlWant = readUrl();
+  applyUrl(urlWant);
   fillGu();
+  guSelect.value = state.gu;
   fillDong();
   fillCmpSelects();
-  applyPreset("3m");     // 기본 조회 기간 — 최근 3개월(달 단위)
+  syncWindowTabs();
+  syncBandTabs();
   initMap();
   renderAll();
+
+  // 단지까지 지정돼 있으면 그 단지를 펼쳐 둔다
+  if (urlWant.apt) {
+    var wantKey = state.gu + "|" + state.dong + "|" + urlWant.apt;
+    if (!BY_APT[wantKey]) {
+      var hit = searchApt(urlWant.apt, 1)[0];
+      wantKey = hit ? hit.key : null;
+    }
+    if (wantKey) focusApt(wantKey);
+  }
 })();
