@@ -1923,9 +1923,28 @@
 
   var map = null, markerLayer = null, markers = {};
 
+  /* 원을 살짝 빗맞혀도 가장 가까운 원을 집는다.
+
+     원이 작고(지름 20~32px) 서로 겹치기도 해서, 정확히 그 원을 짚어야만
+     열리면 "눌러도 아무 반응이 없다"가 된다. 겹친 원은 맨 위 하나만 클릭을
+     받으므로 아래 깔린 원은 영영 못 누른다. 지도 아무 데나 누르면 그 자리에서
+     가장 가까운 원을 찾아 연다 — 40px 안에 있을 때만. */
+  function pickNearest(e) {
+    var best = null, bestD = 40;
+    for (var k in markers) {
+      var g = markers[k];
+      if (!g.marker) continue;
+      var p = map.latLngToContainerPoint([g.coord.lat, g.coord.lng]);
+      var d = p.distanceTo(e.containerPoint);
+      if (d < bestD) { bestD = d; best = k; }
+    }
+    if (best) { selectMarker(best); showDetail(best); }
+  }
+
   function initMap() {
     if (!HAS_MAP) return;
     map = L.map("aptMap", { scrollWheelZoom: true }).setView([37.5535, 126.9905], 11);
+    map.on("click", pickNearest);
     if (window.watchMapSize) window.watchMapSize(map, document.getElementById("aptMap"));
     window.osmTiles(map);
     markerLayer = L.layerGroup().addTo(map);
@@ -2055,6 +2074,16 @@
     map.invalidateSize({ animate: false });
     if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.25), { maxZoom: 15 });
     else map.setView([37.5535, 126.9905], 11);
+
+    /* 칸 크기가 뒤늦게 잡히는 때가 있다(막대가 접히거나, 옆 상세칸이 채워지거나,
+       탭으로 숨겨져 있다가 열리거나). 그러면 범위가 옛 크기로 맞춰져 원들이
+       한 점에 뭉친다 — 뭉치면 맨 위 원 하나만 눌리고 나머지는 눌러도 반응이
+       없다. 한 박자 뒤에 한 번 더 맞춘다. */
+    setTimeout(function () {
+      if (!map) return;
+      map.invalidateSize({ animate: false });
+      if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.25), { maxZoom: 15 });
+    }, 250);
 
     document.getElementById("aptDetail").innerHTML =
       '<p class="placeholder">지도의 원 또는 아래 TOP10 표의 단지명을 클릭하면<br />단지 정보가 여기에 표시됨.</p>';
