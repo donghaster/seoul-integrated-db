@@ -2696,7 +2696,8 @@
         '<span class="near-note">단지에서 <b>500m</b>·<b>1km</b> 안 · 갈래를 눌러 켜고 끔</span></div>' +
       '<div class="near-chips">' +
         kinds.map(function (x) {
-          return '<button type="button" class="near-chip is-on" data-k="' + esc(x.k) + '"' +
+          return '<button type="button" class="near-chip' + (nearOff[x.k] ? "" : " is-on") +
+            '" data-k="' + esc(x.k) + '"' +
             ' style="--dot:' + x.c + '">' + x.i + " " + esc(x.k) +
             '<span class="near-n">' + near[x.k].length + "</span></button>";
         }).join("") +
@@ -2704,7 +2705,8 @@
       '<div class="near-map" id="nearMap"></div>' +
       '<div class="near-lists">' +
         kinds.map(function (x) {
-          return '<div class="near-col" data-k="' + esc(x.k) + '">' +
+          return '<div class="near-col" data-k="' + esc(x.k) + '"' +
+            (nearOff[x.k] ? " hidden" : "") + ">" +
             '<div class="near-col-h"><i style="background:' + x.c + '"></i>' + esc(x.k) + "</div>" +
             near[x.k].map(function (p) {
               return '<div class="near-row"><span class="near-name">' + esc(p.n) +
@@ -2746,8 +2748,10 @@
     var spots = [];
     NEAR_KINDS.forEach(function (x) {
       (near[x.k] || []).forEach(function (p) {
+        var off = !!nearOff[x.k];
         var m = L.circleMarker([p.y, p.x], {
-          radius: 7, color: "#fff", weight: 2, fillColor: x.c, fillOpacity: 0.95,
+          radius: 7, color: "#fff", weight: 2, fillColor: x.c,
+          opacity: off ? 0 : 1, fillOpacity: off ? 0 : 0.95,
         }).addTo(nearLayer);
         m._kind = x.k;
         spots.push({ m: m, k: x.k, lat: p.y, lng: p.x,
