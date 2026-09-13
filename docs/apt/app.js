@@ -1341,6 +1341,34 @@
 
   var cmpRankChart = null, cmpMonthChart = null;
 
+  /* 전세 한 건을 '같은 단지·같은 평형의 매매'와 짝지어 전세가율을 낸다.
+
+     순위끼리 견주면 안 된다. 전세 1위와 매매 1위는 대개 다른 단지·다른
+     평형이라, 두 선의 간격을 전세가율로 읽으면 엉뚱한 값이 나온다.
+     (반포동 최근 6개월은 우연히 둘 다 래미안원베일리 169㎡였지만,
+     그런 일이 늘 있지는 않다.)
+
+     그래서 같은 물건끼리만 나눈다. 짝지을 매매가 없으면 아무 말도 하지
+     않는다 — 어림한 값을 전세가율이라고 적으면 고객이 그 숫자로 판단한다.
+
+     조회 기간 안의 매매만 쓴다. 같은 평형에 매매가 여럿이면 중위값. */
+  function pairedRate(row) {
+    var a = BY_APT[row.gu + "|" + row.dg + "|" + row.n];
+    if (!a) return null;
+    var band = areaBand(row.a);
+    var sale = [];
+    for (var i = 0; i < a.deals.length; i++) {
+      var x = a.deals[i];
+      if (x.t !== "sale" || x.d < state.start || x.d > state.end) continue;
+      if (Math.abs(x.a - row.a) > AREA_TOL && areaBand(x.a) !== band) continue;
+      sale.push(x.v);
+    }
+    if (!sale.length) return null;
+    var mid = median(sale);
+    if (!mid) return null;
+    return { pct: Math.round(row.v / mid * 1000) / 10, n: sale.length, mid: mid };
+  }
+
   function renderCompare() {
     var r = region();
     var labels = ["1위", "2위", "3위", "4위", "5위", "6위", "7위", "8위", "9위", "10위"];
@@ -1368,14 +1396,23 @@
       animation: { duration: 400 },
       plugins: {
         legend: { display: true, labels: { boxWidth: 12, font: { size: 11 } } },
-        title: { display: true, text: regionLabel() + " · TOP10 순위별 가격 (억원)", font: { size: 13, weight: "bold" } },
+        title: { display: true,
+          text: regionLabel() + " · TOP10 개별 거래 — 1위부터 10위까지 (평균 아님, 억원)",
+          font: { size: 13, weight: "bold" } },
         tooltip: {
           callbacks: {
             label: function (c) {
               var t = c.dataset._type;
               var row = (r.top[t] || [])[c.dataIndex];
               if (!row) return c.dataset.label + ": -";
-              return c.dataset.label + " " + c.parsed.y + "억 — " + row.n + " " + row.a + "㎡";
+              var txt = c.dataset.label + " " + c.parsed.y + "억 — " + row.n + " " + row.a + "㎡";
+              if (t === "jeonse") {
+                var pr = pairedRate(row);
+                txt += pr
+                  ? " · 같은 평형 매매 " + eokShort(pr.mid) + " 대비 전세가율 " + pr.pct + "%"
+                  : " · 같은 평형 매매가 없어 전세가율 못 냄";
+              }
+              return txt;
             },
           },
         },
@@ -1426,18 +1463,39 @@
 
     // 요약 카드
     document.getElementById("cmpSummary").innerHTML = TYPES.map(function (t) {
-      var rows = r.top[t] || [];
+      /* r.top은 30건까지 들고 있다(아래 표가 쓴다). 이 카드는 위 그래프와
+         같은 것을 말해야 하므로 10건만 본다 — '1위–10위 격차'라고 적어 놓고
+         30위까지 재고 있었다(반포동 매매 42억을 60억으로 적었다). */
+      var rows = (r.top[t] || []).slice(0, 10);
       if (!rows.length) {
         return '<div class="stat-box"><div class="label">' + TYPE_LABEL[t] + " TOP10</div>" +
           '<div class="value">-</div><div class="sub">실거래 없음</div></div>';
       }
       var top = rows[0], last = rows[rows.length - 1];
       var gap = convValue(top, t) - convValue(last, t);
+
+      /* 전세는 매매 대비 몇 %인지를 함께 적는다. 두 선의 간격을 눈으로 재면
+         틀리므로(순위끼리는 다른 물건이다), 같은 단지·같은 평형끼리 짝지어
+         낸 값만 쓴다. 짝이 몇 건인지도 함께 밝힌다 — 한 건으로 낸 비율과
+         여덟 건으로 낸 비율은 무게가 다르다. */
+      var rateLine = "";
+      if (t === "jeonse") {
+        var rs = [];
+        rows.forEach(function (row) {
+          var pr = pairedRate(row);
+          if (pr) rs.push(pr.pct);
+        });
+        rateLine = rs.length
+          ? "<br />매매 대비 <b>전세가율 " + median(rs) + "%</b>" +
+            ' <span class="dim-note">같은 단지·평형 ' + rs.length + "/" + rows.length + "건 짝지음</span>"
+          : '<br /><span class="dim-note">같은 평형 매매가 없어 전세가율 못 냄</span>';
+      }
+
       return '<div class="stat-box">' +
         '<div class="label">' + TYPE_LABEL[t] + " TOP10 최고가</div>" +
         '<div class="value" style="color:' + TYPE_COLOR[t] + '">' + eokShort(convValue(top, t)) + "</div>" +
         '<div class="sub">' + esc(top.n) + " " + top.a + "㎡ · " + dateText(top.d) + "<br />" +
-        "1위–10위 격차 " + eokShort(gap) + "</div></div>";
+        "1위–10위 격차 " + eokShort(gap) + rateLine + "</div></div>";
     }).join("");
   }
 
