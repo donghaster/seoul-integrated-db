@@ -1891,7 +1891,7 @@
       },
     });
 
-    document.getElementById("volRankBody").innerHTML = list.length ? list.map(function (x, i) {
+    document.getElementById("volRankBody").innerHTML = list.length ? cap(list).map(function (x, i) {
       var reg = x.stat;
       var rc = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
       var name = rowName(x);
@@ -2165,6 +2165,25 @@
       map.invalidateSize({ animate: false });
       if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.25), { maxZoom: 15 });
     }, 250);
+
+    /* 칸 크기가 바뀌면 다시 맞춰야 한다. 그 방법을 지도에 붙여 둔다 — 인쇄할 때
+       칸을 줄이고 나서 이걸 부른다.
+
+       범위는 이 자리의 pts가 아니라 지금 실제로 그려져 있는 원에서 다시 잡는다.
+       한참 뒤에 불리는 함수라, 그때 화면에 있는 것과 이 자리의 목록이 어긋나
+       있으면 엉뚱한 데를 비춘다 — 원이 다섯 개 있는데도 서울 전체로 물러나
+       원들이 아래쪽에 몰려 보이던 것이 그것이다. */
+    map._refit = function () {
+      map.invalidateSize({ animate: false });
+      var live = [];
+      markerLayer.eachLayer(function (mk) { if (mk.getLatLng) live.push(mk.getLatLng()); });
+      if (!live.length) { map.setView([37.5535, 126.9905], 11); return; }
+      /* fitBounds 대신 자리를 직접 계산해 옮긴다. fitBounds는 옮기는 동작이
+         겹치면 조용히 무시될 때가 있어, 인쇄 직전처럼 한 번에 여러 일이
+         일어나는 자리에서는 믿기 어렵다. */
+      var bb = L.latLngBounds(live).pad(0.25);
+      map.setView(bb.getCenter(), Math.min(map.getBoundsZoom(bb), 15), { animate: false });
+    };
 
     document.getElementById("aptDetail").innerHTML =
       '<p class="placeholder">지도의 원 또는 아래 TOP10 표의 단지명을 클릭하면<br />단지 정보가 여기에 표시됨.</p>';
@@ -2894,8 +2913,13 @@
     function fitNear() {
       if (!nearMap) return;
       nearMap.invalidateSize({ animate: false });
-      nearMap.fitBounds(L.latLng(coord.lat, coord.lng).toBounds(3000), { padding: [8, 8] });
+      /* fitBounds가 아니라 자리를 직접 계산해 옮긴다 — 인쇄 직전처럼 한꺼번에
+         여러 일이 일어나면 fitBounds가 조용히 무시되곤 한다. */
+      var bb = L.latLng(coord.lat, coord.lng).toBounds(3000);
+      nearMap.setView(bb.getCenter(),
+                      nearMap.getBoundsZoom(bb, false, L.point(8, 8)), { animate: false });
     }
+    nearMap._refit = function () { fitNear(); spread(); };
     fitNear(); spread();
     // 칸 크기가 뒤늦게 잡히면 범위가 어긋난다 — 한 박자 뒤에 한 번 더
     setTimeout(function () { fitNear(); spread(); }, 250);
@@ -4873,6 +4897,64 @@
   });
 
   // 인쇄 시에는 세 섹션이 모두 펼쳐지므로 숨어 있던 차트를 미리 그려 둔다
+  /* 종이에서는 지도 칸이 절반으로 줄어든다(@media print). 그런데 Leaflet은
+     CSS가 칸을 줄인 것을 제때 알지 못해, 예전 크기 그대로 그린다 — 가운데
+     있어야 할 단지 원이 아래로 밀려 잘린다. 인쇄로 넘어가기 전에 여기서 직접
+     줄여 알려 주고 범위를 다시 맞춘다. 끝나면 되돌린다. */
+  var mapsShrunk = [];
+  function shrinkMapsForPrint() {
+    mapsShrunk = [];
+    [[document.getElementById("aptMap"), typeof map !== "undefined" ? map : null, 360],
+     [document.getElementById("nearMap"), nearMap, 420]].forEach(function (x) {
+      var el = x[0], mp = x[1];
+      if (!el || !mp || el.offsetParent === null) return;
+      // 보던 자리를 적어 둔다 — 인쇄가 끝나면 그대로 되돌려 놓는다
+      mapsShrunk.push({ el: el, mp: mp, was: el.style.height,
+                        centre: mp.getCenter(), zoom: mp.getZoom() });
+      el.style.setProperty("height", x[2] + "px", "important");
+      if (mp._refit) mp._refit();
+      else mp.invalidateSize({ animate: false });
+    });
+  }
+  function restoreMaps() {
+    mapsShrunk.forEach(function (x) {
+      x.el.style.height = x.was;
+      x.mp.invalidateSize({ animate: false });
+      x.mp.setView(x.centre, x.zoom, { animate: false });
+    });
+    mapsShrunk = [];
+  }
+
+  /* 브리핑 사이에 끼어 있는 '주의점'은 종이에서 맨 뒤로 보낸다. 상담에서
+     먼저 읽어야 할 것은 브리핑 본문이고, 주의점은 걸리는 데가 있을 때 찾아
+     보는 것이다. 사이에 두면 본문이 두 장에 걸쳐 끊긴다. */
+  var caveatHome = [];
+  function moveCaveatsToBack() {
+    var host = document.getElementById("caveatHost");
+    if (!host) return;
+    // 한 섹션만 인쇄할 때는 옮기지 않는다 — 모아 두는 칸이 같이 숨겨져,
+    // 옮겼다가는 그 섹션의 주의점이 통째로 사라진다.
+    if (document.body.classList.contains("printing-one")) return;
+    caveatHome = [];
+    document.querySelectorAll(".read-guide.caveat").forEach(function (el) {
+      var sec = el.closest("section.card-section");
+      caveatHome.push({ el: el, parent: el.parentNode, next: el.nextSibling });
+      if (sec) {
+        var from = document.createElement("p");
+        from.className = "caveat-from";
+        from.textContent = (sec.querySelector("h2") || {}).innerText || "";
+        host.appendChild(from);
+      }
+      host.appendChild(el);
+    });
+  }
+  function restoreCaveats() {
+    caveatHome.forEach(function (x) { x.parent.insertBefore(x.el, x.next); });
+    caveatHome = [];
+    var host = document.getElementById("caveatHost");
+    if (host) host.innerHTML = "";
+  }
+
   window.addEventListener("beforeprint", function () {
     PRINTING = true;
     renderCompare();
@@ -4882,12 +4964,17 @@
     renderPy();
     renderRise();
     buildRisePrintAll();
+    moveCaveatsToBack();
+    shrinkMapsForPrint();
   });
   window.addEventListener("afterprint", function () {
     PRINTING = false;
     renderDeal();
     renderPy();
     renderRise();
+    renderVolume();          // 거래량 순위도 화면 쪽 서른 줄로 되돌린다
+    restoreCaveats();
+    restoreMaps();
   });
 
   /* 주소에 조건이 담겨 있으면 그 화면으로 연다. 순서가 있다 —

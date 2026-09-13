@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="금집부쌤" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#1a1f2a" />
-  <link rel="stylesheet" href="../shared/app.css?v=c6c626240a" />
+  <link rel="stylesheet" href="../shared/app.css?v=ab460fbdcf" />
   <!-- 색 테마를 첫 칠 전에 찍는다. brand.js는 본문 맨 아래라, 다크로 맞춰 둔
        폰에서 흰 화면이 한 번 번쩍인 뒤 어두워진다. -->
   <script>
@@ -245,7 +245,7 @@
       <ol id="idxScript"></ol>
     </div>
 
-    <div class="read-guide" style="margin-top:14px;">
+    <div class="read-guide caveat" style="margin-top:14px;">
       <h4>금집부쌤이 짚어드리는 주의점</h4>
       <ol>
         <li>선택한 기간의 실거래를 <b>구간별로 나눠 중위 평당가</b>를 구하고, 자료가 있는
@@ -283,7 +283,7 @@
       <ol id="briefScript"></ol>
     </div>
 
-    <div class="read-guide" style="margin-top:14px;">
+    <div class="read-guide caveat" style="margin-top:14px;">
       <h4>금집부쌤이 짚어드리는 주의점</h4>
       <ol>
         <li><b>환산보증금(보증금 + 월세×100)</b>이 올랐다고 월세가 오른 게 <b>아님</b>.
@@ -388,7 +388,7 @@
   <!-- ─────────────── ③ 실거래량 ─────────────── -->
   <section class="card-section" id="sec-volume" data-tabpanel="vol">
     <div class="sec-head">
-      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 아파트 실거래량 TOP 30</h2>
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 아파트 실거래량 TOP <span class="n-scr">30</span><span class="n-prn">10</span></h2>
       <button class="sec-print-btn" onclick="printSection('sec-volume')">이 섹션 인쇄</button>
     </div>
     <p class="sec-desc">선택 지역의 <b>월별 거래건수 추이</b>와 <b>거래량 순위</b>. 위에서 자치구를 고르면 <b>그 구의 법정동별</b>, 법정동까지 고르면 <b>그 동의 단지별</b> 순위로 따라 내려감. 실거래 신고는 계약일로부터 30일 이내라 <b>마지막 달은 계속 늘어남</b>.</p>
@@ -516,6 +516,16 @@
     <div class="policy-grid" id="policyGrid"></div>
   </section>
 
+  <!-- 종이에서만 나오는 칸. 브리핑 본문 사이에 끼어 있던 '주의점'을 인쇄할 때
+       여기로 옮겨 붙인다 — 본문을 먼저 읽고, 주의점은 필요할 때 뒤에서 찾아본다. -->
+  <section class="card-section print-only" id="sec-caveats">
+    <div class="sec-head">
+      <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 읽을 때 주의점 &mdash; 모아 보기</h2>
+    </div>
+    <p class="sec-desc">앞의 브리핑을 읽다 걸리는 곳이 있으면 여기서 찾아볼 것.</p>
+    <div id="caveatHost"></div>
+  </section>
+
 </div>
 
 <footer class="disclaimer">
@@ -536,6 +546,6 @@
 <script src="../data/locinfo.js?v=e97bc091b7"></script>
 <script src="../data/newtown.js?v=8ba14b3baf"></script>
 <script src="../shared/brand.js?v=026e71b33d"></script>
-<script src="app.js?v=2a91abea84"></script>
+<script src="app.js?v=89e4ea76af"></script>
 </body>
 </html>

@@ -613,7 +613,7 @@ section[data-tabpanel].is-on { display: block; }
   /* 차트는 캔버스 크기가 고정되어야 잘리지 않는다 */
   .chart-box { height: 250px !important; break-inside: avoid; }
   .chart-grid { grid-template-columns: 1fr 1fr; }
-  .leaflet-map { height: 300px !important; }
+  .leaflet-map { height: 360px !important; }
   .filter-bar { border: 1px solid #ccc; box-shadow: none; padding: 8px 12px; }
   .filter-bar select { border: none; padding: 2px 0; background: none; -webkit-appearance: none; appearance: none; }
   table.rank-table { font-size: 11.5px; }
@@ -1825,7 +1825,7 @@ html[data-theme="dark"] .near-tag { color: var(--accent); }
 @media print {
   .near-wrap { margin-top: 16px; padding-top: 12px; break-before: auto; }
   .near-chips { display: none !important; }   /* 종이에서는 누를 수 없다 */
-  .near-map { height: 300px !important; break-inside: avoid; }
+  .near-map { height: 420px !important; break-inside: avoid; }
   .near-lists { grid-template-columns: repeat(4, 1fr); gap: 8px 14px; margin-top: 10px; }
   .near-col { break-inside: avoid; }
   .near-row { font-size: 11px; line-height: 1.5; }
@@ -1936,4 +1936,22 @@ html[data-theme="dark"] .near-tag { color: var(--accent); }
 @media print {
   .n-scr, .scr-only { display: none; }
   .n-prn, .prn-only { display: inline; }
+}
+
+/* 맨 뒤로 모아 둔 주의점 — 어느 섹션에서 온 것인지 머리에 적어 준다. */
+.caveat-from {
+  margin: 16px 0 6px; font-size: 12.5px; font-weight: 800; color: var(--txt-mute);
+  padding-bottom: 4px; border-bottom: 1px solid var(--line);
+}
+.caveat-from:first-child { margin-top: 4px; }
+@media print { #sec-caveats .read-guide { margin-top: 6px !important; } }
+
+/* 지도 두 장은 각각 한 쪽 안에 들어가게 둔다.
+
+   지도가 장을 넘어 잘리면 "이 단지 둘레가 어떤가"를 한눈에 못 본다 — 상담에서
+   종이로 짚는 자리라 잘리면 쓸모가 크게 준다. 둘 다 한 쪽이 안 되는 크기이므로
+   통째로 묶어도 버려지는 자리가 한 쪽을 넘지 않는다. */
+@media print {
+  #sec-map, .near-wrap { break-inside: avoid; }
+  .near-wrap { break-before: auto; }
 }
