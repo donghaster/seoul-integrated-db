@@ -18,6 +18,7 @@
   var AREA_WORD = CFG.areaWord || "전용";  // 면적의 이름 — 단독은 '연면적'
   // '전용' + '면적'은 되지만 '연면적' + '면적'은 겹친다. 따로 들고 있는다.
   var AREA_FULL = CFG.areaFull || (AREA_WORD + "면적");
+  var KIND_WORD = CFG.kindWord || "아파트";  // 제목에 붙는 주택 종류
 
   var D = window[CFG.dataVar || "APT_DATA"];
   var GEO = window.GEO_COORDS || {};
@@ -3228,7 +3229,10 @@
 
   /* ════════════════ 정책 ════════════════ */
 
-  var POLICY = [
+  /* 상담에서 꺼내야 할 제도 항목. 주택 종류마다 다르다 — 아파트는 규제지역과
+     중과세가 먼저지만, 빌라·다가구는 보증금을 떼이지 않는 것이 먼저다.
+     비아파트 쪽 목록은 nonapt/config.js가 들고 온다. */
+  var POLICY = CFG.policy || [
     { date: "규제지역", title: "투기과열지구·조정대상지역", body: "서울 전역이 규제지역으로 지정되면 <b>LTV·DTI 한도</b>와 <b>전매제한</b>, <b>자금조달계획서</b> 제출 의무가 달라짐. 지정 현황은 수시로 바뀌므로 계약 전 국토부 고시를 확인할 것.", tag: "대출·전매" },
     { date: "세금", title: "취득세·양도세 중과", body: "다주택자의 <b>취득세 중과(8~12%)</b>와 조정대상지역 <b>양도세 중과</b>는 주택 수·보유기간·지역에 따라 크게 달라짐. 1세대 1주택 비과세 요건(2년 보유·거주)도 지역에 따라 다름.", tag: "세제" },
     { date: "임대차", title: "임대차 2법 · 전월세신고제", body: "<b>계약갱신요구권(2+2)</b>과 <b>전월세상한제(5%)</b>, 보증금 6천만원 또는 월세 30만원 초과 계약의 <b>전월세신고 의무</b>가 적용됨. 신고는 계약 후 30일 이내.", tag: "임대차" },
@@ -3638,7 +3642,7 @@
     var sets = [];
 
     document.getElementById("idxSecTitle").textContent =
-      (state.gu === ALL ? "서울시 전체" : regionLabel()) + " 아파트";
+      (state.gu === ALL ? "서울시 전체" : regionLabel()) + " " + KIND_WORD;
 
     if (idxState.view === "type") {
       TYPES.forEach(function (t) {

@@ -11,7 +11,7 @@
 (function () {
   "use strict";
 
-  var KIND = window.DASH_KIND === "sh" ? "sh" : "rh";
+  var KIND = window.DASH_KIND === "sh" ? "sh" : "rh";   // config.js가 정해 둔 것
 
   var INFO = {
     rh: {
