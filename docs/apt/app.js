@@ -2629,6 +2629,153 @@
     }
   }
 
+  /* ════════════════ 주변 입지 — 상담에서 펼쳐 보이는 한 장 ════════════════
+
+     반포에서 집을 고르는 사람은 아파트만 보지 않는다. 어느 초등학교가 가까운지,
+     지하철까지 몇 분인지가 값만큼 무겁다. 그래서 단지를 중심으로 500m·1km
+     동심원을 그리고 그 안의 시설을 갈래별로 찍어 한눈에 보여 준다.
+
+     학교는 카카오가 아니라 입지분석의 학군 자료(NEIS)를 쓴다. 거기에만
+     사립/공립, 남녀공학, 자율고가 들어 있다 — 반포 상담에서 세화고가 자율고인
+     것이 빠지면 이야기가 안 된다. 나머지 시설은 카카오에서 받아 둔다. */
+
+  var NEAR_KINDS = [
+    { k: "초등학교", c: "#e1574c", i: "🏫" },
+    { k: "중학교",   c: "#d98324", i: "🏫" },
+    { k: "고등학교", c: "#b8860b", i: "🏫" },
+    { k: "외국인학교", c: "#7a5cc4", i: "🏫" },
+    { k: "지하철",   c: "#2f6fd0", i: "🚇" },
+    { k: "공원",     c: "#2f9e58", i: "🌳" },
+    { k: "종합병원", c: "#c2436b", i: "🏥" },
+    { k: "은행",     c: "#3f7f8c", i: "🏦" },
+    { k: "마트·백화점", c: "#c06a2b", i: "🏬" },
+    { k: "우체국",   c: "#5a6b8c", i: "📮" },
+    { k: "소방서",   c: "#9c3232", i: "🚒" },
+    { k: "체육시설", c: "#4a8a5c", i: "🏃" },
+  ];
+
+  var nearMap = null, nearLayer = null, nearRings = null, nearOff = {};
+
+  function metres(a, b, c, d) {
+    var dy = (a - c) * 111000;
+    var dx = (b - d) * 111000 * Math.cos(a * Math.PI / 180);
+    return Math.round(Math.sqrt(dx * dx + dy * dy));
+  }
+
+  /* 이 단지 둘레 1km 안의 시설을 갈래별로 모은다. */
+  function nearbyOf(a, coord) {
+    var out = {};
+    // 학교 — 학군 자료에서 직접 잰다(자치구가 달라도 가까우면 넣는다)
+    (window.SCHOOL_GEO || []).forEach(function (s) {
+      var d = metres(coord.lat, coord.lng, s.y, s.x);
+      if (d > 1000) return;
+      (out[s.k] = out[s.k] || []).push({
+        n: s.n, d: d, y: s.y, x: s.x,
+        tag: [s.f, s.c === "남여공학" ? "" : s.c, s.t].filter(Boolean).join("·"),
+      });
+    });
+    // 나머지 — 받아 둔 것
+    var got = (window.AROUND || {})[a.gu + "|" + a.dg + "|" + a.n] || {};
+    Object.keys(got).forEach(function (k) {
+      out[k] = got[k].map(function (x) { return { n: x.n, d: x.d, y: x.y, x: x.x, tag: "" }; });
+    });
+    Object.keys(out).forEach(function (k) {
+      out[k].sort(function (p, q) { return p.d - q.d; });
+      out[k] = out[k].slice(0, 6);
+    });
+    return out;
+  }
+
+  function nearbyHtml(near) {
+    var kinds = NEAR_KINDS.filter(function (x) { return (near[x.k] || []).length; });
+    if (!kinds.length) return "";
+    return '<div class="near-wrap">' +
+      '<div class="near-head"><h4>주변 입지</h4>' +
+        '<span class="near-note">단지에서 <b>500m</b>·<b>1km</b> 안 · 갈래를 눌러 켜고 끔</span></div>' +
+      '<div class="near-chips">' +
+        kinds.map(function (x) {
+          return '<button type="button" class="near-chip is-on" data-k="' + esc(x.k) + '"' +
+            ' style="--dot:' + x.c + '">' + x.i + " " + esc(x.k) +
+            '<span class="near-n">' + near[x.k].length + "</span></button>";
+        }).join("") +
+      "</div>" +
+      '<div class="near-map" id="nearMap"></div>' +
+      '<div class="near-lists">' +
+        kinds.map(function (x) {
+          return '<div class="near-col" data-k="' + esc(x.k) + '">' +
+            '<div class="near-col-h"><i style="background:' + x.c + '"></i>' + esc(x.k) + "</div>" +
+            near[x.k].map(function (p) {
+              return '<div class="near-row"><span class="near-name">' + esc(p.n) +
+                (p.tag ? ' <span class="near-tag">' + esc(p.tag) + "</span>" : "") +
+                '</span><span class="near-d">' + p.d.toLocaleString() + "m</span></div>";
+            }).join("") + "</div>";
+        }).join("") +
+      "</div></div>";
+  }
+
+  /* 지도를 그린다. 상세 카드는 다시 그릴 때마다 통째로 갈아 끼우므로
+     지도도 그때마다 새로 만든다 — 옛 지도를 붙들고 있으면 빈 칸에 대고
+     그리게 된다. */
+  function drawNearby(a, coord, near) {
+    var host = document.getElementById("nearMap");
+    if (!host || !window.L) return;
+    if (nearMap) { nearMap.remove(); nearMap = null; }
+    nearMap = L.map(host, { scrollWheelZoom: false, zoomControl: true });
+    if (window.osmTiles) window.osmTiles(nearMap);
+    if (window.watchMapSize) window.watchMapSize(nearMap, host);
+
+    nearRings = L.layerGroup().addTo(nearMap);
+    [[500, "#4f7fe6"], [1000, "#8a93a3"]].forEach(function (r) {
+      L.circle([coord.lat, coord.lng], {
+        radius: r[0], color: r[1], weight: 1.5, dashArray: "6 5",
+        fill: true, fillColor: r[1], fillOpacity: 0.04, interactive: false,
+      }).addTo(nearRings);
+    });
+    // 동심원이 몇 미터인지 글자로 박아 둔다 — 원만 있으면 눈대중이 안 된다
+    [[500, "500m"], [1000, "1km"]].forEach(function (r) {
+      var p = L.latLng(coord.lat + r[0] / 111000, coord.lng);
+      L.marker(p, { interactive: false,
+        icon: L.divIcon({ className: "ring-tag", html: r[1], iconSize: [40, 16] }) }).addTo(nearRings);
+    });
+
+    nearLayer = L.layerGroup().addTo(nearMap);
+    NEAR_KINDS.forEach(function (x) {
+      (near[x.k] || []).forEach(function (p) {
+        var m = L.circleMarker([p.y, p.x], {
+          radius: 7, color: "#fff", weight: 2, fillColor: x.c, fillOpacity: 0.95,
+        }).addTo(nearLayer);
+        m._kind = x.k;
+        m.bindTooltip(esc(p.n) + " · " + p.d + "m",
+                      { direction: "top", className: "zone-tooltip" });
+      });
+    });
+
+    // 단지는 한가운데, 가장 크게
+    L.circleMarker([coord.lat, coord.lng], {
+      radius: 11, color: "#232a38", weight: 3, fillColor: "#bc3d3d", fillOpacity: 1,
+    }).addTo(nearLayer).bindTooltip(esc(a.n), { permanent: true, direction: "top",
+                                                className: "zone-tooltip" });
+
+    nearMap.fitBounds(L.latLng(coord.lat, coord.lng).toBounds(2300), { padding: [10, 10] });
+    setTimeout(function () { if (nearMap) nearMap.invalidateSize(); }, 200);
+
+    // 갈래 켜고 끄기
+    document.querySelectorAll(".near-chip").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var k = b.dataset.k;
+        nearOff[k] = !nearOff[k];
+        b.classList.toggle("is-on", !nearOff[k]);
+        var col = document.querySelector('.near-col[data-k="' + k + '"]');
+        if (col) col.hidden = !!nearOff[k];
+        nearLayer.eachLayer(function (m) {
+          if (m._kind !== k) return;
+          if (nearOff[k]) m.setStyle({ opacity: 0, fillOpacity: 0 });
+          else m.setStyle({ opacity: 1, fillOpacity: 0.95 });
+        });
+      });
+    });
+  }
+
   function showApt(key) {
     var sum = aptSummary(key);
     var host = document.getElementById("aptResult");
@@ -2702,7 +2849,11 @@
 
         (c ? '<p class="dim-note">지도에서 보기: <button type="button" class="mini-btn" id="aptGoMap">' +
              "TOP10 지도로 이동</button></p>" : "") +
+        (c ? nearbyHtml(nearbyOf(a, c)) : "") +
       "</div>";
+
+    // 지도는 HTML이 자리를 잡은 뒤에 그린다
+    if (c) drawNearby(a, c, nearbyOf(a, c));
 
     var go = document.getElementById("aptGoMap");
     if (go) {

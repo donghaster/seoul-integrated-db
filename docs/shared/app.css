@@ -1751,6 +1751,68 @@ html[data-theme="dark"] .mine-tag { background: #3a63bd; }
   pointer-events: none;        /* 이름표가 마우스를 가로채면 원을 못 누른다 */
 }
 
+/* ── 주변 입지 — 단지 상세 안의 '한 장' ──────────────────────────────
+   이 대시보드에서 가장 크게 보여 줘야 할 지도다. 고객 앞에 펼쳐 놓고
+   "여기서 초등학교가 이만큼, 지하철이 이만큼"을 짚는 자리라, 카드 폭을
+   가득 쓰고 높이도 넉넉히 준다. */
+.near-wrap { margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--line); }
+.near-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.near-head h4 { margin: 0; font-size: 16px; border: 0; }
+.near-note { font-size: 12.5px; color: var(--txt-mute); }
+
+.near-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+.near-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
+  color: var(--txt); background: var(--card); border: 1px solid var(--line);
+  border-radius: 999px; padding: 5px 12px 5px 9px;
+}
+.near-chip::before {
+  content: ""; width: 9px; height: 9px; border-radius: 50%;
+  background: var(--dot); flex: 0 0 auto;
+}
+.near-chip:not(.is-on) { opacity: .45; }
+.near-chip .near-n { font-size: 11px; font-weight: 800; color: var(--txt-mute); }
+
+/* 지도 — PC에서 넓고 시원하게 */
+.near-map {
+  height: 620px; border-radius: var(--radius); overflow: hidden;
+  border: 1px solid var(--line); background: var(--card-2);
+}
+.ring-tag {
+  font-size: 11px; font-weight: 800; color: var(--txt-mute);
+  text-shadow: 0 0 3px var(--card), 0 0 3px var(--card); white-space: nowrap;
+}
+
+.near-lists {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px 20px; margin-top: 16px;
+}
+.near-col-h {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12.5px; font-weight: 800; color: var(--txt);
+  padding-bottom: 5px; margin-bottom: 5px; border-bottom: 1px solid var(--line);
+}
+.near-col-h i { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+.near-row {
+  display: flex; justify-content: space-between; gap: 10px;
+  font-size: 12.5px; line-height: 1.75; color: var(--txt-dim);
+}
+.near-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.near-tag { font-size: 11px; font-weight: 700; color: var(--accent-2); }
+html[data-theme="dark"] .near-tag { color: var(--accent); }
+.near-d { font-weight: 800; color: var(--txt); white-space: nowrap; }
+
+@media (max-width: 760px) {
+  .near-map { height: 380px; }
+  .near-lists { grid-template-columns: 1fr 1fr; gap: 12px 14px; }
+}
+@media (max-width: 460px) { .near-lists { grid-template-columns: 1fr; } }
+@media print {
+  .near-map { height: 420px; }
+  .near-chips { display: none; }
+}
+
 /* ── 접힌 한 줄 ────────────────────────────────────────────────────────
    좁은 화면에서 아래로 내리면 막대 전체를 이 한 줄로 갈음한다.
    기본은 숨김 — 넓은 화면에서는 쓸 일이 없다. */
