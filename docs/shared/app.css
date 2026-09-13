@@ -612,13 +612,28 @@ section[data-tabpanel].is-on { display: block; }
 
   /* 차트는 캔버스 크기가 고정되어야 잘리지 않는다 */
   /* 그래프 칸을 줄인다. 종이에서는 점 하나하나를 짚기보다 모양을 보는 것이라
-     이 높이로 충분하고, 한 장에 들어가는 줄이 그만큼 늘어난다. */
-  .chart-box { height: 205px !important; break-inside: avoid; }
+     이 높이로 충분하고, 한 장에 들어가는 줄이 그만큼 늘어난다. 기간을 짧게
+     잡으면 막대가 서너 개뿐이라 남는 자리가 더 크게 눈에 띈다. */
+  .chart-box { height: 178px !important; break-inside: avoid; }
+  /* 표 위 여백도 줄인다 — 그래프와 표 사이가 벌어져 있었다 */
+  .deal-scroll { margin-top: 8px !important; }
   .chart-grid { grid-template-columns: 1fr 1fr; }
   .leaflet-map { height: 270px !important; }
   .filter-bar { border: 1px solid #ccc; box-shadow: none; padding: 8px 12px; }
   .filter-bar select { border: none; padding: 2px 0; background: none; -webkit-appearance: none; appearance: none; }
   table.rank-table { font-size: 11.5px; }
+  /* 탭 줄은 종이에서 누를 수 없다. 단추 여덟 줄이 400px 넘게 자리를 먹으면서
+     제목과 표 사이가 휑하게 벌어져 있었다. 지금 고른 것만 글자로 남긴다 —
+     무엇을 놓고 본 표인지는 알아야 하니 지우지는 않는다. */
+  .tab-row { margin: 3px 0 7px !important; gap: 0 !important; min-height: 0 !important; }
+  .tab-row button { display: none !important; }
+  .tab-row button.active {
+    display: inline !important;
+    border: 0 !important; background: none !important; box-shadow: none !important;
+    padding: 0 !important; font-size: 12px; font-weight: 800; color: var(--txt);
+  }
+  .tab-row button.active .tab-tail { display: inline; }
+
   table.rank-table td { padding: 4px 5px; }
   table.rank-table th { padding: 4px 5px; }
 

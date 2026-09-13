@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="금집부쌤" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#1a1f2a" />
-  <link rel="stylesheet" href="../shared/app.css?v=25baff3f7a" />
+  <link rel="stylesheet" href="../shared/app.css?v=f55a9f3a31" />
   <!-- 색 테마를 첫 칠 전에 찍는다. brand.js는 본문 맨 아래라, 다크로 맞춰 둔
        폰에서 흰 화면이 한 번 번쩍인 뒤 어두워진다. -->
   <script>
@@ -399,9 +399,9 @@
     <div class="tab-row" id="volRankTabs" style="margin-top:22px;">
       <!-- 좁은 화면에서는 "거래량 TOP 30"을 접는다. 셋이 세로로 쌓이면
            그것만 120px을 먹는데, 어느 단위인지는 앞 세 글자로 충분하다. -->
-      <button class="active" data-r="gu">자치구별<span class="tab-tail"> 거래량 TOP 30</span></button>
-      <button data-r="dong">법정동별<span class="tab-tail"> 거래량 TOP 30</span></button>
-      <button data-r="apt">단지별<span class="tab-tail"> 거래량 TOP 30</span></button>
+      <button class="active" data-r="gu">자치구별<span class="tab-tail"> 거래량 TOP <span class="n-scr">30</span><span class="n-prn">10</span></span></button>
+      <button data-r="dong">법정동별<span class="tab-tail"> 거래량 TOP <span class="n-scr">30</span><span class="n-prn">10</span></span></button>
+      <button data-r="apt">단지별<span class="tab-tail"> 거래량 TOP <span class="n-scr">30</span><span class="n-prn">10</span></span></button>
     </div>
     <div class="chart-box" style="height:320px;"><canvas id="volRankChart"></canvas></div>
     <div class="deal-scroll" style="margin-top:18px;">
