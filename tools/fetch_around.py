@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import argparse
+import glob
 import json
 import os
 import re
@@ -151,17 +152,39 @@ def gu_rank(gu: str) -> int:
     return GU_ORDER.index(gu) if gu in GU_ORDER else len(GU_ORDER)
 
 
+def presale():
+    """분양권만 거래되는 단지 — 아직 준공 전이라 매매·전월세 자료에 없다.
+
+    반포 래미안 트리니원, 청담 르엘처럼 상담에 가장 자주 오르는 단지가 여기
+    들어 있다. 입주 전일수록 "주변에 뭐가 있느냐"를 더 많이 묻는데, 거래
+    캐시만 보면 이 단지들이 통째로 빠진다.
+    """
+    n = {}
+    for f in glob.glob(os.path.join(CACHE, "aptPresale-*.json")):
+        try:
+            d = json.load(open(f, encoding="utf-8"))
+        except Exception:                                # noqa: BLE001
+            continue
+        for r in d if isinstance(d, list) else []:
+            k = (r.get("gu"), r.get("dong"), r.get("name"))
+            if all(k):
+                n[k] = n.get(k, 0) + 1
+    return n
+
+
 def targets():
     """좌표를 아는 단지. 거래가 많은 곳부터 — 상담에 자주 오르는 순서다."""
     import fetch_supply as F
     raw = open(os.path.join(BASE_DIR, "docs", "data", "geo.js"), encoding="utf-8").read()
     geo = json.loads(re.search(r"=\s*(\{.*\});?\s*$", raw, re.S).group(1))
-    cs = F.complexes()
+    cnt = {(c["gu"], c["dong"], c["name"]): c["n"] for c in F.complexes()}
+    for k, v in presale().items():
+        cnt[k] = cnt.get(k, 0) + v
     out = []
-    for c in cs:
-        k = "%s|%s|%s" % (c["gu"], c["dong"], c["name"])
+    for (gu, dong, name), n in cnt.items():
+        k = "%s|%s|%s" % (gu, dong, name)
         if k in geo:
-            out.append((k, c["gu"], c["n"], geo[k]))
+            out.append((k, gu, n, geo[k]))
     out.sort(key=lambda t: (gu_rank(t[1]), -t[2]))
     return out
 
