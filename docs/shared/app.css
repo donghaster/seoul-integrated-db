@@ -1739,4 +1739,62 @@ html[data-theme="dark"] .mine-tag { background: #3a63bd; }
   .stickytop .print-btn::first-letter { font-size: 14px; }
 }
 
+/* ── 눕힌 폰 — 높이가 모자란 화면 ──────────────────────────────────────
+   폰을 눕히면 폭이 812px이 되어 '넓은 화면'으로 잡힌다. 그래서 좁은 화면
+   규칙이 하나도 안 먹고 PC용 머리글이 그대로 서는데, 정작 높이는 375px뿐이라
+   고정 막대(393px)가 화면보다 커져 본문이 한 줄도 안 보였다.
+   폭이 아니라 높이로 가른다 — 낮은 화면에서는 막대를 뼈대만 남긴다. */
+@media (max-height: 560px) {
+  .stickytop .topbar { padding: 4px 14px 3px; gap: 8px; }
+  .stickytop .brand-titles,
+  .stickytop .brand-sub,
+  .stickytop .fetched,
+  .stickytop .home-link { display: none; }
+  .stickytop .geumjib-badge { height: 26px; width: 26px; }
+  .stickytop .brand { flex: 0 0 auto; width: auto; min-width: 0; }
+  .stickytop .topbar-right { gap: 6px; }
+  .stickytop .brand-plate { padding: 1px 8px; }
+  .stickytop .brand-plate .logo,
+  .stickytop .brand-plate .mascot { display: none; }
+  .stickytop .brand-plate-fallback { font-size: 12px; }
+  .stickytop .print-btn { padding: 4px 8px; font-size: 11.5px; }
+
+  /* 세 단추 대신 눌러서 돌아가는 한 개만 — 폰 세로에서 쓰던 것을 그대로 쓴다 */
+  .stickytop .theme-toggle { display: inline-flex; flex: 0 0 auto; }
+  .stickytop .theme-toggle button { display: none; }
+  .stickytop .theme-toggle .theme-cycle {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 26px; padding: 0; font-size: 14px; line-height: 1;
+  }
+
+  .stickytop .filter-bar { padding: 0 14px 4px; gap: 4px 12px; }
+  .stickytop .filter-bar label { font-size: 10.5px; }
+  .stickytop .filter-bar select { padding: 3px 8px; font-size: 12px; min-width: 96px; }
+  .stickytop .filter-note { display: none; }
+  .stickytop .tab-row button { padding: 3px 9px; font-size: 11.5px; }
+  .stickytop .gran-group input[type="date"] { padding: 2px 6px; font-size: 11.5px; }
+  .stickytop nav.section-nav { padding: 3px 14px; }
+  .stickytop nav.section-nav button { padding: 3px 10px; font-size: 11.5px; }
+
+  /* '자치구를 선택하면 법정동이 나옴'은 두 줄로 접히면서 한 단을 더 먹는다.
+     자치구를 고르면 어차피 칩이 나오므로, 낮은 화면에서는 접는다. */
+  .stickytop .chip-wrap .dim-note { display: none; }
+
+  /* 날짜는 폰 세로에서 쓰던 짧은 표기를 그대로 쓴다 — '시 25-10-01'.
+     네이티브 칸은 기기 설정을 따라 길게 나와 한 줄을 더 만든다. */
+  .stickytop .gran-group .lbl-full { display: none; }
+  .stickytop .gran-group .lbl-tiny { display: inline; }
+  .stickytop .gran-group > .ctl:first-child > label { display: none; }
+  .stickytop .gran-group .date-ctl { position: relative; }
+  .stickytop .gran-group .date-ctl input[type="date"] {
+    position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+    opacity: 0; padding: 0; margin: 0; border: 0; min-width: 0; max-width: none;
+  }
+  .stickytop .gran-group .date-face {
+    display: inline-block; white-space: nowrap;
+    font: inherit; font-size: 11.5px; font-weight: 700; color: var(--txt);
+    border: 1px solid var(--line); border-radius: 7px; padding: 3px 6px; background: var(--card);
+  }
+}
+
 @media print { .stickytop { position: static; box-shadow: none; border: 0; } }

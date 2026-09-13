@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="금집부쌤" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#1a1f2a" />
-  <link rel="stylesheet" href="shared/app.css?v=d1faa2f683" />
+  <link rel="stylesheet" href="shared/app.css?v=fe395e72fc" />
   <!-- 색 테마를 첫 칠 전에 찍는다. brand.js는 본문 맨 아래라, 다크로 맞춰 둔
        폰에서 흰 화면이 한 번 번쩍인 뒤 어두워진다. -->
   <script>
@@ -51,6 +51,43 @@
       padding: 20px 24px; font-size: 12.5px; color: var(--txt-mute); line-height: 1.85;
     }
     .hub-note h3 { font-size: 14px; color: var(--txt); margin-bottom: 8px; }
+
+    /* 신뢰 문구 — 첫 화면에서 카드보다 먼저 눈에 들어와야 한다.
+       그렇다고 요란하면 광고처럼 보이므로, 테두리와 왼쪽 굵은 선으로만 세운다. */
+    .hub-trust {
+      margin: 0 0 26px; padding: 20px 24px;
+      background: var(--card); border: 1px solid var(--accent);
+      border-left: 5px solid var(--accent); border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+    }
+    .trust-badge {
+      display: inline-block; font-size: 11.5px; font-weight: 800; letter-spacing: .02em;
+      color: #fff; background: var(--accent); border-radius: 999px; padding: 3px 12px; margin-bottom: 10px;
+    }
+    html[data-theme="dark"] .trust-badge { color: #12151c; }
+    .trust-lead { margin: 0 0 14px; font-size: 15px; line-height: 1.65; color: var(--txt); font-weight: 600; }
+    .trust-lead b { color: var(--accent); font-weight: 800; }
+    .trust-points {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 10px 20px; margin: 0 0 12px; padding: 0; list-style: none;
+    }
+    .trust-points li { font-size: 13px; line-height: 1.6; }
+    /* 바로 아래 자식만 제목으로 세운다. 그냥 'li b'로 두면 설명 속의
+       <b>신고된 실거래</b>까지 블록이 되어 한 줄이 셋으로 쪼개진다. */
+    .trust-points li > b {
+      display: block; font-size: 13px; color: var(--accent-2); margin-bottom: 2px;
+    }
+    html[data-theme="dark"] .trust-points li > b { color: var(--accent); }
+    .trust-points li span { color: var(--txt-mute); }
+    .trust-points li span b { color: var(--txt); font-weight: 800; }
+    .trust-tail {
+      margin: 0; padding-top: 12px; border-top: 1px solid var(--line);
+      font-size: 13.5px; font-weight: 800; color: var(--txt);
+    }
+    @media (max-width: 560px) {
+      .hub-trust { padding: 16px 16px 14px; }
+      .trust-lead { font-size: 14px; }
+    }
   </style>
 </head>
 <body>
@@ -92,15 +129,22 @@
     <p>네 가지 대시보드 모두 <b>서울시 25개 자치구 전역</b>을 다룹니다. 각 대시보드에서 자치구·법정동을 골라 보세요.</p>
   </div>
 
-  <div class="hub-grid">
-    <a class="hub-card" href="newtown/index.html">
-      <div class="ico">🏙️</div>
-      <div class="name">뉴타운 대시보드</div>
-      <div class="desc">서울시 재정비촉진지구(뉴타운)와 주요 재개발 구역의 구역별 진행상황을 지도와 함께 봅니다.</div>
-      <div class="chips"><span class="chip">구역별 진행단계</span><span class="chip">실제 지도</span><span class="chip">시공사·세대수</span></div>
-      <div class="go">바로가기 →</div>
-    </a>
+  <!-- 고객 앞에서 가장 먼저 펼치는 화면이다. 무엇을 근거로 말하는지를
+       먼저 밝혀야 뒤에 나오는 숫자가 힘을 얻는다. -->
+  <div class="hub-trust">
+    <div class="trust-badge">공공데이터 기반</div>
+    <p class="trust-lead">
+      <b>국토교통부·서울시 공공데이터 API</b>로 받은 <b>최신 실거래 원본</b>을 그대로 집계합니다.
+    </p>
+    <ul class="trust-points">
+      <li><b>원본 그대로</b><span>호가나 광고가 아닌 <b>신고된 실거래</b>만 씁니다</span></li>
+      <li><b>매일 갱신</b><span>새벽마다 자동으로 새 신고분을 받아옵니다</span></li>
+      <li><b>근거를 함께</b><span>건수·표본 기간을 늘 같이 보여 판단의 무게를 밝힙니다</span></li>
+    </ul>
+    <p class="trust-tail">숫자로 확인하고, 근거를 밝혀, 고객의 판단을 돕습니다.</p>
+  </div>
 
+  <div class="hub-grid">
     <a class="hub-card" href="apt/index.html">
       <div class="ico">🏘️</div>
       <div class="name">아파트 대시보드</div>
@@ -109,11 +153,11 @@
       <div class="go">바로가기 →</div>
     </a>
 
-    <a class="hub-card" href="trade/index.html">
-      <div class="ico">📊</div>
-      <div class="name">상권분석 대시보드</div>
-      <div class="desc">서울 1,650개 상권의 유동인구·점포·추정매출을 봅니다. 상가 자리를 고를 때, 임차인에게 상권을 설명할 때 씁니다.</div>
-      <div class="chips"><span class="chip">유동인구</span><span class="chip">점포·개폐업</span><span class="chip">추정매출</span></div>
+    <a class="hub-card" href="newtown/index.html">
+      <div class="ico">🏙️</div>
+      <div class="name">뉴타운 대시보드</div>
+      <div class="desc">서울시 재정비촉진지구(뉴타운)와 주요 재개발 구역의 구역별 진행상황을 지도와 함께 봅니다.</div>
+      <div class="chips"><span class="chip">구역별 진행단계</span><span class="chip">실제 지도</span><span class="chip">시공사·세대수</span></div>
       <div class="go">바로가기 →</div>
     </a>
 
@@ -124,15 +168,23 @@
       <div class="chips"><span class="chip">상가·업무용</span><span class="chip">오피스텔</span><span class="chip">거래량 비교</span></div>
       <div class="go">바로가기 →</div>
     </a>
+
+    <a class="hub-card" href="trade/index.html">
+      <div class="ico">📊</div>
+      <div class="name">상권분석 대시보드</div>
+      <div class="desc">서울 1,650개 상권의 유동인구·점포·추정매출을 봅니다. 상가 자리를 고를 때, 임차인에게 상권을 설명할 때 씁니다.</div>
+      <div class="chips"><span class="chip">유동인구</span><span class="chip">점포·개폐업</span><span class="chip">추정매출</span></div>
+      <div class="go">바로가기 →</div>
+    </a>
   </div>
 
   <div class="hub-note">
     <h3>데이터 안내</h3>
-    상권분석(유동인구·점포·추정매출)은 <b>서울 열린데이터광장 상권분석서비스</b>의 분기 통계이며 <b>추정치</b>입니다.
     실거래 자료는 <b>국토교통부 실거래가 공개시스템(공공데이터포털)</b>에서 내려받은 원본을 집계한 것으로,
     표본 기간은 각 대시보드 상단에 표기됩니다. 실거래 신고는 계약일로부터 30일 이내이므로
     <b>최근 1~2개월 자료는 계속 추가</b>됩니다. 정비사업(뉴타운) 진행상황은 공개 자료를 정리한
     <b>참고용</b>이며, 실제 계약·투자 판단 전에는 조합·구청 고시 등 원문 확인이 필요합니다.
+    상권분석(유동인구·점포·추정매출)은 <b>서울 열린데이터광장 상권분석서비스</b>의 분기 통계이며 <b>추정치</b>입니다.
   </div>
 </main>
 
