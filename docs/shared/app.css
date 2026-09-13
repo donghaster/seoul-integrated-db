@@ -514,7 +514,16 @@ section[data-tabpanel].is-on { display: block; }
 @page { size: A4; margin: 12mm 10mm; }
 
 @media print {
-  html, body { background: #fff; font-size: 12px; }
+  /* 색을 그대로 찍는다.
+
+     브라우저는 종이를 아끼려고 배경색을 빼고 인쇄한다. 그런데 이 보고서에서
+     막대그래프(.dv-bar, .pi-bar)는 배경색으로 그린 막대다 — 색을 빼면 막대가
+     통째로 사라져 "그래프가 깨졌다"가 된다. 순위 칩, 갈래 점, 강조 표시도
+     마찬가지로 색이 곧 뜻이다. 뿌리에 한 번 켜 두면 모두 따라온다. */
+  html, body {
+    background: #fff; font-size: 12px;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
   .wrap { max-width: none; padding: 0; }
 
   /* 화면 전용 UI는 인쇄에서 제거 */
@@ -659,8 +668,11 @@ section[data-tabpanel].is-on { display: block; }
   .brief-grid { gap: 7px; }
   footer.disclaimer { padding: 8px 0 0; font-size: 10px; }
   .loc-detail { display: block !important; }
-  /* 입지분석 5개 항목은 인쇄에서 항목마다 끊어 읽기 좋게 */
-  .loc-print-block { break-inside: avoid; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #ddd; }
+  /* 입지분석 5개 항목은 항목마다 줄을 그어 끊어 읽게 한다. 다만 한 항목이
+     300px에 이르러, 통째로 넘기면 앞 장 아래가 그만큼 빈다(실제로 11쪽에서
+     168px이 그렇게 버려졌다). 줄이 그어져 있어 어디서 끊겼는지 보이므로
+     장을 넘어 이어져도 읽는 데 지장이 없다. */
+  .loc-print-block { break-inside: auto; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #ddd; }
   .loc-print-block:last-child { border-bottom: none; }
   .school-detail { display: none !important; }   /* 접힌 상세는 종이에서 생략 */
   .school-chip { border: none; padding: 2px 6px; background: none; }
@@ -1990,9 +2002,17 @@ html[data-theme="dark"] .near-tag { color: var(--accent); }
    두면 열 줄 남짓이 다음 장으로 넘어가 한 쪽을 거의 비운 채 차지한다.
    여기만 촘촘히 해 한 쪽에 담는다 — 읽는 데 지장 없는 선까지만. */
 @media print {
-  #sec-caveats .read-guide { margin-top: 5px !important; padding: 7px 10px; }
+  #sec-caveats .read-guide { margin-top: 4px !important; padding: 6px 9px; }
+  /* 칸 전체를 두 단으로 흘린다. 목록만 눕히면 덩이 사이의 제목과 여백이
+     그대로라 얼마 못 줄인다(74px). 두 덩이를 나란히 세우면 세로가 절반이
+     되고, 그만큼 마지막 한 쪽이 통째로 사라진다. 뒤에서 찾아보는 자리라
+     한 줄이 짧아도 읽기에 나쁘지 않다. */
   #sec-caveats .read-guide ol { padding-left: 15px; }
-  #sec-caveats li { font-size: 11px; line-height: 1.38; margin-bottom: 2px; }
+  #caveatHost { column-count: 2; column-gap: 20px; }
+  #caveatHost .read-guide, #caveatHost .caveat-from { break-inside: avoid; }
+  /* 여기서는 제목을 뒤와 붙이지 않는다 — 462px짜리 덩이와 묶여 159px을
+     버리고 있었다. 두 단으로 나란히 서므로 제목이 제 덩이와 떨어질 일도 없다. */
+  #sec-caveats li { font-size: 10.5px; line-height: 1.33; margin-bottom: 1px; }
   #sec-caveats .caveat-from { margin: 9px 0 3px; font-size: 11.5px; }
 }
 
