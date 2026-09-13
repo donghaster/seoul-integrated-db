@@ -363,6 +363,7 @@
       var line = stickyH() + 24;
       var best = null, bestGap = Infinity;
       live.forEach(function (b) {
+        if (b.hidden) return;                       // 아직 갈 곳이 없는 단추
         var s = document.getElementById(b.dataset.target);
         if (!s || s.offsetParent === null) return;
         var r = s.getBoundingClientRect();

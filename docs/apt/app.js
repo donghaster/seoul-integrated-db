@@ -2688,8 +2688,10 @@
 
   function nearbyHtml(near) {
     var kinds = NEAR_KINDS.filter(function (x) { return (near[x.k] || []).length; });
+    var nav = document.getElementById("navNear");
+    if (nav) nav.hidden = !kinds.length;
     if (!kinds.length) return "";
-    return '<div class="near-wrap">' +
+    return '<div class="near-wrap" id="sec-near">' +
       '<div class="near-head"><h4>주변 입지</h4>' +
         '<span class="near-note">단지에서 <b>500m</b>·<b>1km</b> 안 · 갈래를 눌러 켜고 끔</span></div>' +
       '<div class="near-chips">' +
@@ -2720,7 +2722,9 @@
     var host = document.getElementById("nearMap");
     if (!host || !window.L) return;
     if (nearMap) { nearMap.remove(); nearMap = null; }
-    nearMap = L.map(host, { scrollWheelZoom: false, zoomControl: true });
+    /* zoomSnap을 풀어 둔다. 정수 줌만 쓰면 한 단계 차이로 화면이 두 배씩
+       벌어져, 1.5km를 담으려다 4km가 들어와 정작 단지 둘레가 깨알이 된다. */
+    nearMap = L.map(host, { scrollWheelZoom: false, zoomControl: true, zoomSnap: 0 });
     if (window.osmTiles) window.osmTiles(nearMap);
     if (window.watchMapSize) window.watchMapSize(nearMap, host);
 
@@ -2739,15 +2743,53 @@
     });
 
     nearLayer = L.layerGroup().addTo(nearMap);
+    var spots = [];
     NEAR_KINDS.forEach(function (x) {
       (near[x.k] || []).forEach(function (p) {
         var m = L.circleMarker([p.y, p.x], {
           radius: 7, color: "#fff", weight: 2, fillColor: x.c, fillOpacity: 0.95,
         }).addTo(nearLayer);
         m._kind = x.k;
-        m.bindTooltip(esc(p.n) + " · " + p.d + "m",
-                      { direction: "top", className: "zone-tooltip" });
+        spots.push({ m: m, k: x.k, lat: p.y, lng: p.x,
+                     label: p.n + (p.tag ? " (" + p.tag + ")" : "") + " · " + p.d + "m" });
       });
+    });
+
+    /* 표시가 작아(반지름 7px) 정확히 올려야만 이름이 뜨면 "가져가도 안 나온다"가
+       된다. TOP10 지도에서 쓰던 방법을 그대로 쓴다 — 마우스가 지도 위를 지날
+       때마다 40px 안의 가장 가까운 표시를 찾아 그 이름을 띄운다. 이름표도
+       Leaflet에 맡기지 않고 직접 그린다(둘이 싸우면 깜빡인다). */
+    var nearLabel = null, nearHover = null;
+    function nearShow(sp) {
+      if (!nearLabel) {
+        nearLabel = document.createElement("div");
+        nearLabel.className = "map-label";
+        nearMap.getContainer().appendChild(nearLabel);
+      }
+      var pt = nearMap.latLngToContainerPoint([sp.lat, sp.lng]);
+      nearLabel.textContent = sp.label;
+      nearLabel.style.display = "block";
+      nearLabel.style.left = Math.round(pt.x) + "px";
+      nearLabel.style.top = Math.round(pt.y - 16) + "px";
+    }
+    function nearHide() { if (nearLabel) nearLabel.style.display = "none"; }
+    nearMap.on("mousemove", function (e) {
+      var best = null, bestD = 40;
+      spots.forEach(function (sp) {
+        if (nearOff[sp.k]) return;
+        var d = nearMap.latLngToContainerPoint([sp.lat, sp.lng]).distanceTo(e.containerPoint);
+        if (d < bestD) { bestD = d; best = sp; }
+      });
+      if (best === nearHover) { if (best) nearShow(best); return; }
+      if (nearHover) nearHover.m.setStyle({ radius: 7, weight: 2, color: "#fff" });
+      nearHover = best;
+      if (best) { best.m.setStyle({ radius: 10, weight: 3, color: "#232a38" }).bringToFront(); nearShow(best); }
+      else nearHide();
+      nearMap.getContainer().style.cursor = best ? "pointer" : "";
+    });
+    nearMap.on("mouseout movestart zoomstart", function () {
+      if (nearHover) nearHover.m.setStyle({ radius: 7, weight: 2, color: "#fff" });
+      nearHover = null; nearHide();
     });
 
     // 단지는 한가운데, 가장 크게
@@ -2756,8 +2798,15 @@
     }).addTo(nearLayer).bindTooltip(esc(a.n), { permanent: true, direction: "top",
                                                 className: "zone-tooltip" });
 
-    nearMap.fitBounds(L.latLng(coord.lat, coord.lng).toBounds(2300), { padding: [10, 10] });
-    setTimeout(function () { if (nearMap) nearMap.invalidateSize(); }, 200);
+    // 처음 펼칠 때 반경 1.5km가 들어오게. 더 보려면 + 단추로 넓힌다.
+    function fitNear() {
+      if (!nearMap) return;
+      nearMap.invalidateSize({ animate: false });
+      nearMap.fitBounds(L.latLng(coord.lat, coord.lng).toBounds(3000), { padding: [8, 8] });
+    }
+    fitNear();
+    // 칸 크기가 뒤늦게 잡히면 범위가 어긋난다 — 한 박자 뒤에 한 번 더
+    setTimeout(fitNear, 250);
 
     // 갈래 켜고 끄기
     document.querySelectorAll(".near-chip").forEach(function (b) {
