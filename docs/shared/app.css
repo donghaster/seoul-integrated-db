@@ -1620,6 +1620,11 @@ html[data-theme="dark"] .mine-tag { background: #3a63bd; }
   .stickytop .topbar,
   .stickytop .filter-bar,
   .stickytop nav.section-nav { padding-left: 12px; padding-right: 12px; }
+  /* 아래로 내리면 막대가 한 단 낮아지는데(is-scrolled), 그때 쓰는 padding
+     단축 표기가 바로 위 좌우 12px을 통째로 덮어써 26px로 되돌린다.
+     좌우로 28px을 뺏기면서 명패가 212px에서 182px로 좁아지고, 안의 글자는
+     194px이라 '010-9442-2027'의 끝이 잘렸다. 좌우만 다시 12px로 못박는다. */
+  .stickytop.is-scrolled .topbar { padding-left: 12px; padding-right: 12px; }
 
   /* 좁은 화면 기본 규칙이 상단바를 세로로 세워, 배지 한 줄 + 나머지 한 줄로
      35px을 더 먹었다. 고정 막대 안에서는 가로 한 줄로 붙인다. */
