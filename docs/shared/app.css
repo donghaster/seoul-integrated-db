@@ -1066,6 +1066,7 @@ html[data-theme="dark"] .leaflet-container { background: #1a1f2a; }
   padding: 5px 11px; border-radius: 999px; white-space: nowrap;
 }
 .theme-toggle button.is-on { background: var(--accent); color: #fff; }
+.theme-cycle { display: none; }   /* 넓은 화면은 세 단추를 그대로 쓴다 */
 
 @media print {
   /* 종이에는 늘 밝은 색으로 나간다.
@@ -1626,9 +1627,18 @@ html[data-theme="dark"] .mine-tag { background: #3a63bd; }
     padding-top: 7px; padding-bottom: 5px;
     flex-direction: row; flex-wrap: nowrap; align-items: center;
   }
-  /* 라이트/다크/자동은 폰에서 173px을 먹으면서 상호·전화를 왼쪽으로 124px
-     밀어내 '010-'이 잘렸다. 폰은 '자동'이 기기 설정을 따라가니 접는다. */
-  .stickytop .theme-toggle { display: none; }
+  /* 라이트/다크/자동 세 단추는 폰에서 173px을 먹으면서 상호·전화를 왼쪽으로
+     124px 밀어내 '010-'이 잘렸다. 그래서 접어 뒀는데, 그러면 폰에서는 테마를
+     아예 못 바꾼다 — 기기가 다크인데 밝은 곳에서 화면을 보여 드려야 할 때가
+     있다. 세 단추 대신 눌러서 돌아가는 한 개(36px)만 남긴다. */
+  .stickytop .theme-toggle { display: inline-flex; flex: 0 0 auto; }
+  .stickytop .theme-toggle button { display: none; }
+  /* 위 줄이 클래스 2 + 요소 1이라 '.stickytop .theme-cycle'(클래스 2)을 이긴다.
+     클래스를 하나 더 얹어야 순환 단추가 살아난다. */
+  .stickytop .theme-toggle .theme-cycle {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 34px; height: 30px; padding: 0; font-size: 15px; line-height: 1;
+  }
   /* 좁은 화면 기본 규칙이 둘 다 100% 너비로 만들어 위아래로 쌓았다.
      고정 막대 안에서는 한 줄로 붙인다. */
   .stickytop .brand { flex: 0 0 auto; flex-basis: auto; width: auto; min-width: 0; }

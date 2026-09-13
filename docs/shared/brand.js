@@ -23,6 +23,13 @@
     document.querySelectorAll(".theme-toggle button").forEach(function (b) {
       b.classList.toggle("is-on", b.dataset.theme === (mode || "auto"));
     });
+    var face = { light: "☀️", dark: "🌙" }[mode] || "🌗";
+    var word = { light: "라이트", dark: "다크" }[mode] || "자동";
+    document.querySelectorAll(".theme-cycle").forEach(function (b) {
+      b.textContent = face;
+      b.title = "테마: " + word + " (눌러서 바꾸기)";
+      b.setAttribute("aria-label", b.title);
+    });
   }
 
   function savedTheme() {
@@ -33,14 +40,20 @@
     var host = document.getElementById("themeToggle");
     if (host) {
       host.className = "theme-toggle";
+      /* 폰에서는 세 단추가 173px을 먹어 상호·전화번호를 밀어낸다. 그래서
+         눌러서 돌아가는 한 개짜리를 함께 두고, 좁은 화면에서는 이것만 보인다.
+         자동 → 라이트 → 다크 → 자동 순으로 돈다. */
       host.innerHTML =
+        '<button type="button" class="theme-cycle" title="테마 바꾸기" aria-label="테마 바꾸기"></button>' +
         '<button type="button" data-theme="light" title="밝게">☀️ 라이트</button>' +
         '<button type="button" data-theme="dark" title="어둡게">🌙 다크</button>' +
         '<button type="button" data-theme="auto" title="기기 설정 따라가기">자동</button>';
       host.addEventListener("click", function (e) {
-        var b = e.target.closest("button[data-theme]");
+        var cyc = e.target.closest(".theme-cycle");
+        var b = cyc || e.target.closest("button[data-theme]");
         if (!b) return;
-        var m = b.dataset.theme;
+        var ORDER = ["auto", "light", "dark"];
+        var m = cyc ? ORDER[(ORDER.indexOf(savedTheme()) + 1) % ORDER.length] : b.dataset.theme;
         try { localStorage.setItem(THEME_KEY, m); } catch (err) { /* 저장 못 해도 화면은 바뀐다 */ }
         applyTheme(m === "auto" ? "" : m);
         document.querySelectorAll(".theme-toggle button").forEach(function (x) {
