@@ -1420,13 +1420,14 @@
     // 인쇄용 — 화면에 보이는 표 말고 나머지 두 유형도 함께 출력
     document.getElementById("dealPrintAll").innerHTML = TYPES.filter(function (t) { return t !== type; })
       .map(function (t) {
+        var pr = topRows(t);
         return '<h3 style="margin:18px 0 8px; font-size:15px;">' + regionLabel() + " · " + TYPE_LABEL[t] +
-          (b.k === "all" ? "" : " · " + b.name) + " 실거래가 TOP 10</h3>" +
+          (b.k === "all" ? "" : " · " + b.name) + " 실거래가 TOP " + pr.length + "</h3>" +
           '<table class="rank-table"><thead><tr><th>순위</th><th>단지명</th>' +
           '<th>분양면적<span class="th-sub">㎡ (평) · 전용</span></th><th>층</th><th>' +
           (t === "wolse" ? "보증금 / 월세" : "거래가") +
           '</th><th>평당가<span class="th-sub">공급 · 전용</span></th><th>거래일</th></tr></thead><tbody>' +
-          dealRowsHtml(topRows(t), t, false) + "</tbody></table>";
+          dealRowsHtml(pr, t, false) + "</tbody></table>";
       }).join("");
 
     document.querySelectorAll("#dealBody .rt-name-clickable").forEach(function (el, i) {
@@ -2654,6 +2655,33 @@
     { k: "체육시설", c: "#4a8a5c", i: "🏃" },
   ];
 
+  /* 주변 시설은 자치구마다 따로 받아 온다.
+
+     서울 전역을 한 파일에 담으면 12MB가 된다. 주변 입지를 열어 보지도 않는
+     사람까지 그 무게를 질 까닭이 없다. 단지를 열 때 그 구의 파일만 받는다.
+     학교는 이미 손에 있으므로(schoolgeo) 기다리지 않고 먼저 그리고, 나머지
+     시설은 도착하는 대로 카드를 다시 그려 채운다. */
+  var aroundGot = {};
+
+  function aroundReady(gu) {
+    var cd = (window.AROUND_FILES || {})[gu];
+    return !cd || aroundGot[cd] === true;      // 안 받아 둔 구는 기다릴 것도 없다
+  }
+
+  function loadAround(gu, done) {
+    var cd = (window.AROUND_FILES || {})[gu];
+    if (!cd || aroundGot[cd] === true) { if (done) done(); return; }
+    if (aroundGot[cd]) { if (done) aroundGot[cd].push(done); return; }   // 받는 중이면 줄을 선다
+    var queue = aroundGot[cd] = done ? [done] : [];
+    var sc = document.createElement("script");
+    sc.src = "../data/around/" + cd + ".js?v=" + (window.AROUND_V || "1");
+    sc.onload = sc.onerror = function () {
+      aroundGot[cd] = true;
+      queue.forEach(function (f) { f(); });
+    };
+    document.head.appendChild(sc);
+  }
+
   var nearMap = null, nearLayer = null, nearRings = null, nearOff = {};
 
   function metres(a, b, c, d) {
@@ -2883,6 +2911,11 @@
     if (!sum) { host.innerHTML = ""; openAptKey = null; syncUrl(); return; }
     openAptKey = key;
     syncUrl();            // 펼친 단지도 주소에 남겨 그대로 보낼 수 있게 한다
+
+    // 이 구의 주변 시설을 아직 안 받았으면 지금 받는다(기다리지는 않는다)
+    if (!aroundReady(sum.apt.gu)) {
+      loadAround(sum.apt.gu, function () { if (openAptKey === key) showApt(key); });
+    }
 
     var a = sum.apt;
     var mainBand = sum.main || null;    // 표는 작은 평형부터, 대표는 거래 많은 평형
@@ -4339,7 +4372,8 @@
     document.getElementById("pyPrintAll").innerHTML = TYPES
       .filter(function (t) { return t !== pyState.type; })
       .map(function (t) {
-        return '<h3 style="margin:18px 0 8px; font-size:15px;">' + regionLabel() + " · " + TYPE_LABEL[t] + " 평당가격 TOP 10</h3>" +
+        return '<h3 style="margin:18px 0 8px; font-size:15px;">' + regionLabel() + " · " + TYPE_LABEL[t] +
+          " 평당가격 TOP " + (tops[t] || []).length + "</h3>" +
           '<table class="rank-table"><thead><tr><th>순위</th><th>단지명</th>' +
           '<th>분양면적<span class="th-sub">㎡ (평) · 전용</span></th>' +
           '<th>층</th><th>거래가</th><th>평당가<span class="th-sub">공급 · 전용</span></th><th>거래일</th></tr></thead><tbody>' +

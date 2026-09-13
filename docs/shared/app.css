@@ -533,11 +533,26 @@ section[data-tabpanel].is-on { display: block; }
   /* ★ 인쇄에서는 TOP10 3개 섹션의 숨김을 풀어 전부 출력한다 */
   section[data-tabpanel] { display: block !important; }
 
+  /* 섹션을 통째로 한 쪽에 담으려 들지 않는다.
+
+     break-inside: avoid를 걸어 두면 반 쪽짜리 섹션도 남은 자리가 모자라면
+     통째로 다음 장으로 넘어간다. 그래서 아래가 허옇게 빈 장이 줄줄이 생겼다.
+     대신 '끊겨도 읽히게' 만든다 — 제목은 제 내용과 붙어 다니고, 표는 줄
+     중간에서 끊기지 않으며, 여러 장에 걸치는 긴 표는 장마다 머리글을 다시
+     찍는다. 끊긴 자리를 알아볼 수 있으면 빈 장을 만들 까닭이 없다. */
   section.card-section {
-    box-shadow: none; border: 1px solid #ccc; break-inside: avoid;
-    padding: 16px 18px; margin-bottom: 14px;
+    box-shadow: none; border: 1px solid #ccc; break-inside: auto;
+    padding: 12px 14px; margin-bottom: 10px;
   }
   section.card-section:hover { box-shadow: none; }
+  .sec-head, .sec-desc, h2, h3, h4 { break-after: avoid; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+  p, li { orphans: 3; widows: 3; }
+
+  /* 종이 여백은 우리가 정한다 — 브라우저 기본값은 넉넉해서 한 장에 담기는
+     줄 수가 눈에 띄게 줄어든다. */
+  @page { size: A4; margin: 11mm 9mm 13mm; }
 
   /* 상단 타이틀바 — 세로로 펴서 첫 페이지 헤드라인으로 */
   .topbar {
@@ -738,7 +753,9 @@ section[data-tabpanel].is-on { display: block; }
 
 @media print {
   .finder-bar, .finder-drop { display: none !important; }
-  .apt-card { break-inside: avoid; background: #fff; }
+  .apt-card { break-inside: auto; background: #fff; padding: 12px 14px 14px; }
+  .apt-card h4 { break-after: avoid; margin: 12px 0 6px; }
+  .apt-card .table-wrap { break-inside: auto; }
 }
 .apt-flag {
   display: inline-block; font-size: 11px; font-weight: 700; vertical-align: 4px;
@@ -1802,6 +1819,17 @@ html[data-theme="dark"] .mine-tag { background: #3a63bd; }
 .near-tag { font-size: 11px; font-weight: 700; color: var(--accent-2); }
 html[data-theme="dark"] .near-tag { color: var(--accent); }
 .near-d { font-weight: 800; color: var(--txt); white-space: nowrap; }
+
+/* 종이에서는 지도를 반쯤으로 줄이고 목록을 촘촘히 — 한 장에 지도와 목록이
+   같이 들어가야 "이 단지 둘레는 이렇다"가 한눈에 읽힌다. */
+@media print {
+  .near-wrap { margin-top: 16px; padding-top: 12px; break-before: auto; }
+  .near-chips { display: none !important; }   /* 종이에서는 누를 수 없다 */
+  .near-map { height: 300px !important; break-inside: avoid; }
+  .near-lists { grid-template-columns: repeat(4, 1fr); gap: 8px 14px; margin-top: 10px; }
+  .near-col { break-inside: avoid; }
+  .near-row { font-size: 11px; line-height: 1.5; }
+}
 
 @media (max-width: 760px) {
   .near-map { height: 380px; }

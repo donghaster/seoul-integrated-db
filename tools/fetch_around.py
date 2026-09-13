@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import glob
+import hashlib
 import json
 import os
 import re
@@ -31,6 +32,7 @@ CACHE = os.path.join(BASE_DIR, ".cache")
 STORE = os.path.join(CACHE, "around-v1.json")
 OUT = os.path.join(BASE_DIR, "docs", "data", "around.js")
 
+NL = chr(10)
 RADIUS = 1000          # 1km — 걸어서 15분. 그보다 멀면 '주변'이라 부르기 어렵다
 KEEP = 5               # 갈래마다 가까운 다섯 곳. 더 담으면 지도가 글자로 덮인다
 GAP = 0.12             # 카카오는 넉넉하지만 예의는 지킨다(초당 8회쯤)
@@ -216,21 +218,58 @@ def collect(only, minutes):
 
 
 def write(store):
-    body = json.dumps(store, ensure_ascii=False, separators=(",", ":"))
-    os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    with open(OUT, "w", encoding="utf-8", newline="\n") as fh:
-        fh.write("// 자동 생성 — tools/fetch_around.py (카카오 로컬)\n")
-        fh.write("window.AROUND = %s;\n" % body)
+    """자치구마다 한 파일로 굽는다.
+
+    서울 전역을 한 파일에 담으면 12MB가 된다. 그 무게를 주변 입지를 보지도
+    않는 사람까지 지게 할 까닭이 없다. 단지를 열 때 그 구의 파일만 받아 온다.
+
+    파일 이름은 법정동코드(11650 …)를 쓴다. 한글 파일명은 주소로 실어 나를 때
+    인코딩이 얽히기 쉽다. 어느 구가 어느 파일인지는 index.js가 알려 준다.
+    """
+    import fetch_supply as F
+
+    out_dir = os.path.join(BASE_DIR, "docs", "data", "around")
+    os.makedirs(out_dir, exist_ok=True)
+
+    by_gu = {}
+    for key, v in store.items():
+        by_gu.setdefault(key.split("|")[0], {})[key] = v
+
+    files, total = {}, 0
+    for gu, part in sorted(by_gu.items()):
+        cd = F.GU_CD.get(gu)
+        if not cd:
+            print("   ※ %s — 법정동코드를 몰라 건너뜀" % gu)
+            continue
+        body = json.dumps(part, ensure_ascii=False, separators=(",", ":"))
+        total += len(body.encode("utf-8"))
+        with open(os.path.join(out_dir, cd + ".js"), "w", encoding="utf-8", newline=NL) as fh:
+            fh.write("// 자동 생성 — tools/fetch_around.py (카카오 로컬) · %s" % gu + NL)
+            # 이미 받아 둔 것에 얹는다 — 구를 여럿 열어도 앞서 받은 것이 남는다
+            fh.write("Object.assign(window.AROUND = window.AROUND || {}, %s);" % body + NL)
+        files[gu] = cd
+
+    stamp = hashlib.md5(json.dumps(files, sort_keys=True).encode()).hexdigest()[:10]
+    with open(os.path.join(out_dir, "index.js"), "w", encoding="utf-8", newline=NL) as fh:
+        fh.write("// 자동 생성 — tools/fetch_around.py · 어느 구가 어느 파일인지" + NL)
+        fh.write("window.AROUND_FILES = %s;" % json.dumps(files, ensure_ascii=False) + NL)
+        fh.write('window.AROUND_V = "%s";' % stamp + NL)
+
+    # 옛 통짜 파일은 지운다 — 남겨 두면 3.9MB를 계속 받게 된다
+    if os.path.exists(OUT):
+        os.remove(OUT)
+
     n = sum(len(v) for v in store.values())
-    print("around.js — 단지 %d곳 · 갈래 %d개 · %.1fMB"
-          % (len(store), n, len(body.encode("utf-8")) / 1024 / 1024))
+    print("around/ — 자치구 %d개 · 단지 %d곳 · 갈래 %d개 · 합계 %.1fMB (한 구 평균 %.0fKB)"
+          % (len(files), len(store), n, total / 1024 / 1024, total / 1024 / max(len(files), 1)))
+
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--gu", default="", help="이 자치구만(쉼표로 여럿)")
     ap.add_argument("--minutes", type=int, default=None, help="이번에 쓸 시간(분)")
-    ap.add_argument("--write", action="store_true", help="받지 않고 around.js만 다시 굽는다")
+    ap.add_argument("--write", action="store_true", help="받지 않고 자치구 파일만 다시 굽는다")
     a = ap.parse_args()
     if a.write:
         write(json.load(open(STORE, encoding="utf-8")))
