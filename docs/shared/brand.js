@@ -314,23 +314,74 @@
             window.scrollTo(0, top);
           }
         }, 350);
+
+        /* 내려가는 동안 막대가 접히면 본문이 그만큼 위로 올라와, 미리 셈해 둔
+           자리가 어긋난다. 멀리 갈수록 부드러운 스크롤이 오래 걸리므로 시간을
+           못박지 않고 멎을 때까지 지켜보다가 한 번 맞춘다. */
+        var last = -1, tries = 0;
+        var settle = setInterval(function () {
+          var now = Math.round(window.scrollY);
+          if (now === last || ++tries > 20) {
+            clearInterval(settle);
+            var gap = el.getBoundingClientRect().top - stickyH() - 12;
+            if (Math.abs(gap) > 8) window.scrollBy(0, gap);
+            if (navScroll) navScroll();
+          }
+          last = now;
+        }, 100);
       });
     });
 
-    var sections = btns
-      .map(function (b) { return document.getElementById(b.dataset.target); })
-      .filter(Boolean);
+    /* 지금 보는 칸에 불을 켠다.
 
+       단추와 섹션을 미리 담아 두지 않고 그때그때 다시 찾는다. 화면이 다시
+       그려지면 단추가 새것으로 바뀌는데, 담아 둔 옛 단추에 불을 켜 봐야
+       화면에는 아무 일도 안 일어난다 — 눌러도 엉뚱한 칸에 불이 켜져 있던
+       까닭이 이것이었다.
+
+       위치도 offsetTop이 아니라 화면 기준(getBoundingClientRect)으로 잰다.
+       offsetTop은 기준이 되는 조상이 무엇이냐에 따라 달라지고, 막대가 접혀
+       본문이 위로 올라오면 값이 어긋난다. */
     if (navScroll) window.removeEventListener("scroll", navScroll);
     navScroll = function () {
-      // 고정 막대 바로 아래에 걸친 섹션을 "지금 보는 곳"으로 친다
-      var y = window.scrollY + stickyH() + 24, cur = null;
-      sections.forEach(function (s) {
-        if (s.offsetParent !== null && s.offsetTop <= y) cur = s.id;
+      var live = document.querySelectorAll("nav.section-nav button[data-target]");
+      if (!live.length) return;
+
+      /* 막대 바로 아래 선을 긋고, 그 선에 제목이 가장 가까운 칸에 불을 켠다.
+
+         두 번 헤맸다. '선을 지나간 마지막 칸'으로 하면, 막대가 접히며 본문이
+         내려앉았을 때 이미 다 지나간 앞 칸에 불이 남는다(가격비교를 보는데
+         월별 브리핑에 불이 켜졌다). '보이는 넓이가 가장 큰 칸'으로 하면 칸마다
+         길이가 달라 긴 칸이 늘 이긴다(핵심 요약으로 갔는데 아래 실거래 지도에
+         불이 켜졌다). 제목이 선에 가장 가까운 칸이 셋 다 맞는다 — 방금 옮겨 간
+         칸은 제목이 선에 붙어 있고, 지나쳐 버린 칸은 제목이 멀리 위에 있다.
+
+         재는 법은 화면 기준(getBoundingClientRect)으로 바꿨다. offsetTop은
+         기준이 되는 조상에 따라 달라지고, 막대가 접혀 본문이 올라오면
+         어긋난다. 단추도 그때그때 다시 찾는다 — 화면이 다시 그려지면 단추가
+         새것으로 바뀌는데, 담아 둔 옛 단추에 불을 켜 봐야 소용이 없다. */
+      var line = stickyH() + 24;
+      var best = null, bestGap = Infinity;
+      live.forEach(function (b) {
+        var s = document.getElementById(b.dataset.target);
+        if (!s || s.offsetParent === null) return;
+        var r = s.getBoundingClientRect();
+        if (r.bottom <= line || r.top >= window.innerHeight) return;   // 화면 밖
+        var gap = Math.abs(r.top - line);
+        if (gap < bestGap) { bestGap = gap; best = b.dataset.target; }
       });
-      btns.forEach(function (b) { b.classList.toggle("active", b.dataset.target === cur); });
+      live.forEach(function (b) { b.classList.toggle("active", b.dataset.target === best); });
     };
     window.addEventListener("scroll", navScroll, { passive: true });
+
+    /* 위쪽 탭으로 칸을 갈아 끼우면 스크롤이 안 움직여도 보이는 것이 바뀐다.
+       그때도 불을 다시 켜야 한다. */
+    document.querySelectorAll(".top-tab").forEach(function (t) {
+      if (t.dataset.navWired) return;
+      t.dataset.navWired = "1";
+      t.addEventListener("click", function () { setTimeout(navScroll, 60); });
+    });
+
     navScroll();
   };
 
