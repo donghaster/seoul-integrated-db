@@ -120,8 +120,37 @@
       var src = img.src;
       setTimeout(function () { img.src = src.split("?")[0] + "?r=1"; }, 600);
     });
+    steadyZoom(map);     // 모든 지도가 여기를 지나므로 +·− 단추도 여기서 다잡는다
     return layer.addTo(map);
   };
+
+  /* ── +·− 단추가 눌린 만큼 움직이게 ──
+     1) Leaflet은 확대·축소 움직임(0.25초)이 도는 동안 들어온 클릭을 조용히
+        버린다. 연달아 누르면 두 번에 한 번꼴로 씹혀 "안 먹힌다"가 된다.
+        움직이는 중에 들어온 클릭은 적어 두었다가 움직임이 끝나면 마저 한다.
+     2) 단추가 링크(<a href="#">)라 누른 채 손이 조금 움직이면 끌어 옮기기가
+        시작돼 클릭이 사라진다. 끌리지 않게 막는다(글자 선택은 app.css). */
+  function steadyZoom(map) {
+    var box = map.getContainer();
+    if (box.dataset.steadyZoom) return;
+    box.dataset.steadyZoom = "1";
+    box.querySelectorAll(".leaflet-control-zoom a").forEach(function (a) {
+      a.draggable = false;
+    });
+    var owed = 0;
+    // 잡는 단계에서 본다 — Leaflet이 단추에서 클릭을 버리기 전에 먼저 적어 둔다
+    box.addEventListener("click", function (e) {
+      var a = e.target.closest && e.target.closest(".leaflet-control-zoom a");
+      if (!a || !map._animatingZoom) return;
+      owed += a.classList.contains("leaflet-control-zoom-in") ? 1 : -1;
+    }, true);
+    map.on("zoomend", function () {
+      if (!owed) return;
+      var d = owed * (map.options.zoomDelta || 1);
+      owed = 0;
+      map.setZoom(map.getZoom() + d);   // 최대·최소를 넘으면 Leaflet이 알아서 멈춘다
+    });
+  }
 
   /* ── 지도 칸이 바뀌면 지도에게 알려 준다 ──
      Leaflet은 창 크기가 바뀔 때만 스스로 다시 잰다. 칸만 넓어지는 경우

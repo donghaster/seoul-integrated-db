@@ -1160,6 +1160,22 @@ html[data-theme="dark"] .detail-deals tr.is-on td { background: var(--accent-lig
 html[data-theme="dark"] .leaflet-tile-pane { opacity: 0.78; }
 html[data-theme="dark"] .leaflet-container { background: #1a1f2a; }
 
+/* 지도는 제 안에서만 층을 쌓는다. Leaflet의 +·− 단추(z-index 1000)와 표시판
+   (600~700)이 페이지 전체의 층으로 나와 있어, 스크롤하면 고정 막대(500)
+   위로 비쳐 올라왔다. */
+.leaflet-container { isolation: isolate; }
+
+/* +·− 단추는 글자가 아니라 단추다.
+   빠르게 여러 번 누르면 브라우저가 이를 두 번·세 번 클릭으로 받아 '+ −'
+   글자를 선택해 버린다. 선택된 글자나 링크(<a href="#">)를 누른 채 손이
+   조금만 움직여도 끌어 옮기기가 시작돼 클릭이 사라진다 — 최대로 확대한
+   뒤 −가 먹통이다가 다른 데를 누르면(선택이 풀리면) 되살아나던 것이다.
+   touch-action은 휴대폰에서 연달아 톡톡 누를 때 화면 확대로 새지 않게 한다. */
+.leaflet-control-zoom a {
+  -webkit-user-select: none; user-select: none;
+  -webkit-user-drag: none; touch-action: manipulation;
+}
+
 /* 테마 토글 */
 .theme-toggle {
   display: inline-flex; gap: 2px; padding: 3px;
