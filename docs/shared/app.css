@@ -1476,6 +1476,12 @@ html[data-theme="dark"] .find-go:hover { background: #4a76d4; }
 html[data-theme="dark"] .trf-hint { background: rgba(28, 34, 48, .94); color: #e6e9ef; }
 html[data-theme="dark"] .trf-hint b { color: #8fb0f0; }
 #trfNear .tr-h4 .mini-btn { margin-left: 6px; vertical-align: 1px; }
+/* 지금 아래에 분석이 열려 있는 상권 줄 */
+#trfNear tr.is-cur td { background: var(--accent-light); }
+#trfNear tr.is-cur .tr-name::after {
+  content: " · 아래 분석 중"; font-size: 11px; font-weight: 800; color: var(--accent-2);
+}
+html[data-theme="dark"] #trfNear tr.is-cur .tr-name::after { color: var(--accent); }
 @media (max-width: 760px) { .trf-map { height: 380px; } }
 /* 종이에서는 짚어 고를 수 없다 — 찾기 도구는 뺀다 */
 @media print { .tr-finder { display: none !important; } }

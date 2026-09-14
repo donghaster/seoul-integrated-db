@@ -541,6 +541,15 @@
   var TYPE_ORDER = ["발달상권", "골목상권", "전통시장", "관광특구"];
   var FINDER_R = 500;
   var finder = null, finderItems = [], finderOff = {}, finderPin = null, finderHint = null;
+  // 빈 곳을 눌러 분석을 열 때는 지도를 그 상권으로 옮기지 않는다(누른 자리를 가운데 둔 채로)
+  var finderHold = false;
+
+  // 반경 목록에서 지금 아래에 분석이 열려 있는 줄을 짚는다
+  function markCurRows() {
+    document.querySelectorAll("#trfNear .tr-row").forEach(function (r) {
+      r.classList.toggle("is-cur", r.dataset.c === state.code);
+    });
+  }
   var HINT_IDLE = "💡 원이 없는 곳을 누르면 그 자리 반경 500m 안의 상권을 모아 보여 줌";
 
   function finderStyle(it, on) {
@@ -644,10 +653,26 @@
     var cl = document.getElementById("trfClear");
     if (cl) cl.addEventListener("click", clearPin);
 
+    /* 둘레에 상권이 있으면 가장 가까운 곳의 분석을 아래에 바로 연다.
+
+       목록만 바꾸고 분석은 앞서 고른 상권을 그대로 두었더니, 서래마을을 본 뒤
+       구반포역 옆을 눌렀는데도 아래는 여전히 서래마을카페거리 이야기를 했다.
+       "이 근처 어때요?"에는 가장 가까운 상권이 첫 답이다. 다른 곳은 목록에서
+       줄을 눌러 바꿔 보면 된다. 유형 단추로 다시 셀 때(quiet)는 고른 것을 두고. */
+    if (!quiet && rows.length && state.code !== rows[0].t.c) {
+      var t0 = rows[0].t;
+      state.gu = t0.gu; state.dong = t0.dong; state.code = t0.c;
+      finderHold = true;
+      try { refresh(); } finally { finderHold = false; }
+    }
+    markCurRows();
+
     // 지도 위에서 바로 결과를 알린다 — 표는 지도 아래라 눈에 안 들어오기 쉽다
     if (finderHint) {
+      var cur = rows.filter(function (x) { return x.t.c === state.code; })[0];
       finderHint.innerHTML = rows.length
-        ? "📍 누른 자리 반경 500m 안 상권 <b>" + comma(rows.length) + "곳</b> — 아래 표에서 보기 ↓"
+        ? "📍 반경 500m 안 상권 <b>" + comma(rows.length) + "곳</b>" +
+          (cur ? " — <b>" + esc(cur.t.n) + "</b> 분석을 아래에 열었음 ↓" : " — 아래 표에서 골라 보기 ↓")
         : "📍 누른 자리 반경 500m 안에는 상권이 없음 — 큰길이나 역 쪽을 눌러 볼 것";
     }
     // 표가 화면 아래로 밀려 있으면 첫 줄들이 보일 만큼만 내려 준다
@@ -709,6 +734,8 @@
   function syncFinder() {
     if (!finder) return;
     restyleFinder();
+    markCurRows();
+    if (finderHold) return;
     if (state.code !== ALL && BY_CODE[state.code]) {
       var t = BY_CODE[state.code];
       finder.invalidateSize({ animate: false });
