@@ -513,7 +513,9 @@
       var it = nearest(e.containerPoint);
       setHover(it);
       show(it);
-      m.getContainer().style.cursor = it ? "pointer" : (opts.onEmpty ? "crosshair" : "");
+      // 빈 곳도 누를 수 있으면 손가락으로 둔다. 십자(+)를 띄웠더니 "누를 수 없는
+      // 곳"으로 읽혔다.
+      m.getContainer().style.cursor = it || opts.onEmpty ? "pointer" : "";
     });
     m.on("mouseout movestart zoomstart", function () { setHover(null); show(null); });
     m.on("click", function (e) {
@@ -538,7 +540,8 @@
      - 좌표는 영역의 중심점 하나라 상권의 경계선은 그리지 않는다. */
   var TYPE_ORDER = ["발달상권", "골목상권", "전통시장", "관광특구"];
   var FINDER_R = 500;
-  var finder = null, finderItems = [], finderOff = {}, finderPin = null;
+  var finder = null, finderItems = [], finderOff = {}, finderPin = null, finderHint = null;
+  var HINT_IDLE = "💡 원이 없는 곳을 누르면 그 자리 반경 500m 안의 상권을 모아 보여 줌";
 
   function finderStyle(it, on) {
     var off = !!finderOff[it.t.t];
@@ -580,7 +583,7 @@
         else finderOff[k] = !finderOff[k];
         paintFinderTypes();
         restyleFinder();
-        if (finderPin) nearAt(finderPin.latlng);
+        if (finderPin) nearAt(finderPin.latlng, true);
       });
     });
   }
@@ -589,10 +592,15 @@
     if (finderPin) { finder.removeLayer(finderPin.layer); finderPin = null; }
     var host = document.getElementById("trfNear");
     if (host) host.innerHTML = "";
+    if (finderHint) finderHint.innerHTML = HINT_IDLE;
   }
 
-  function nearAt(latlng) {
+  /* quiet: 유형 단추를 바꿔 같은 자리를 다시 셀 때는 지도·화면을 움직이지 않는다. */
+  function nearAt(latlng, quiet) {
     if (finderPin) finder.removeLayer(finderPin.layer);
+    /* 서울 전체 배율(11)에서는 반경 500m 원이 화면에서 반지름 8px뿐이라, 눌러도
+       아무 일도 안 일어난 것처럼 보였다. 배율 15로 당기면 반지름 130px쯤 된다. */
+    if (!quiet && finder.getZoom() < 15) finder.setView(latlng, 15, { animate: false });
     var grp = L.layerGroup().addTo(finder);
     L.circle(latlng, { radius: FINDER_R, color: "#232a38", weight: 1.5, dashArray: "6 5",
                        fill: true, fillOpacity: 0.05, interactive: false }).addTo(grp);
@@ -635,6 +643,20 @@
     });
     var cl = document.getElementById("trfClear");
     if (cl) cl.addEventListener("click", clearPin);
+
+    // 지도 위에서 바로 결과를 알린다 — 표는 지도 아래라 눈에 안 들어오기 쉽다
+    if (finderHint) {
+      finderHint.innerHTML = rows.length
+        ? "📍 누른 자리 반경 500m 안 상권 <b>" + comma(rows.length) + "곳</b> — 아래 표에서 보기 ↓"
+        : "📍 누른 자리 반경 500m 안에는 상권이 없음 — 큰길이나 역 쪽을 눌러 볼 것";
+    }
+    // 표가 화면 아래로 밀려 있으면 첫 줄들이 보일 만큼만 내려 준다
+    if (!quiet) {
+      var top = host.getBoundingClientRect().top;
+      if (top > window.innerHeight - 220) {
+        window.scrollTo({ top: window.scrollY + top - (window.innerHeight - 320), behavior: "smooth" });
+      }
+    }
   }
 
   function initFinder() {
@@ -668,6 +690,17 @@
       unhover: function (it) { it.marker.setStyle(finderStyle(it, false)); },
     });
     paintFinderTypes();
+
+    var hint = L.control({ position: "bottomleft" });
+    hint.onAdd = function () {
+      var d = L.DomUtil.create("div", "trf-hint");
+      d.innerHTML = HINT_IDLE;
+      L.DomEvent.disableClickPropagation(d);
+      finderHint = d;
+      return d;
+    };
+    hint.addTo(finder);
+
     // 칸 크기가 뒤늦게 잡히는 때를 대비해 한 박자 뒤 한 번 더
     setTimeout(syncFinder, 300);
   }
