@@ -109,6 +109,27 @@
      타일이 하나 실패해도 그 자리는 그냥 빈 칸으로 남으므로, 한 번은 다시
      불러 본다. 두 번째도 실패하면 더 조르지 않는다 — 지도가 목적이 아니라
      위치를 짚어 주는 화면이라 한 칸이 비어도 브리핑은 이어진다. */
+  /* ── 지도 단추를 누르면 페이지가 튀던 것 ──
+     Leaflet은 +·− 같은 단추를 누르면 키보드로도 움직일 수 있게 지도 칸에
+     초점을 옮긴다(focus). 그런데 브라우저는 초점 받은 칸을 화면에 다 보이려고
+     페이지를 스크롤한다. 지도가 화면 아래로 삐져나와 있으면 한 번 누를 때마다
+     페이지가 올라가(주변 입지 지도 180px) −단추가 고정 막대 밑으로 숨고, 제자리의
+     마우스는 단추가 아니라 지도 위(손바닥 모양)에 놓인다 — 그 뒤로는 눌러도
+     지도만 눌려 먹통처럼 보이다가, 밖에 나갔다 들어와 단추를 다시 짚으면 되던
+     것이다. Leaflet도 지도를 직접 누를 때는 스크롤을 되돌리는데 단추 쪽만
+     빠뜨렸다. 초점은 옮기되 스크롤은 하지 않게 한다. */
+  if (window.L && L.Control && L.Control.prototype._refocusOnMap) {
+    L.Control.prototype._refocusOnMap = function (e) {
+      if (!this._map || !e || !(e.screenX > 0 && e.screenY > 0)) return;
+      var box = this._map.getContainer();
+      try { box.focus({ preventScroll: true }); }
+      catch (err) {
+        var x = window.scrollX, y = window.scrollY;
+        box.focus(); window.scrollTo(x, y);
+      }
+    };
+  }
+
   window.osmTiles = function (map) {
     var layer = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; OpenStreetMap contributors", maxZoom: 19,
