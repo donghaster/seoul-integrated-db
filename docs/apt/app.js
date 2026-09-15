@@ -3038,11 +3038,14 @@
   }
 
   /* 이 단지 둘레 1km 안의 시설을 갈래별로 모은다. */
-  /* 주변 입지 반경 — 보통 1km. 분양 예정 단지는 upcoming.json에서 넓힐 수 있다.
-     시설을 그 반경으로 받아 둔 단지만 넓혀야 한다. 1km로 받은 단지의 원만
-     넓히면 1~2km 사이가 텅 비어 "그 사이엔 아무것도 없다"로 읽힌다. */
+  /* 주변 입지 반경 — 그 단지 시설을 실제로 받은 반경(자료의 _r)을 따른다.
+     서울 전역을 1km에서 1.6km로 옮겨 받는 중이라 단지마다 다를 수 있다.
+     원만 넓히고 자료는 1km이면 1~1.6km 사이가 텅 비어 "그 사이엔 아무것도
+     없다"로 읽힌다. 자료가 아직 안 왔으면 분양 예정 단지의 반경을 쓴다. */
   function nearRadius(a) {
-    var r = a && a.upcoming && a.upcoming.radius;
+    if (!a) return 1000;
+    var got = (window.AROUND || {})[a.gu + "|" + a.dg + "|" + a.n];
+    var r = (got && got._r) || (a.upcoming && a.upcoming.radius) || 1000;
     return r > 1000 ? r : 1000;
   }
   function kmText(m) {
@@ -3063,6 +3066,7 @@
     // 나머지 — 받아 둔 것
     var got = (window.AROUND || {})[a.gu + "|" + a.dg + "|" + a.n] || {};
     Object.keys(got).forEach(function (k) {
+      if (k.charAt(0) === "_") return;          // _r(받은 반경) 같은 표시는 시설이 아니다
       out[k] = got[k].map(function (x) { return { n: x.n, d: x.d, y: x.y, x: x.x, tag: "" }; });
     });
     Object.keys(out).forEach(function (k) {
@@ -3250,9 +3254,11 @@
          여러 일이 일어나면 fitBounds가 조용히 무시되곤 한다. */
       /* 종이에서는 더 바싹 당겨 본다. 시설이 모두 1km 안에 있으므로 지름
          2.2km면 다 들어오고, 그만큼 길과 단지 이름이 크게 보인다. */
-      // 넓힌 반경이면 바깥 원이 다 들어오게 넓힌다(지름의 1.1배 · 종이는 1.05배)
+      /* 화면은 바깥 원이 다 들어오게(지름의 1.1배). 종이는 지도 칸이 작아 그렇게
+         담으면 글자가 깨알이 된다 — 1km 원은 온전히, 바깥 원은 좌우만 들어오게
+         당겨 둔다(1.6km면 폭 2.56km). */
       var bb = L.latLng(coord.lat, coord.lng).toBounds(
-        PRINTING ? Math.max(2200, R * 2.1) : Math.max(3000, R * 2.2));
+        PRINTING ? Math.max(2200, R * 1.6) : Math.max(3000, R * 2.2));
       nearMap.setView(bb.getCenter(),
                       nearMap.getBoundsZoom(bb, false, L.point(8, 8)), { animate: false });
     }
@@ -3399,7 +3405,7 @@
 
         (c ? '<p class="dim-note">지도에서 보기: <button type="button" class="mini-btn" id="aptGoMap">' +
              "TOP10 지도로 이동</button></p>" : "") +
-        (c ? nearbyHtml(nearbyOf(a, c)) : "") +
+        (c ? nearbyHtml(nearbyOf(a, c), nearRadius(a)) : "") +
       "</div>";
 
     // 지도는 HTML이 자리를 잡은 뒤에 그린다

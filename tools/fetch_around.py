@@ -35,6 +35,11 @@ OUT = os.path.join(BASE_DIR, "docs", "data", "around.js")
 NL = chr(10)
 RADIUS = 1000          # 1km — 걸어서 15분. 그보다 멀면 '주변'이라 부르기 어렵다
 KEEP = 5               # 갈래마다 가까운 다섯 곳. 더 담으면 지도가 글자로 덮인다
+# 서울 전역의 주변 입지 반경(2026-09-16부터). 1km로는 고속터미널역·백화점·종합병원처럼
+# 상담에 늘 오르는 곳이 빠지는 단지가 많았다. 받아 둔 반경은 단지마다 "_r"로 적는다.
+WIDE = 1600
+# 입점 매장이 본체를 가리는 갈래 — 가까운 순만으로는 백화점 본체가 안 나온다
+ACCURACY = {"마트·백화점", "종합병원"}
 GAP = 0.12             # 카카오는 넉넉하지만 예의는 지킨다(초당 8회쯤)
 
 GU_ORDER = ["서초구", "강남구", "동작구", "송파구", "용산구", "마포구", "성동구"]
@@ -63,7 +68,7 @@ KINDS = [
 ]
 
 _LAST = [0.0]
-STATE = {"calls": 0}
+STATE = {"calls": 0, "fail": 0}
 
 
 def call(url: str, params: dict) -> list:
@@ -85,9 +90,13 @@ def call(url: str, params: dict) -> list:
             if e.code == 429:
                 time.sleep(2 + att * 2)
                 continue
+            # 한도 초과·키 오류다. 빈 목록을 '주변에 없음'으로 믿고 담으면 받아 둔
+            # 자료를 빈 것으로 덮게 되니, 실패했다고 세어 둔다(collect가 본다).
+            STATE["fail"] += 1
             return []
         except Exception:                                # noqa: BLE001
             time.sleep(1 + att)
+    STATE["fail"] += 1
     return []
 
 
@@ -106,61 +115,63 @@ TAIL = re.compile(r"\s*\((휴교|폐교|분교|본점|지하|신관|별관)[^)]*
 def around(lat: float, lng: float, radius: int = RADIUS) -> dict:
     """한 단지 둘레를 훑는다. 갈래마다 가까운 것 몇 곳만 남긴다.
 
-    반경은 보통 1km다. 분양 예정 단지 소개처럼 더 넓게 보여 줄 때만
-    넓힌다(tools/upcoming.json의 radius). 넓힌 만큼 갈래마다 조금 더 남긴다 —
-    2km에서 다섯 곳만 남기면 1km 안의 것만 찍혀 넓힌 보람이 없다.
+    반경 1km(RADIUS)는 예전 그대로 갈래·검색어마다 한 번씩 부른다.
+    그보다 넓히면(서울 전역 WIDE 1.6km) 갈래마다 8곳까지 남기고 조금 더
+    부른다 — 1.6km에서 다섯 곳만 남기면 1km 안의 것만 찍혀 넓힌 보람이 없다.
     """
     out = {}
-    cap = KEEP if radius <= RADIUS else 8
-    # 카카오는 한 번에 15건까지 준다. 넓힌 반경에서는 두 가지로 더 받는다.
-    #  1) 가까운 순으로 세 쪽(45건)까지 — 은행처럼 수가 많은 갈래가 1km 안에서
-    #     15건을 다 써 버리지 않게.
-    #  2) 이름이 맞는 순(accuracy)으로 한 쪽 — 반포에서 '백화점'을 가까운 순으로
-    #     찾으면 신세계백화점 강남점 안의 입점 매장 수백 곳('로로피아나 신세계
-    #     백화점강남점' 등)이 45건을 다 채워, 정작 백화점 본체(1.5km)가 끝내
-    #     안 나온다. 이름순으로는 본체가 맨 앞에 온다.
-    # 1km 단지 8천여 곳은 그대로 한 번씩만 부른다.
     wide = radius > RADIUS
-
-    def fetch(url, params):
-        got = []
-        for pg in range(1, (3 if wide else 1) + 1):
-            docs = call(url, dict(params, page=pg))
-            got += docs
-            if len(docs) < 15:
-                break
-        if wide and url == KEY_URL:
-            got += call(url, dict(params, sort="accuracy", page=1))
-        return got
+    cap = KEEP if not wide else 8
 
     for name, code, words, want in KINDS:
         keep = re.compile(want)
         found = {}
+
+        def take(docs):
+            """쓸 만한 곳만 found에 담고, 이번 쪽에서 쓸 만했던 수를 돌려준다."""
+            n = 0
+            for d in docs:
+                nm = (d.get("place_name") or "").strip()
+                if not nm or DROP.search(nm):
+                    continue
+                if not keep.search(d.get("category_name") or ""):
+                    continue
+                nm = TAIL.sub("", nm).strip()      # '(휴교)' 같은 군더더기는 뗀다
+                try:
+                    dist = int(d.get("distance") or 0)
+                except ValueError:
+                    continue
+                if not dist or dist > radius:
+                    continue
+                n += 1
+                # 같은 곳이 여러 말로 잡힌다. 이름으로 한 번 접는다.
+                if nm in found and found[nm][0] <= dist:
+                    continue
+                found[nm] = (dist, round(float(d["y"]), 6), round(float(d["x"]), 6))
+            return n
+
+        def sweep(url, params):
+            # 카카오는 한 쪽에 15건까지 준다. 넓힌 반경에서는 세 쪽(45건)까지
+            # 넘기되, 쓸 만한 곳이 cap만큼 모이면 멈춘다 — 가까운 순이라 다음
+            # 쪽은 모두 그보다 멀다. 서울 8천여 단지에 부르는 수를 아낀다.
+            got = 0
+            for pg in range(1, (3 if wide else 1) + 1):
+                docs = call(url, dict(params, page=pg))
+                got += take(docs)
+                if len(docs) < 15 or got >= cap:
+                    break
+            # 이름순 한 쪽 — 반포에서 '백화점'을 가까운 순으로만 찾으면 신세계
+            # 백화점 강남점 입점 매장 수백 곳('로로피아나 신세계백화점강남점' 등)이
+            # 45건을 다 채워 본체(1.5km)가 끝내 안 나왔다. 그런 갈래만 부른다.
+            if wide and name in ACCURACY:
+                take(call(url, dict(params, sort="accuracy", page=1)))
+
+        base = {"x": lng, "y": lat, "radius": radius, "size": 15, "sort": "distance"}
         if code:
-            docs = fetch(CAT_URL, {"category_group_code": code, "x": lng, "y": lat,
-                                   "radius": radius, "size": 15, "sort": "distance"})
+            sweep(CAT_URL, dict(base, category_group_code=code))
         else:
-            docs = []
             for w in words:
-                docs += fetch(KEY_URL, {"query": w, "x": lng, "y": lat,
-                                        "radius": radius, "size": 15, "sort": "distance"})
-        for d in docs:
-            nm = (d.get("place_name") or "").strip()
-            if not nm or DROP.search(nm):
-                continue
-            if not keep.search(d.get("category_name") or ""):
-                continue
-            nm = TAIL.sub("", nm).strip()      # '(휴교)' 같은 군더더기는 뗀다
-            try:
-                dist = int(d.get("distance") or 0)
-            except ValueError:
-                continue
-            if not dist or dist > radius:
-                continue
-            # 같은 곳이 여러 말로 잡힌다. 이름으로 한 번 접는다.
-            if nm in found and found[nm][0] <= dist:
-                continue
-            found[nm] = (dist, round(float(d["y"]), 6), round(float(d["x"]), 6))
+                sweep(KEY_URL, dict(base, query=w))
         # 딸린 시설은 본 시설에 접는다 — '반포종합운동장'과 '반포종합운동장
         # 배드민턴장'이 나란히 서면 같은 곳을 두 번 찍는 셈이다. 이름이 다른
         # 이름으로 시작하면 짧은 쪽(본 시설)만 남긴다.
@@ -218,22 +229,37 @@ def targets():
     return out
 
 
-def collect(only, minutes):
+def collect(only, minutes, radius=WIDE):
     store = json.load(open(STORE, encoding="utf-8")) if os.path.exists(STORE) else {}
     todo = targets()
     if only:
         todo = [t for t in todo if t[1] in only]
-    left = [t for t in todo if t[0] not in store]
-    print("단지 %d곳 · 이미 받아 둔 것 %d곳 · 남은 것 %d곳"
-          % (len(todo), len(todo) - len(left), len(left)), flush=True)
+    # 그 반경으로 아직 안 받은 단지. 예전 1km 자료(_r 없음)도 여기 든다 —
+    # 다시 받기 전까지는 1km 자료가 그대로 남아 화면에 1km로 보인다.
+    left = [t for t in todo if int(store.get(t[0], {}).get("_r") or RADIUS) < radius]
+    print("단지 %d곳 · %dm로 받아 둔 것 %d곳 · 남은 것 %d곳"
+          % (len(todo), radius, len(todo) - len(left), len(left)), flush=True)
 
     t0 = time.time()
-    got = 0
+    got = bad = 0
     for key, gu, _n, c in left:
         if minutes and time.time() - t0 > minutes * 60:
             print("\n※ 정해 둔 %d분을 다 썼다. 다음에 이어받는다." % minutes)
             break
-        store[key] = around(c["lat"], c["lng"])
+        f0 = STATE["fail"]
+        res = around(c["lat"], c["lng"], radius)
+        if STATE["fail"] > f0:
+            # 한 번이라도 실패한 단지는 담지 않는다 — 덜 받은 채로 덮으면 1km 때
+            # 있던 시설까지 사라진다. 잇달아 실패하면 하루 한도에 닿은 것이다.
+            bad += 1
+            if bad >= 3:
+                print("\n※ 카카오 호출이 잇달아 실패 — 하루 한도에 닿았을 수 있다. "
+                      "받은 데까지 저장하고 멈춘다.")
+                break
+            continue
+        bad = 0
+        res["_r"] = radius
+        store[key] = res
         got += 1
         if got % 20 == 0:
             json.dump(store, open(STORE, "w", encoding="utf-8"), ensure_ascii=False)
@@ -303,12 +329,13 @@ def main():
     ap.add_argument("--gu", default="", help="이 자치구만(쉼표로 여럿)")
     ap.add_argument("--minutes", type=int, default=None, help="이번에 쓸 시간(분)")
     ap.add_argument("--write", action="store_true", help="받지 않고 자치구 파일만 다시 굽는다")
+    ap.add_argument("--radius", type=int, default=WIDE, help="반경(m) — 기본 1600")
     a = ap.parse_args()
     if a.write:
         write(json.load(open(STORE, encoding="utf-8")))
         return
     only = [g.strip() for g in a.gu.split(",") if g.strip()]
-    write(collect(only, a.minutes))
+    write(collect(only, a.minutes, a.radius))
 
 
 if __name__ == "__main__":

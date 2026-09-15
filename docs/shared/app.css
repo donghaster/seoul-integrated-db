@@ -1976,6 +1976,9 @@ html[data-theme="dark"] .near-tag { color: var(--accent); }
   .near-lists { grid-template-columns: repeat(4, 1fr); gap: 8px 14px; margin-top: 10px; }
   .near-col { break-inside: avoid; }
   .near-row { font-size: 11px; line-height: 1.5; }
+  /* 1.6km로 넓히며 갈래마다 8곳까지 담는다. 종이에서는 가까운 5곳만 —
+     지도와 목록이 한 장에 함께 들어가야 한다(첫 칸은 갈래 제목). */
+  .near-col > .near-row:nth-child(n+7) { display: none; }
 }
 
 @media (max-width: 760px) {
