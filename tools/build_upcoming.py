@@ -61,8 +61,10 @@ def main():
             if not c or c.get("approx"):
                 print("  ※ %s — 좌표를 못 잡아 건너뜀(지번을 확인)" % key)
                 continue
-        if a.refresh or key not in store:
-            store[key] = A.around(c["lat"], c["lng"])
+        radius = int(u.get("radius") or A.RADIUS)
+        # 반경을 바꿨으면 받아 둔 시설도 그 반경으로 다시 받는다
+        if a.refresh or key not in store or int((old or {}).get("radius") or A.RADIUS) != radius:
+            store[key] = A.around(c["lat"], c["lng"], radius)
             kinds = store[key]
             print("  %s — 주변 시설 %d갈래 %d곳" % (key, len(kinds), sum(len(v) for v in kinds.values())))
         row = dict(u)

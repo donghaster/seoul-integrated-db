@@ -103,20 +103,47 @@ DROP = re.compile(r"(학원|교습|공인중개|부동산|분식|식당|카페|�
 TAIL = re.compile(r"\s*\((휴교|폐교|분교|본점|지하|신관|별관)[^)]*\)\s*$")
 
 
-def around(lat: float, lng: float) -> dict:
-    """한 단지 둘레를 훑는다. 갈래마다 가까운 것 몇 곳만 남긴다."""
+def around(lat: float, lng: float, radius: int = RADIUS) -> dict:
+    """한 단지 둘레를 훑는다. 갈래마다 가까운 것 몇 곳만 남긴다.
+
+    반경은 보통 1km다. 분양 예정 단지 소개처럼 더 넓게 보여 줄 때만
+    넓힌다(tools/upcoming.json의 radius). 넓힌 만큼 갈래마다 조금 더 남긴다 —
+    2km에서 다섯 곳만 남기면 1km 안의 것만 찍혀 넓힌 보람이 없다.
+    """
     out = {}
+    cap = KEEP if radius <= RADIUS else 8
+    # 카카오는 한 번에 15건까지 준다. 넓힌 반경에서는 두 가지로 더 받는다.
+    #  1) 가까운 순으로 세 쪽(45건)까지 — 은행처럼 수가 많은 갈래가 1km 안에서
+    #     15건을 다 써 버리지 않게.
+    #  2) 이름이 맞는 순(accuracy)으로 한 쪽 — 반포에서 '백화점'을 가까운 순으로
+    #     찾으면 신세계백화점 강남점 안의 입점 매장 수백 곳('로로피아나 신세계
+    #     백화점강남점' 등)이 45건을 다 채워, 정작 백화점 본체(1.5km)가 끝내
+    #     안 나온다. 이름순으로는 본체가 맨 앞에 온다.
+    # 1km 단지 8천여 곳은 그대로 한 번씩만 부른다.
+    wide = radius > RADIUS
+
+    def fetch(url, params):
+        got = []
+        for pg in range(1, (3 if wide else 1) + 1):
+            docs = call(url, dict(params, page=pg))
+            got += docs
+            if len(docs) < 15:
+                break
+        if wide and url == KEY_URL:
+            got += call(url, dict(params, sort="accuracy", page=1))
+        return got
+
     for name, code, words, want in KINDS:
         keep = re.compile(want)
         found = {}
         if code:
-            docs = call(CAT_URL, {"category_group_code": code, "x": lng, "y": lat,
-                                  "radius": RADIUS, "size": 15, "sort": "distance"})
+            docs = fetch(CAT_URL, {"category_group_code": code, "x": lng, "y": lat,
+                                   "radius": radius, "size": 15, "sort": "distance"})
         else:
             docs = []
             for w in words:
-                docs += call(KEY_URL, {"query": w, "x": lng, "y": lat,
-                                       "radius": RADIUS, "size": 15, "sort": "distance"})
+                docs += fetch(KEY_URL, {"query": w, "x": lng, "y": lat,
+                                        "radius": radius, "size": 15, "sort": "distance"})
         for d in docs:
             nm = (d.get("place_name") or "").strip()
             if not nm or DROP.search(nm):
@@ -128,7 +155,7 @@ def around(lat: float, lng: float) -> dict:
                 dist = int(d.get("distance") or 0)
             except ValueError:
                 continue
-            if not dist or dist > RADIUS:
+            if not dist or dist > radius:
                 continue
             # 같은 곳이 여러 말로 잡힌다. 이름으로 한 번 접는다.
             if nm in found and found[nm][0] <= dist:
@@ -144,7 +171,7 @@ def around(lat: float, lng: float) -> dict:
                     found.pop(nm2, None)
                     break
 
-        best = sorted(found.items(), key=lambda kv: kv[1][0])[:KEEP]
+        best = sorted(found.items(), key=lambda kv: kv[1][0])[:cap]
         if best:
             out[name] = [{"n": nm, "d": v[0], "y": v[1], "x": v[2]} for nm, v in best]
     return out

@@ -3036,12 +3036,23 @@
   }
 
   /* 이 단지 둘레 1km 안의 시설을 갈래별로 모은다. */
+  /* 주변 입지 반경 — 보통 1km. 분양 예정 단지는 upcoming.json에서 넓힐 수 있다.
+     시설을 그 반경으로 받아 둔 단지만 넓혀야 한다. 1km로 받은 단지의 원만
+     넓히면 1~2km 사이가 텅 비어 "그 사이엔 아무것도 없다"로 읽힌다. */
+  function nearRadius(a) {
+    var r = a && a.upcoming && a.upcoming.radius;
+    return r > 1000 ? r : 1000;
+  }
+  function kmText(m) {
+    return m >= 1000 ? (m / 1000).toString().replace(/\.0$/, "") + "km" : m + "m";
+  }
+
   function nearbyOf(a, coord) {
-    var out = {};
+    var out = {}, R = nearRadius(a);
     // 학교 — 학군 자료에서 직접 잰다(자치구가 달라도 가까우면 넣는다)
     (window.SCHOOL_GEO || []).forEach(function (s) {
       var d = metres(coord.lat, coord.lng, s.y, s.x);
-      if (d > 1000) return;
+      if (d > R) return;
       (out[s.k] = out[s.k] || []).push({
         n: s.n, d: d, y: s.y, x: s.x,
         tag: [s.f, s.c === "남여공학" ? "" : s.c, s.t].filter(Boolean).join("·"),
@@ -3054,19 +3065,21 @@
     });
     Object.keys(out).forEach(function (k) {
       out[k].sort(function (p, q) { return p.d - q.d; });
-      out[k] = out[k].slice(0, 6);
+      out[k] = out[k].slice(0, R > 1000 ? 8 : 6);   // 넓힌 반경은 조금 더 담는다
     });
     return out;
   }
 
-  function nearbyHtml(near) {
+  function nearbyHtml(near, R) {
+    R = R || 1000;
     var kinds = NEAR_KINDS.filter(function (x) { return (near[x.k] || []).length; });
     var nav = document.getElementById("navNear");
     if (nav) nav.hidden = !kinds.length;
     if (!kinds.length) return "";
     return '<div class="near-wrap" id="sec-near">' +
       '<div class="near-head"><h4>주변 입지</h4>' +
-        '<span class="near-note">단지에서 <b>500m</b>·<b>1km</b> 안 · 갈래를 눌러 켜고 끔</span></div>' +
+        '<span class="near-note">단지에서 <b>500m</b>·<b>1km</b>' +
+          (R > 1000 ? "·<b>" + kmText(R) + "</b>" : "") + " 안 · 갈래를 눌러 켜고 끔</span></div>" +
       '<div class="near-chips">' +
         kinds.map(function (x) {
           return '<button type="button" class="near-chip' + (nearOff[x.k] ? "" : " is-on") +
@@ -3104,17 +3117,21 @@
     if (window.watchMapSize) window.watchMapSize(nearMap, host);
 
     nearRings = L.layerGroup().addTo(nearMap);
-    [[500, "#4f7fe6"], [1000, "#8a93a3"]].forEach(function (r) {
+    // 반경을 넓힌 단지는 바깥 원을 하나 더 긋는다(분양 예정 단지 2km 등)
+    var R = nearRadius(a);
+    var RINGS = [[500, "#4f7fe6", "500m"], [1000, "#8a93a3", "1km"]];
+    if (R > 1000) RINGS.push([R, "#b0763a", kmText(R)]);
+    RINGS.forEach(function (r) {
       L.circle([coord.lat, coord.lng], {
         radius: r[0], color: r[1], weight: 1.5, dashArray: "6 5",
         fill: true, fillColor: r[1], fillOpacity: 0.04, interactive: false,
       }).addTo(nearRings);
     });
     // 동심원이 몇 미터인지 글자로 박아 둔다 — 원만 있으면 눈대중이 안 된다
-    [[500, "500m"], [1000, "1km"]].forEach(function (r) {
+    RINGS.forEach(function (r) {
       var p = L.latLng(coord.lat + r[0] / 111000, coord.lng);
       L.marker(p, { interactive: false,
-        icon: L.divIcon({ className: "ring-tag", html: r[1], iconSize: [40, 16] }) }).addTo(nearRings);
+        icon: L.divIcon({ className: "ring-tag", html: r[2], iconSize: [40, 16] }) }).addTo(nearRings);
     });
 
     nearLayer = L.layerGroup().addTo(nearMap);
@@ -3231,7 +3248,9 @@
          여러 일이 일어나면 fitBounds가 조용히 무시되곤 한다. */
       /* 종이에서는 더 바싹 당겨 본다. 시설이 모두 1km 안에 있으므로 지름
          2.2km면 다 들어오고, 그만큼 길과 단지 이름이 크게 보인다. */
-      var bb = L.latLng(coord.lat, coord.lng).toBounds(PRINTING ? 2200 : 3000);
+      // 넓힌 반경이면 바깥 원이 다 들어오게 넓힌다(지름의 1.1배 · 종이는 1.05배)
+      var bb = L.latLng(coord.lat, coord.lng).toBounds(
+        PRINTING ? Math.max(2200, R * 2.1) : Math.max(3000, R * 2.2));
       nearMap.setView(bb.getCenter(),
                       nearMap.getBoundsZoom(bb, false, L.point(8, 8)), { animate: false });
     }
@@ -3293,7 +3312,7 @@
           (sched ? "<li><b>" + sched + "</b> 예정 — 일정은 조합·시공사 발표에 따라 바뀔 수 있음.</li>" : "") +
           "<li>분양권 거래가 신고되기 전이라 <b>시세·실거래 표는 없음</b>. 아래 <b>주변 입지</b>를 볼 것.</li>" +
           "</ol></div>" +
-        (c ? nearbyHtml(nearbyOf(a, c)) : '<p class="placeholder">좌표를 못 잡아 주변 입지를 그릴 수 없음.</p>') +
+        (c ? nearbyHtml(nearbyOf(a, c), nearRadius(a)) : '<p class="placeholder">좌표를 못 잡아 주변 입지를 그릴 수 없음.</p>') +
       "</div>";
     if (c) drawNearby(a, c, nearbyOf(a, c));
   }
