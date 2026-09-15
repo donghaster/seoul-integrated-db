@@ -127,6 +127,18 @@
       if (x.y && x.y > a.y) a.y = x.y;
       a.deals.push(x);
     }
+
+    /* 분양 예정 단지 — 재건축 중이라 신고가 한 건도 없는 단지는 위에서
+       목록에 안 잡힌다. 그런데 소개 자료에 가장 먼저 넣는 게 '주변 입지'다.
+       tools/upcoming.json에 적어 둔 단지는 거래 없이도 찾기에 올린다.
+       나중에 같은 이름으로 거래가 신고되면 그 단지에 일정만 얹는다. */
+    (window.APT_UPCOMING || []).forEach(function (u) {
+      var k = u.gu + "|" + u.dong + "|" + u.name;
+      if (!GEO[k] && u.lat) GEO[k] = { lat: u.lat, lng: u.lng };
+      if (BY_APT[k]) { BY_APT[k].upcoming = u; return; }
+      BY_APT[k] = { key: k, gu: u.gu, dg: u.dong, n: u.name, y: 0, deals: [], upcoming: u };
+      APT_KEYS.push(k);
+    });
     APT_KEYS.sort();
   })();
 
@@ -1791,7 +1803,8 @@
     var chips = [{ f: null, label: regionLabel(), on: !volFocus }];
     var mineOn = !!(volFocus && volFocus.kind === "apt" && volFocus.key === openAptKey);
     if (volFocus && !mineOn) chips.push({ f: volFocus, label: volFocus.label, on: true });
-    if (openAptKey && BY_APT[openAptKey]) {
+    // 분양 예정 단지처럼 거래가 없는 단지는 추이가 0으로만 그려진다 — 단추를 안 단다
+    if (openAptKey && BY_APT[openAptKey] && BY_APT[openAptKey].deals.length) {
       chips.push({ f: { kind: "apt", key: openAptKey, label: BY_APT[openAptKey].n },
                    label: "이 단지 · " + BY_APT[openAptKey].n, on: mineOn });
     }
@@ -2635,7 +2648,10 @@
           '<span class="fi-name">' + esc(a.n) + "</span>" +
           '<span class="fi-where">' + esc(a.gu) + " " + esc(a.dg) +
             (a.y ? " · " + a.y + "년" : "") + "</span>" +
-          '<span class="fi-cnt">매매 ' + c.sale + " · 전월세 " + (c.jeonse + c.wolse) + "</span></button>";
+          '<span class="fi-cnt">' +
+            (a.upcoming && !a.deals.length
+              ? "분양 예정" + (a.upcoming.presale ? " · " + ymText(a.upcoming.presale) : "")
+              : "매매 " + c.sale + " · 전월세 " + (c.jeonse + c.wolse)) + "</span></button>";
       }).join("");
       drop.hidden = false;
     }
@@ -3241,7 +3257,50 @@
     });
   }
 
+  /* 분양 예정 단지 카드 — 시세 표가 들어갈 자리가 비어 있으니 일정과
+     주변 입지만 보인다. 빈 표를 늘어놓으면 "자료가 빠졌나" 하신다. */
+  function ymText(ym) {
+    var m = /^(\d{4})-(\d{2})/.exec(ym || "");
+    return m ? m[1] + "년 " + parseInt(m[2], 10) + "월" : "";
+  }
+
+  function showUpcoming(key, a) {
+    var host = document.getElementById("aptResult");
+    openAptKey = key;
+    syncUrl();
+    if (!aroundReady(a.gu)) {
+      loadAround(a.gu, function () { if (openAptKey === key) showApt(key); });
+    }
+    var u = a.upcoming, c = coordOf(a.gu, a.dg, a.n);
+    var sched = [u.presale ? "일반분양 " + ymText(u.presale) : "",
+                 u.movein ? "입주 " + ymText(u.movein) : ""].filter(Boolean).join(" · ");
+    host.innerHTML =
+      '<div class="apt-card">' +
+        '<div class="apt-head">' +
+          "<h3>" + esc(a.n) + ' <span class="apt-flag">분양 예정</span></h3>' +
+          '<p class="detail-where">' + esc(a.gu) + " " + esc(a.dg) +
+            (u.jibun ? " " + esc(u.jibun) + "번지 일대" : "") +
+            (sched ? " · " + sched + " 예정" : "") + "</p>" +
+          (scopeMoved === a.gu
+            ? '<p class="scope-moved">상단 고정 자치구를 <b>' + esc(a.gu) +
+              "</b>로 맞췄음 — 아래 위치 지도·가격 지수·월별 브리핑·TOP30·입지분석도 모두 " +
+              esc(a.gu) + " 기준.</p>"
+            : "") +
+        "</div>" +
+        '<div class="read-guide" style="margin-top:12px;">' +
+          "<h4>아직 실거래가 없는 단지</h4><ol>" +
+          (u.note ? "<li>" + esc(u.note) + " 단지.</li>" : "") +
+          (sched ? "<li><b>" + sched + "</b> 예정 — 일정은 조합·시공사 발표에 따라 바뀔 수 있음.</li>" : "") +
+          "<li>분양권 거래가 신고되기 전이라 <b>시세·실거래 표는 없음</b>. 아래 <b>주변 입지</b>를 볼 것.</li>" +
+          "</ol></div>" +
+        (c ? nearbyHtml(nearbyOf(a, c)) : '<p class="placeholder">좌표를 못 잡아 주변 입지를 그릴 수 없음.</p>') +
+      "</div>";
+    if (c) drawNearby(a, c, nearbyOf(a, c));
+  }
+
   function showApt(key) {
+    var ua = BY_APT[key];
+    if (ua && ua.upcoming && !ua.deals.length) { showUpcoming(key, ua); return; }
     var sum = aptSummary(key);
     var host = document.getElementById("aptResult");
     if (!sum) { host.innerHTML = ""; openAptKey = null; syncUrl(); return; }
