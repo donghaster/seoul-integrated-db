@@ -262,7 +262,7 @@ def write(store):
     for key, v in store.items():
         by_gu.setdefault(key.split("|")[0], {})[key] = v
 
-    files, total = {}, 0
+    files, vers, total = {}, {}, 0
     for gu, part in sorted(by_gu.items()):
         cd = F.GU_CD.get(gu)
         if not cd:
@@ -270,16 +270,22 @@ def write(store):
             continue
         body = json.dumps(part, ensure_ascii=False, separators=(",", ":"))
         total += len(body.encode("utf-8"))
+        # 파일마다 내용으로 버전을 매긴다. 예전에는 '어느 구가 어느 파일'
+        # 목록으로만 매겨 내용이 바뀌어도 버전이 그대로였다 — 디에이치
+        # 클래스트를 넣었는데 브라우저가 예전 서초구 파일을 계속 써서 학교만
+        # 나왔다. 바뀐 구의 파일만 새로 받게 된다.
+        vers[cd] = hashlib.md5(body.encode("utf-8")).hexdigest()[:10]
         with open(os.path.join(out_dir, cd + ".js"), "w", encoding="utf-8", newline=NL) as fh:
             fh.write("// 자동 생성 — tools/fetch_around.py (카카오 로컬) · %s" % gu + NL)
             # 이미 받아 둔 것에 얹는다 — 구를 여럿 열어도 앞서 받은 것이 남는다
             fh.write("Object.assign(window.AROUND = window.AROUND || {}, %s);" % body + NL)
         files[gu] = cd
 
-    stamp = hashlib.md5(json.dumps(files, sort_keys=True).encode()).hexdigest()[:10]
+    stamp = hashlib.md5(json.dumps(vers, sort_keys=True).encode()).hexdigest()[:10]
     with open(os.path.join(out_dir, "index.js"), "w", encoding="utf-8", newline=NL) as fh:
         fh.write("// 자동 생성 — tools/fetch_around.py · 어느 구가 어느 파일인지" + NL)
         fh.write("window.AROUND_FILES = %s;" % json.dumps(files, ensure_ascii=False) + NL)
+        fh.write("window.AROUND_VS = %s;" % json.dumps(vers, sort_keys=True) + NL)
         fh.write('window.AROUND_V = "%s";' % stamp + NL)
 
     # 옛 통짜 파일은 지운다 — 남겨 두면 3.9MB를 계속 받게 된다

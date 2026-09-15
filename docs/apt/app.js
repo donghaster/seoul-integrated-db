@@ -3019,7 +3019,9 @@
     if (aroundGot[cd]) { if (done) aroundGot[cd].push(done); return; }   // 받는 중이면 줄을 선다
     var queue = aroundGot[cd] = done ? [done] : [];
     var sc = document.createElement("script");
-    sc.src = "../data/around/" + cd + ".js?v=" + (window.AROUND_V || "1");
+    // 파일마다 내용 버전을 붙인다 — 내용이 바뀐 구만 새로 받는다
+    sc.src = "../data/around/" + cd + ".js?v=" +
+      ((window.AROUND_VS || {})[cd] || window.AROUND_V || "1");
     sc.onload = sc.onerror = function () {
       aroundGot[cd] = true;
       queue.forEach(function (f) { f(); });
