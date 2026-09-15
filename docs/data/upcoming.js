@@ -5,7 +5,7 @@ window.APT_UPCOMING = [
   "dong": "반포동",
   "name": "반포 디에이치 클래스트",
   "jibun": "810",
-  "radius": 2000,
+  "radius": 1600,
   "presale": "2026-11",
   "movein": "2027-12",
   "note": "반포주공1단지 재건축",
