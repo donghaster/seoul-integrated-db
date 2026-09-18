@@ -40,6 +40,11 @@ ALL = "all"
 WINDOWS = [3, 6, 12]
 MAX_WINDOW = max(WINDOWS)
 
+# 매매만 볼 수 있는 긴 기간. 빌라는 매매가 드물어 12개월로는 법정동 표본이
+# 열 건도 안 되는 곳이 많다(310개 중 83개). 전월세까지 길게 실으면 파일이
+# 20MB가 되므로, 옛 달은 매매만 따로 구워 그 기간을 고를 때만 받게 한다.
+SALE_WINDOWS = [24, 36]
+
 TODAY = date.today().isoformat()
 
 
@@ -63,6 +68,40 @@ def windows_meta(yms: list[str]) -> dict:
             "label": f"{s[:4]}.{s[4:]} ~ {e[:4]}.{e[4:]} ({w}개월)",
         }
     return out
+
+
+def long_windows_meta(all_yms: list[str]) -> dict:
+    """24·36개월 — 옛 달은 매매만 있으므로 그 사정을 함께 적어 둔다."""
+    out = {}
+    for w in SALE_WINDOWS:
+        if w > len(all_yms):
+            continue
+        sub = all_yms[-w:]
+        s, e = sub[0], sub[-1]
+        out[str(w)] = {
+            "months": w,
+            "start": s,
+            "end": e,
+            "labels": [f"{y[2:4]}.{y[4:]}" for y in sub],
+            "name": f"최근 {w}개월",
+            "saleOnly": True,
+            "label": f"{s[:4]}.{s[4:]} ~ {e[:4]}.{e[4:]} ({w}개월 · 매매만)",
+        }
+    return out
+
+
+def build_old_sale(old_yms: list[str], kinds: list[str]) -> dict:
+    """12개월보다 오래된 달의 매매. 화면이 24·36개월을 고를 때만 받아 간다."""
+    deals = []
+    for k in kinds:
+        deals += load_all(k, old_yms)
+    deals = [d for d in deals if d["date"] <= TODAY]
+    return {
+        "months": old_yms,
+        "labels": [f"{y[2:4]}.{y[4:]}" for y in old_yms],
+        "deals": encode_deals(deals, old_yms),
+        "total": len(deals),
+    }
 
 
 # ---------------------------------------------------------------- 로드
@@ -950,13 +989,17 @@ def bump_cache_version(stamp: str) -> None:
             print(f"  {rel}  캐시 버전 갱신 {len(changed)}개")
 
 
-def write_js(name: str, varname: str, payload: dict) -> None:
+def write_js(name: str, varname: str, payload: dict) -> str:
+    """파일을 굽고 내용 해시를 돌려준다(늦게 받는 파일의 ?v= 로 쓴다)."""
+    import hashlib
+
     os.makedirs(OUT_DIR, exist_ok=True)
     path = os.path.join(OUT_DIR, name)
     body = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(f"window.{varname} = {body};\n")
     print(f"  {name}  {os.path.getsize(path) / 1024 / 1024:.2f} MB")
+    return hashlib.md5(body.encode("utf-8")).hexdigest()[:10]
 
 
 def main() -> None:
@@ -966,12 +1009,21 @@ def main() -> None:
     t = date.today()
     end_ym = os.environ.get("END_YM") or f"{t.year:04d}{t.month:02d}"
     yms = month_range(int(os.environ.get("MONTHS", str(MAX_WINDOW))), end_ym)
+    # 매매는 더 멀리 받아 둔 달이 있을 수 있다(fetch_molit의 SALE_MONTHS).
+    # 그 가운데 12개월보다 오래된 달은 따로 구워, 24·36개월을 고를 때만 받게 한다.
+    sale_months = int(os.environ.get("SALE_MONTHS", str(len(yms))))
+    all_yms = month_range(max(sale_months, len(yms)), end_ym)
+    old_yms = all_yms[:-len(yms)] if len(all_yms) > len(yms) else []
     built = time.strftime("%Y-%m-%d %H:%M")
 
-    print(f"집계 기간 {yms[0]} ~ {yms[-1]} (오늘 {TODAY} 기준)")
+    print(f"집계 기간 {yms[0]} ~ {yms[-1]} (오늘 {TODAY} 기준)"
+          + (f" · 매매는 {all_yms[0]}부터 따로" if old_yms else ""))
     apt = build_apt(yms)
     apt["builtAt"] = built
     apt["today"] = TODAY
+    if old_yms:
+        apt["longWindows"] = long_windows_meta(all_yms)
+        apt["oldFile"] = "apt-old.js"
     print(f"  아파트 실거래 {apt['total']:,}건 · 원본 {len(apt['deals']['rows']):,}행 · 법정동 {sum(len(v) for v in apt['dongs'].values()):,}개")
 
     sangga = build_sangga(yms)
@@ -984,11 +1036,24 @@ def main() -> None:
     # 둘 중 하나만 본다. 고르는 쪽만 받게 나눠 둔다.
     rh = build_homes(yms, ["rhSale", "rhRent"])
     rh["builtAt"], rh["today"] = built, TODAY
+    if old_yms:
+        rh["longWindows"] = long_windows_meta(all_yms)
+        rh["oldFile"] = "rh-old.js"
     print(f"  연립·다세대 실거래 {rh['total']:,}건 · 법정동 {sum(len(v) for v in rh['dongs'].values()):,}개")
 
     sh = build_homes(yms, ["shSale", "shRent"])
     sh["builtAt"], sh["today"] = built, TODAY
     print(f"  단독·다가구 실거래 {sh['total']:,}건")
+
+    if old_yms:
+        # 옛 매매는 따로 굽는다. 평소에는 받지 않고 24·36개월을 고를 때만 받는다.
+        # 먼저 구워야 그 내용 해시를 apt.js·rh.js에 실어 보낼 수 있다(?v=).
+        apt_old = build_old_sale(old_yms, ["aptSale", "aptPresale"])
+        rh_old = build_old_sale(old_yms, ["rhSale"])
+        print(f"  옛 매매 {old_yms[0]}~{old_yms[-1]} — 아파트 {apt_old['total']:,}건 · "
+              f"연립·다세대 {rh_old['total']:,}건")
+        apt["oldV"] = write_js("apt-old.js", "APT_OLD", apt_old)
+        rh["oldV"] = write_js("rh-old.js", "RH_OLD", rh_old)
 
     write_js("apt.js", "APT_DATA", apt)
     write_js("rh.js", "RH_DATA", rh)

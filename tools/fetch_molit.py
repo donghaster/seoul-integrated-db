@@ -55,6 +55,9 @@ SEOUL_GU = {
     "관악구": "11620", "서초구": "11650", "강남구": "11680", "송파구": "11710", "강동구": "11740",
 }
 
+# 기간을 길게 받는 갈래 — 화면에서 24·36개월을 고를 때 쓰는 것은 매매뿐이다
+SALE_KINDS = {"aptSale", "rhSale"}
+
 KINDS = {
     "aptSale":    "1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade",
     "aptRent":    "1613000/RTMSDataSvcAptRent/getRTMSDataSvcAptRent",
@@ -427,8 +430,13 @@ def main() -> None:
     # 다루려면 반드시 있어야 한다(캐시 TTL이 짧아 다시 받을 때마다 최신화된다).
     end_ym = os.environ.get("END_YM") or f"{date.today().year:04d}{date.today().month:02d}"
 
+    # 매매만 더 멀리 본다. 빌라·단독은 매매가 드물어 12개월로는 동 단위 표본이
+    # 열 건도 안 되는 곳이 많다(310개 법정동 중 83개). 전월세는 지금도 넉넉해
+    # 그대로 두고, 매매 계열만 SALE_MONTHS까지 받는다.
     yms = month_range(months, end_ym)
-    jobs = [(kind, gu, ym) for kind in KINDS for gu in SEOUL_GU for ym in yms]
+    sale_yms = month_range(max(months, int(os.environ.get("SALE_MONTHS", str(months)))), end_ym)
+    jobs = [(kind, gu, ym) for kind in KINDS for gu in SEOUL_GU
+            for ym in (sale_yms if kind in SALE_KINDS else yms)]
 
     # 아직 한 번도 못 받은 달을 앞에 세운다.
     #
@@ -441,7 +449,9 @@ def main() -> None:
     # 다 됐을 때 남는 것은 '이미 가진 달' 뿐이고 그건 다음 실행에 미뤄도 된다.
     jobs.sort(key=lambda j: os.path.exists(_path(j[0], SEOUL_GU[j[1]], j[2])))
     miss = sum(1 for j in jobs if not os.path.exists(_path(j[0], SEOUL_GU[j[1]], j[2])))
-    print(f"기간 {yms[0]} ~ {yms[-1]} · {len(SEOUL_GU)}개 구 · {len(KINDS)}종 = {len(jobs)}개 요청"
+    print(f"기간 {yms[0]} ~ {yms[-1]}"
+          + (f" (매매는 {sale_yms[0]}부터)" if sale_yms[0] != yms[0] else "")
+          + f" · {len(SEOUL_GU)}개 구 · {len(KINDS)}종 = {len(jobs)}개 요청"
           f" (아직 못 받은 달 {miss}개를 먼저)", flush=True)
 
     done = {"n": 0}

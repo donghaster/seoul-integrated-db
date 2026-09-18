@@ -73,8 +73,10 @@
   var BY_REGION = {};              // "all" / "구" / "구|동" -> 거래 배열
   var DATA_START = "", DATA_END = "";
 
-  (function decodeDeals() {
-    var enc = D.deals;
+  /* 접어서 내려온 실거래를 펴서 DEALS에 담는다.
+     한 번만 부르는 게 아니다 — 24·36개월을 고르면 옛 매매 파일을 받아
+     같은 방식으로 얹는다(그 파일은 제 나름의 사전과 기준일을 갖고 온다). */
+  function absorbDeals(enc) {
     if (!enc) return;
     var base = new Date(enc.base + "T00:00:00").getTime();
     var pad = function (n) { return n < 10 ? "0" + n : "" + n; };
@@ -103,7 +105,8 @@
         (BY_REGION[k2] = BY_REGION[k2] || []).push(row);
       }
     }
-  })();
+  }
+  absorbDeals(D.deals);
 
   // 조회 가능한 마지막 날은 "자료를 받은 날"로 둔다. 마지막 거래일로 잡으면
   // 신고가 며칠 밀린 만큼 기간이 짧아져 다른 대시보드와 건수가 어긋난다.
@@ -118,7 +121,9 @@
   var APT_KEYS = [];               // "구|동|단지" 목록
   var BY_APT = {};                 // "구|동|단지" -> { gu, dg, n, y, deals[] }
 
-  (function buildAptIndex() {
+  function buildAptIndex() {
+    APT_KEYS.length = 0;          // 옛 매매를 얹은 뒤 다시 부를 수 있어야 한다
+    BY_APT = {};
     for (var i = 0; i < DEALS.length; i++) {
       var x = DEALS[i];
       if (!x.dg || !x.n) continue;
@@ -144,7 +149,8 @@
       APT_KEYS.push(k);
     });
     APT_KEYS.sort();
-  })();
+  }
+  buildAptIndex();
 
   /* 검색 — 이름에 들어가면 잡고, 앞에서 맞을수록 위로 */
   function searchApt(q, limit) {
@@ -877,6 +883,17 @@
 
   var _riseCache = {};
 
+  /* 옛 매매를 나중에 얹으면 이 기억들이 옛것을 모른 채 남는다.
+     특히 _sorted는 지역별 거래를 날짜순으로 한 번 만들어 두고 계속 쓰는 것이라,
+     비우지 않으면 24·36개월을 골라도 12개월치만 세어 아무 변화가 없다. */
+  function resetCaches() {
+    _sorted = {};
+    _cache = {};
+    _countCache = {};
+    _bandCache = {};
+    _riseCache = {};
+  }
+
   /* 상승률은 단지별로 묶어야 해서 무겁다 — 실제로 볼 때만 계산한다 */
   /* 순위를 어느 단위로 묶을지.
 
@@ -1133,6 +1150,62 @@
     { k: "all", name: "전체 기간" },
   ];
 
+  /* ── 24·36개월 — 매매만 ──
+
+     빌라는 매매가 드물어 12개월로는 법정동 표본이 열 건도 안 되는 곳이 많다.
+     그래서 매매만 더 멀리(36개월) 받아 두었다. 다만 그 옛 달까지 전월세를
+     함께 실으면 파일이 20MB가 되어, 옛 매매는 따로 굽고 이 단추를 누를 때만
+     받는다. 받고 나면 그 자료는 그대로 남아 다시 받지 않는다. */
+  var OLD_VAR = (CFG.dataVar || "APT_DATA").replace("_DATA", "_OLD");
+  var oldOn = false, oldQueue = null;
+
+  Object.keys(D.longWindows || {})
+    .sort(function (a, b) { return a - b; })
+    .forEach(function (w) {
+      PRESETS.splice(PRESETS.length - 1, 0,
+        { k: w + "m", name: "최근 " + w + "개월", months: +w, saleOnly: true });
+    });
+
+  // 12개월 자료가 시작하는 날. 이보다 앞을 보면 그 구간은 매매만 있다.
+  var MAIN_START = (D.months && D.months.length)
+    ? D.months[0].slice(0, 4) + "-" + D.months[0].slice(4) + "-01" : "";
+
+  function saleOnlyNow() {
+    return !!(D.oldFile && MAIN_START && state.start < MAIN_START);
+  }
+
+  function needsOld(k) {
+    if (!D.oldFile || oldOn) return false;
+    if (k === "all") return true;
+    var p = PRESETS.filter(function (x) { return x.k === k; })[0];
+    return !!(p && p.saleOnly);
+  }
+
+  /* 옛 매매를 받아 지금 자료에 얹는다. 5MB 남짓이라 받는 동안 한마디 적어 둔다 —
+     아무 말 없이 멈춰 있으면 눌러도 안 먹는 줄 아신다. */
+  function withOldSale(k, done) {
+    if (!needsOld(k)) { done(); return; }
+    if (oldQueue) { oldQueue.push(done); return; }
+    oldQueue = [done];
+    var note = document.getElementById("periodNote");
+    if (note) note.innerHTML = "옛 매매 자료를 받는 중…";
+    var sc = document.createElement("script");
+    sc.src = "../data/" + D.oldFile + "?v=" + (D.oldV || "1");
+    sc.onload = sc.onerror = function () {
+      var old = window[OLD_VAR];
+      if (old && old.deals) {
+        absorbDeals(old.deals);
+        resetCaches();            // 날짜순 목록·집계 기억을 비운다(옛 거래가 끼어들었다)
+        buildAptIndex();          // 단지 색인도 옛 거래를 품게 다시 만든다
+        oldOn = true;
+      }
+      var queue = oldQueue;
+      oldQueue = null;
+      queue.forEach(function (f) { f(); });
+    };
+    document.head.appendChild(sc);
+  }
+
   function pad2(n) { return n < 10 ? "0" + n : "" + n; }
   function iso(d) { return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
 
@@ -1279,8 +1352,11 @@
     if (!b2) return;
     windowTabs.querySelectorAll("button").forEach(function (x) { x.classList.remove("active"); });
     b2.classList.add("active");
-    applyPreset(b2.dataset.p);
-    renderAll();
+    // 긴 기간은 옛 매매 자료가 있어야 한다 — 받아 온 뒤에 그린다
+    withOldSale(b2.dataset.p, function () {
+      applyPreset(b2.dataset.p);
+      renderAll();
+    });
   });
 
   document.querySelectorAll("#granTabs button").forEach(function (b2) {
@@ -1374,7 +1450,12 @@
     }).join("");
 
     document.getElementById("periodNote").innerHTML =
-      win().label + " 기준<br />자료 갱신 <b>" + (D.today || D.builtAt || "") + "</b>";
+      win().label + " 기준<br />자료 갱신 <b>" + (D.today || D.builtAt || "") + "</b>" +
+      // 12개월보다 앞을 보면 그 구간은 매매만 있다 — 전월세가 준 것처럼 보이면 안 된다
+      (saleOnlyNow()
+        ? '<br /><b class="warn-note">' + MAIN_START.slice(0, 7).replace("-", ".") +
+          " 이전은 매매만</b> (전세·월세는 12개월)"
+        : "");
     document.getElementById("printBanner").innerHTML =
       "<b>" + regionLabel() + "</b> 아파트 실거래 리포트 · 조회 기간 " + win().label +
       " · 자료 기준 " + (D.builtAt || "") + " · 반포114공인중개사 010-9442-2027";
@@ -1558,6 +1639,21 @@
 
   function renderCompare() {
     var r = region();
+
+    /* 긴 기간에서는 매매만 그 기간 전체이고 전월세는 12개월뿐이다. 나란히 놓고
+       견주는 칸이라, 그 사정을 이 칸 설명에 붙여 둔다(빼면 전월세가 준 줄 안다). */
+    var cdesc = document.querySelector("#sec-compare .sec-desc");
+    if (cdesc) {
+      var oldNote = cdesc.querySelector(".warn-note");
+      if (oldNote) oldNote.remove();
+      if (saleOnlyNow()) {
+        var warn = document.createElement("span");
+        warn.className = "warn-note";
+        warn.innerHTML = "<br />이 기간은 <b>매매만 전 구간</b>이고 <b>전세·월세는 " +
+          MAIN_START.slice(0, 7).replace("-", ".") + "부터</b>임 — 건수를 직접 견주면 안 됨.";
+        cdesc.appendChild(warn);
+      }
+    }
     var tops = { sale: cmpRows("sale"), jeonse: cmpRows("jeonse"), wolse: cmpRows("wolse") };
     var labels = ["1위", "2위", "3위", "4위", "5위", "6위", "7위", "8위", "9위", "10위"];
 
@@ -1834,6 +1930,9 @@
 
   function renderVolTrend() {
     var tg = volTarget(), dt = volTrendData(tg);
+    /* 12개월보다 앞은 매매만 받아 두었다. 그 구간까지 전세·월세 막대를 그리면
+       0으로 서서 "옛날엔 전세가 없었다"로 읽힌다 — 매매만 그린다. */
+    var kinds = saleOnlyNow() ? ["sale"] : TYPES;
     var labels = dt.keys.map(function (k) {
       return dt.monthly ? k.slice(2).replace("-", ".") : k.slice(5).replace("-", "/");
     });
@@ -1845,7 +1944,7 @@
       type: "bar",
       data: {
         labels: labels,
-        datasets: TYPES.map(function (t) {
+        datasets: kinds.map(function (t) {
           return {
             label: TYPE_LABEL[t] === "월세(환산)" ? "월세" : TYPE_LABEL[t],
             data: (dt.series[t] || []).slice(),
@@ -1865,7 +1964,7 @@
               // 빗금 칸이 앞에 오면 범례 네모까지 빗금이 된다 — 범례는 늘 제 색으로
               generateLabels: function (chart) {
                 return chart.data.datasets.map(function (ds, i) {
-                  var col = TYPE_COLOR[TYPES[i]];
+                  var col = TYPE_COLOR[kinds[i]];
                   return { text: ds.label, fillStyle: col, strokeStyle: col, lineWidth: 0,
                            hidden: !chart.isDatasetVisible(i), datasetIndex: i };
                 });
@@ -2052,7 +2151,8 @@
       type: "bar",
       data: {
         labels: chartList.map(rowName),
-        datasets: TYPES.map(function (t) {
+        // 12개월보다 앞을 보는 기간에서는 매매만 있다(위 추이 그래프와 같은 까닭)
+        datasets: (saleOnlyNow() ? ["sale"] : TYPES).map(function (t) {
           return {
             label: TYPE_LABEL[t] === "월세(환산)" ? "월세" : TYPE_LABEL[t],
             data: chartList.map(function (x) { return x.stat.cnt[t] || 0; }),
@@ -5697,6 +5797,17 @@
   syncBandTabs();
   initMap();
   renderAll();
+
+  /* 주소로 24·36개월(또는 12개월보다 앞선 날짜)을 받고 들어온 경우.
+     옛 매매를 받은 뒤에야 그 기간이 제대로 잡히므로, 받아서 다시 그린다. */
+  if ((urlWant.w && needsOld(urlWant.w)) ||
+      (urlWant.from && MAIN_START && urlWant.from < MAIN_START)) {
+    withOldSale(urlWant.w || "all", function () {
+      applyUrl(urlWant);
+      syncWindowTabs();
+      renderAll();
+    });
+  }
 
   // 단지까지 지정돼 있으면 그 단지를 펼쳐 둔다
   if (urlWant.apt) {

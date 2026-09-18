@@ -255,6 +255,9 @@ table.rank-table tr:hover td { background: var(--accent-pale); }
 .vol-trend-note { margin: 6px 0 0; font-size: 12px; line-height: 1.6; color: var(--txt-mute); }
 .vol-trend-note b { color: var(--accent-2); }
 /* 아파트·비아파트는 #volRankBody, 상가·오피스텔은 #volGuBody */
+/* 기간이 12개월보다 길면 그 앞은 매매만 있다는 표시 — 조건 막대에서 눈에 띄게 */
+.warn-note { color: var(--danger, #bc3d3d); }
+
 /* 지도에서 자리를 짚으면 옆 칸에 모이는 건물 줄 — 눌러서 그 건물을 연다 */
 #aptDetail tr.dot-pick { cursor: pointer; }
 #aptDetail tr.dot-pick:hover { background: var(--row-hover, rgba(79, 127, 230, .08)); }

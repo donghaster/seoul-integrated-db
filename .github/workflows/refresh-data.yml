@@ -66,6 +66,10 @@ jobs:
       - name: 국토부 실거래 수집
         continue-on-error: true
         timeout-minutes: 100
+        # 매매만 36개월치를 받는다. 빌라는 매매가 드물어 12개월로는 동 단위
+        # 표본이 모자란다. 전월세는 12개월 그대로(파일이 20MB가 되는 것을 막는다).
+        env:
+          SALE_MONTHS: "36"
         run: python tools/fetch_molit.py
 
       # 분양면적(건축물대장) — 서울 8,284곳을 하루에 다 받을 수 없어 조금씩 채운다.
@@ -99,6 +103,9 @@ jobs:
           python tools/fetch_trade.py && python tools/build_trade.py
 
       - name: 집계
+        # 12개월보다 오래된 매매는 apt-old.js·rh-old.js로 따로 굽는다
+        env:
+          SALE_MONTHS: "36"
         run: python tools/build_data.py
 
       # 몇 건이 들어갔는지 Actions 화면에 남긴다. 조용히 실패하면 며칠 지나도
