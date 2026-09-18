@@ -15,6 +15,10 @@
   var HAS_MAP = CFG.map !== false;         // 지도(지번이 있어야 한다)
   var HAS_DONG = CFG.dong !== false;       // 법정동까지 좁히기
   var HAS_SUPPLY = CFG.supply !== false;   // 분양면적 환산(건축물대장이 있어야 한다)
+  /* 지도에서 눌러 찾기 — 거래가 있는 집을 모두 점으로 찍고, 빈 자리를 누르면
+     그 둘레를 모아 준다. 빌라처럼 건물이 수천 곳이고 좌표를 따로 받아 둔
+     자료에서만 켠다(비아파트 config.js). 아파트는 TOP10만 찍으므로 끈다. */
+  var HAS_POINTS = !!CFG.pointMap;
   var AREA_WORD = CFG.areaWord || "전용";  // 면적의 이름 — 단독은 '연면적'
   // '전용' + '면적'은 되지만 '연면적' + '면적'은 겹친다. 따로 들고 있는다.
   var AREA_FULL = CFG.areaFull || (AREA_WORD + "면적");
@@ -2161,7 +2165,12 @@
 
   function pickNearest(e) {
     var k = nearestKey(e);
-    if (k) { selectMarker(k); showDetail(k); showLabel(k); }
+    if (k) { selectMarker(k); showDetail(k); showLabel(k); return; }
+    if (!HAS_POINTS) return;
+    // TOP10 원이 아니면 빌라 점을, 그것도 아니면 누른 자리 둘레를 본다
+    var d = nearestDot(e);
+    if (d) { focusApt(d.key); return; }
+    findAround(e.latlng);
   }
 
   /* 이름표도 가장 가까운 원을 따라다니게 한다.
@@ -2297,10 +2306,184 @@
     if (window.watchMapSize) window.watchMapSize(map, document.getElementById("aptMap"));
     window.osmTiles(map);
     markerLayer = L.layerGroup().addTo(map);
+    if (HAS_POINTS) {
+      /* 빌라는 한 구에 수천 곳이라 기본 그리기(SVG)로는 지도가 버벅인다.
+         점만 캔버스에 그린다 — TOP10 원은 그대로 SVG에 둔다(크고 눌러야 한다). */
+      dotRenderer = L.canvas({ padding: 0.3 });
+      dotLayer = L.layerGroup().addTo(map);
+      map.on("mousemove", hoverDot);
+      map.on("movestart zoomstart", hideDotLabel);
+    }
   }
 
   function coordOf(gu, dong, name) {
-    return GEO[gu + "|" + dong + "|" + name] || null;
+    var k = gu + "|" + dong + "|" + name;
+    var c = GEO[k];
+    if (c) return c;
+    // 빌라는 수가 많아 자치구별로 따로 받아 둔다(RHGEO) — 받아 온 구만 들어 있다
+    var r = (window.RHGEO || {})[k];
+    return r ? { lat: r[0], lng: r[1] } : null;
+  }
+
+  /* ════════════ 지도에서 눌러 찾기(빌라) ════════════
+
+     아파트는 한 동네에 단지가 몇이라 TOP10만 찍어도 지도가 말이 된다. 빌라는
+     한 구에 수천 곳이라 "이 근처 빌라가 얼마에 팔렸나"를 이름으로 물을 수가
+     없다 — 손님도 건물 이름을 모른다. 그래서 거래가 있는 건물을 모두 점으로
+     찍고, 지도에서 자리를 짚으면 그 둘레를 모아 준다. */
+
+  var rhGot = {};              // 자치구별 좌표 파일을 받았는지
+
+  function rhGeoReady(gu) {
+    var cd = (window.RHGEO_FILES || {})[gu];
+    return !cd || rhGot[cd] === true;
+  }
+
+  function loadRhGeo(gu, done) {
+    var cd = (window.RHGEO_FILES || {})[gu];
+    if (!cd || rhGot[cd] === true) { if (done) done(); return; }
+    if (rhGot[cd]) { if (done) rhGot[cd].push(done); return; }   // 받는 중이면 줄을 선다
+    var queue = rhGot[cd] = done ? [done] : [];
+    var sc = document.createElement("script");
+    sc.src = "../data/rhgeo/" + cd + ".js?v=" +
+      ((window.RHGEO_VS || {})[cd] || window.RHGEO_V || "1");
+    sc.onload = sc.onerror = function () {
+      rhGot[cd] = true;
+      queue.forEach(function (f) { f(); });
+    };
+    document.head.appendChild(sc);
+  }
+
+  var dotLayer = null, dotRenderer = null, dotRing = null, dots = [], dotLabel = null;
+
+  /* 지금 보는 범위·기간·거래유형에 거래가 있는 건물 가운데 좌표를 아는 것.
+     서울 전체로 두면 스물다섯 구의 좌표를 다 받아야 해서(2.8MB) 그리지 않는다. */
+  function renderDots() {
+    if (!HAS_POINTS || !dotLayer) return;
+    dotLayer.clearLayers();
+    dots = [];
+    if (state.gu === ALL) { hideDotLabel(); return; }
+    if (!rhGeoReady(state.gu)) { loadRhGeo(state.gu, renderDots); return; }
+
+    for (var i = 0; i < APT_KEYS.length; i++) {
+      var a = BY_APT[APT_KEYS[i]];
+      if (a.gu !== state.gu) continue;
+      if (state.dong !== ALL && a.dg !== state.dong) continue;
+      var cnt = 0, last = "";
+      for (var j = 0; j < a.deals.length; j++) {
+        var x = a.deals[j];
+        if (x.t !== state.dealType || x.d < state.start || x.d > state.end) continue;
+        cnt++;
+        if (x.d > last) last = x.d;
+      }
+      if (!cnt) continue;
+      var c = coordOf(a.gu, a.dg, a.n);
+      if (!c) continue;
+      dots.push({ key: a.key, n: a.n, dg: a.dg, cnt: cnt, last: last, lat: c.lat, lng: c.lng });
+    }
+
+    dots.forEach(function (d) {
+      /* 점은 지도가 클릭을 받게 두고(interactive:false), 어느 점을 눌렀는지는
+         우리가 가장 가까운 것으로 고른다 — 작은 점은 정확히 눌리지 않는다. */
+      d.m = L.circleMarker([d.lat, d.lng], {
+        renderer: dotRenderer, radius: 3.5, weight: 1,
+        color: "#fff", fillColor: "#7b93b8", fillOpacity: 0.9, interactive: false,
+      }).addTo(dotLayer);
+    });
+    document.getElementById("mapDotNote") &&
+      (document.getElementById("mapDotNote").textContent =
+        dots.length ? "거래 있는 건물 " + dots.length.toLocaleString() + "곳" : "");
+  }
+
+  function nearestDot(e, reach) {
+    var best = null, bestD = reach || 18;
+    for (var i = 0; i < dots.length; i++) {
+      var p = map.latLngToContainerPoint([dots[i].lat, dots[i].lng]);
+      var d = p.distanceTo(e.containerPoint);
+      if (d < bestD) { bestD = d; best = dots[i]; }
+    }
+    return best;
+  }
+
+  function showDotLabel(d) {
+    if (!dotLabel) {
+      dotLabel = document.createElement("div");
+      dotLabel.className = "map-label";
+      map.getContainer().appendChild(dotLabel);
+    }
+    var p = map.latLngToContainerPoint([d.lat, d.lng]);
+    dotLabel.textContent = d.n + " · " + d.cnt + "건";
+    dotLabel.style.display = "block";
+    dotLabel.style.left = Math.round(p.x) + "px";
+    dotLabel.style.top = Math.round(p.y - 14) + "px";
+  }
+
+  function hideDotLabel() { if (dotLabel) dotLabel.style.display = "none"; }
+
+  function hoverDot(e) {
+    if (!HAS_POINTS || !dots.length) return;
+    if (nearestKey(e)) { hideDotLabel(); return; }     // TOP10 원이 가까우면 그쪽이 임자다
+    var d = nearestDot(e);
+    if (d) { showDotLabel(d); map.getContainer().style.cursor = "pointer"; }
+    else { hideDotLabel(); map.getContainer().style.cursor = ""; }
+  }
+
+  /* 빈 자리를 누르면 그 자리에 반경 500m 점선 원을 그리고, 그 안의 건물을
+     가까운 순으로 옆 칸에 모은다. 상권분석의 지도에서 찾기와 같은 방식이다. */
+  var FIND_R = 500;
+
+  function findAround(ll) {
+    if (!dotRing) dotRing = L.layerGroup().addTo(map);
+    dotRing.clearLayers();
+    var box = document.getElementById("aptDetail");
+    if (!box) return;
+
+    if (state.gu === ALL) {
+      box.innerHTML = '<p class="placeholder">위에서 <b>자치구</b>를 고르면 ' +
+        "그 구의 건물이 지도에 점으로 찍히고, 지도를 눌러 둘레를 찾아볼 수 있음.</p>";
+      return;
+    }
+
+    L.circle(ll, { radius: FIND_R, color: "#bc3d3d", weight: 1.5, dashArray: "6 5",
+                   fill: true, fillColor: "#bc3d3d", fillOpacity: 0.05,
+                   interactive: false }).addTo(dotRing);
+    L.circleMarker(ll, { radius: 4, color: "#fff", weight: 2, fillColor: "#bc3d3d",
+                         fillOpacity: 1, interactive: false }).addTo(dotRing);
+
+    var rows = [];
+    dots.forEach(function (d) {
+      var m = Math.round(metres(ll.lat, ll.lng, d.lat, d.lng));
+      if (m <= FIND_R) rows.push({ d: d, m: m });
+    });
+    rows.sort(function (p, q) { return p.m - q.m; });
+
+    if (!rows.length) {
+      box.innerHTML = '<p class="placeholder">이 자리 <b>반경 ' + FIND_R +
+        "m</b> 안에는 고른 기간에 " + TYPE_LABEL[state.dealType] +
+        " 신고가 있는 건물이 없음.<br />조금 옮겨 눌러 볼 것.</p>";
+      return;
+    }
+
+    box.innerHTML =
+      '<span class="zone-tag" style="background:' + TYPE_COLOR[state.dealType] + '">' +
+        TYPE_LABEL[state.dealType] + "</span>" +
+      "<h4>이 자리 반경 " + FIND_R + "m 안 <b>" + rows.length.toLocaleString() + "곳</b></h4>" +
+      '<p class="detail-where">가까운 순 · 건물을 누르면 그 건물의 실거래와 주변 입지가 아래에 열림.</p>' +
+      '<div class="table-wrap deal-scroll" data-rows="8"><table class="detail-deals"><thead><tr>' +
+      "<th>건물</th><th>거리</th><th>건수</th><th>최근</th></tr></thead><tbody>" +
+      rows.map(function (r) {
+        return '<tr class="dot-pick" data-k="' + esc(r.d.key) + '">' +
+          '<td class="dl-name">' + esc(r.d.n) +
+            ' <span class="dim-note">' + esc(r.d.dg) + "</span></td>" +
+          "<td>" + r.m.toLocaleString() + "m</td>" +
+          "<td>" + r.d.cnt + "건</td>" +
+          "<td>" + dateText(r.d.last) + "</td></tr>";
+      }).join("") + "</tbody></table></div>";
+
+    box.querySelectorAll("tr.dot-pick").forEach(function (tr) {
+      tr.addEventListener("click", function () { focusApt(tr.dataset.k); });
+    });
+    if (window.wireScrollBoxes) window.wireScrollBoxes();
   }
 
   var nameIndex = {};          // "구|동|단지" -> 좌표키
@@ -2480,8 +2663,13 @@
       map.setView(bb.getCenter(), Math.min(map.getBoundsZoom(bb), 15), { animate: false });
     };
 
-    document.getElementById("aptDetail").innerHTML =
-      '<p class="placeholder">지도의 원 또는 아래 TOP10 표의 단지명을 클릭하면<br />단지 정보가 여기에 표시됨.</p>';
+    renderDots();            // 거래 있는 건물을 점으로(빌라 대시보드에서만)
+    if (dotRing) dotRing.clearLayers();
+
+    document.getElementById("aptDetail").innerHTML = HAS_POINTS
+      ? '<p class="placeholder">지도의 <b>점</b>을 누르면 그 건물의 실거래와 주변 입지가 열리고,<br />' +
+        "<b>빈 자리</b>를 누르면 반경 500m 안의 건물이 여기 모임.</p>"
+      : '<p class="placeholder">지도의 원 또는 아래 TOP10 표의 단지명을 클릭하면<br />단지 정보가 여기에 표시됨.</p>';
   }
 
   function showDetail(key, focusRank) {
@@ -3045,7 +3233,9 @@
   function nearRadius(a) {
     if (!a) return 1000;
     var got = (window.AROUND || {})[a.gu + "|" + a.dg + "|" + a.n];
-    var r = (got && got._r) || (a.upcoming && a.upcoming.radius) || 1000;
+    // 따로 받아 둔 게 없으면 서울 시설 지도(places)에서 잰다 — 그쪽은 1.6km로 본다
+    var r = (got && got._r) || (a.upcoming && a.upcoming.radius) ||
+            (!got && window.PLACES ? 1600 : 1000);
     return r > 1000 ? r : 1000;
   }
   function kmText(m) {
@@ -3064,15 +3254,32 @@
       });
     });
     // 나머지 — 받아 둔 것
-    var got = (window.AROUND || {})[a.gu + "|" + a.dg + "|" + a.n] || {};
-    Object.keys(got).forEach(function (k) {
-      if (k.charAt(0) === "_") return;          // _r(받은 반경) 같은 표시는 시설이 아니다
-      out[k] = got[k].map(function (x) { return { n: x.n, d: x.d, y: x.y, x: x.x, tag: "" }; });
-    });
+    var got = (window.AROUND || {})[a.gu + "|" + a.dg + "|" + a.n];
+    var borrowed = false;
+    if (got) {
+      Object.keys(got).forEach(function (k) {
+        if (k.charAt(0) === "_") return;        // _r(받은 반경) 같은 표시는 시설이 아니다
+        out[k] = got[k].map(function (x) { return { n: x.n, d: x.d, y: x.y, x: x.x, tag: "" }; });
+      });
+    } else if (window.PLACES && window.PLACES.rows) {
+      /* 이 건물 둘레를 따로 받아 둔 적이 없다(빌라는 5만 7천 곳이라 다 받을 수
+         없다). 대신 아파트 단지들 둘레에서 모아 둔 서울 시설 지도를 이 건물
+         기준으로 다시 잰다 — 시설마다 좌표가 있으니 거리는 정확하다.
+         다만 아파트가 드문 동네는 덜 잡힐 수 있어, 화면에 그 사정을 밝힌다. */
+      var P = window.PLACES;
+      P.rows.forEach(function (r) {
+        var d = Math.round(metres(coord.lat, coord.lng, r[2], r[3]));
+        if (d > R) return;
+        var kind = P.kinds[r[0]];
+        (out[kind] = out[kind] || []).push({ n: r[1], d: d, y: r[2], x: r[3], tag: "" });
+      });
+      borrowed = true;
+    }
     Object.keys(out).forEach(function (k) {
       out[k].sort(function (p, q) { return p.d - q.d; });
       out[k] = out[k].slice(0, R > 1000 ? 8 : 6);   // 넓힌 반경은 조금 더 담는다
     });
+    if (borrowed) out._borrowed = true;        // 어디서 온 목록인지 화면에 밝히려고
     return out;
   }
 
@@ -3086,6 +3293,10 @@
       '<div class="near-head"><h4>주변 입지</h4>' +
         '<span class="near-note">단지에서 <b>500m</b>·<b>1km</b>' +
           (R > 1000 ? "·<b>" + kmText(R) + "</b>" : "") + " 안 · 갈래를 눌러 켜고 끔</span></div>" +
+        (near._borrowed
+          ? '<p class="dim-note">거리는 이 건물에서 잰 값. 시설 목록은 <b>인근 아파트 단지 둘레에서 모아 둔 것</b>을 다시 잰 것이라, ' +
+            "아파트가 드문 동네에서는 일부 빠질 수 있음. 학교는 서울 전역 학군 자료를 그대로 씀.</p>"
+          : "") +
       '<div class="near-chips">' +
         kinds.map(function (x) {
           return '<button type="button" class="near-chip' + (nearOff[x.k] ? "" : " is-on") +

@@ -255,6 +255,12 @@ table.rank-table tr:hover td { background: var(--accent-pale); }
 .vol-trend-note { margin: 6px 0 0; font-size: 12px; line-height: 1.6; color: var(--txt-mute); }
 .vol-trend-note b { color: var(--accent-2); }
 /* 아파트·비아파트는 #volRankBody, 상가·오피스텔은 #volGuBody */
+/* 지도에서 자리를 짚으면 옆 칸에 모이는 건물 줄 — 눌러서 그 건물을 연다 */
+#aptDetail tr.dot-pick { cursor: pointer; }
+#aptDetail tr.dot-pick:hover { background: var(--row-hover, rgba(79, 127, 230, .08)); }
+#aptDetail tr.dot-pick .dl-name { text-decoration: underline dotted; text-underline-offset: 3px; }
+#aptDetail tr.dot-pick:hover .dl-name { color: var(--accent); }
+
 #volRankBody .vol-pick, #volGuBody .vol-pick { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
 #volRankBody .vol-pick:hover, #volGuBody .vol-pick:hover { color: var(--accent); }
 #volRankBody tr.vol-focus td, #volGuBody tr.vol-focus td { background: var(--accent-light); font-weight: 700; }

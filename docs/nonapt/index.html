@@ -15,7 +15,7 @@
   <meta name="apple-mobile-web-app-title" content="금집부쌤" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#1a1f2a" />
-  <link rel="stylesheet" href="../shared/app.css?v=15c2cd2ab8" />
+  <link rel="stylesheet" href="../shared/app.css?v=6ebbc96b12" />
   <!-- 색 테마를 첫 칠 전에 찍는다. brand.js는 본문 맨 아래라, 다크로 맞춰 둔
        폰에서 흰 화면이 한 번 번쩍인 뒤 어두워진다. -->
   <script>
@@ -194,15 +194,17 @@
       <h2><img class="sec-logo-icon" src="../assets/geumjib-logo.png" alt="" onerror="this.style.display='none'"> 실거래 TOP10 위치 지도</h2>
       <button class="sec-print-btn" onclick="printSection('sec-map')">이 섹션 인쇄</button>
     </div>
-    <p class="sec-desc">선택한 지역의 <b>매매 실거래가 TOP10</b> 단지 위치. 아래 표에서 단지명을 클릭하면 지도가 그 단지로 이동.<br />
-      <b>단지 찾아보기</b>에서 찾은 단지는 TOP10에 없어도 <b>붉은 원</b>으로 함께 찍힘.</p>
+    <p class="sec-desc">선택한 지역의 <b>실거래가 TOP10</b> 건물 위치. 아래 표에서 건물명을 클릭하면 지도가 그 건물로 이동.<br />
+      고른 기간에 <b>신고가 있는 건물은 모두 작은 점</b>으로 찍힘 — <b>점을 누르면</b> 그 건물의 실거래와 주변 입지가 열리고,
+      <b>빈 자리를 누르면</b> 그 자리 반경 500m 안의 건물이 오른쪽에 모임. 건물 이름을 몰라도 자리로 찾을 수 있음.</p>
     <div class="map-flex">
       <div class="leaflet-map-wrap">
         <div id="aptMap" class="leaflet-map"></div>
         <div class="map-legend">
-          <span><i style="background:#4f7fe6"></i> 매매 TOP10 단지</span>
-          <span>원의 크기 = 거래금액 순위</span>
-          <span><i style="background:#bc3d3d"></i> 찾아본 단지</span>
+          <span><i style="background:#4f7fe6"></i> 실거래가 TOP10</span>
+          <span><i style="background:#7b93b8"></i> 신고 있는 건물</span>
+          <span><i style="background:#bc3d3d"></i> 찾아본 건물</span>
+          <span id="mapDotNote"></span>
           <span id="mapMissNote"></span>
         </div>
       </div>
@@ -556,7 +558,7 @@
 
 <script src="../vendor/leaflet/leaflet.js"></script>
 <script src="../vendor/chart.umd.min.js"></script>
-<script src="config.js?v=e50cf20582"></script>
+<script src="config.js?v=4692216a7a"></script>
 <script>
   /* 자료는 고른 종류만 받는다. 둘 다 받으면 11.5MB이고 브리핑 중에는 둘 중
      하나만 본다. document.write를 쓰는 까닭은 app.js가 자료가 이미 있다고
@@ -568,10 +570,15 @@
 <script src="../data/schoolgeo.js?v=a12de2fdcc"></script>
 <!-- 주변 시설은 자치구별로 나뉘어 있고, 단지를 열 때 그 구의 파일만 받는다 -->
 <script src="../data/around/index.js?v=3312a4def2"></script>
+<!-- 서울 시설 지도 — 아파트 단지 둘레에서 모은 것을 합친 것. 따로 받아 두지
+     않은 건물(빌라)도 이 자료로 둘레를 잰다(tools/build_places.py) -->
+<script src="../data/places.js?v=af328cdc92"></script>
+<!-- 빌라 좌표는 자치구별로 나뉘어 있고, 그 구를 고를 때만 받는다 -->
+<script src="../data/rhgeo/index.js?v=d8f5f4f7b5"></script>
 <script src="../data/locinfo.js?v=e97bc091b7"></script>
 <script src="../data/newtown.js?v=8ba14b3baf"></script>
 <script src="../shared/brand.js?v=9aee9856fc"></script>
-<script src="../apt/app.js?v=8e90914ac1"></script>
+<script src="../apt/app.js?v=43a61c462b"></script>
 <script src="app.js?v=caf8a064c6"></script>
 </body>
 </html>

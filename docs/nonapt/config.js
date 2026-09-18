@@ -82,6 +82,10 @@
     ? { dataVar: "SH_DATA", finder: false, map: false, dong: false,
         supply: false, areaWord: "연면적", areaFull: "연면적",
         kindWord: "단독·다가구", policy: POLICY_SH }
-    : { dataVar: "RH_DATA", finder: true, map: true, dong: true,
+    /* 빌라는 건물이 한 구에 수천 곳이라 이름으로 묻기 어렵다. 지도에 모두
+       점으로 찍고 자리를 짚어 찾게 한다(pointMap) — 좌표는 지번으로 따로
+       받아 두었다(tools/build_rhgeo.py). 단독·다가구는 지번이 공개되지
+       않아 지도 자체가 없다. */
+    : { dataVar: "RH_DATA", finder: true, map: true, dong: true, pointMap: true,
         supply: false, areaWord: "전용", kindWord: "연립·다세대", policy: POLICY_RH };
 })();
