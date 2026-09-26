@@ -255,6 +255,32 @@ table.rank-table tr:hover td { background: var(--accent-pale); }
 .vol-trend-note { margin: 6px 0 0; font-size: 12px; line-height: 1.6; color: var(--txt-mute); }
 .vol-trend-note b { color: var(--accent-2); }
 /* 아파트·비아파트는 #volRankBody, 상가·오피스텔은 #volGuBody */
+/* ── 평형 고르기 ──────────────────────────────────────────────────────
+   상담에서 고객은 늘 '내가 보는 평형'을 묻는다. 단지 카드에서 평형을 고르면
+   아래 실거래 목록과 그래프가 그 평형만 남는다. */
+.band-pick { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 10px; }
+.band-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 11px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--card); color: var(--txt-dim);
+  font: inherit; font-size: 12.5px; font-weight: 700;
+}
+.band-chip:hover { border-color: var(--accent); color: var(--accent); }
+.band-chip.is-on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.band-chip .band-n { font-size: 11px; font-weight: 800; opacity: .75; }
+.chart-box.apt-band-box { height: 260px; margin-bottom: 6px; }
+
+/* 지도 상세칸 — 겹쳐 있는 단지를 눌러 그 단지 카드로 바로 간다 */
+.detail-open { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
+#aptDetail td.apt-open { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+#aptDetail td.apt-open:hover { color: var(--accent); }
+
+@media print {
+  /* 종이에서는 누를 수 없다. 고른 평형은 제목에 이미 적혀 있다 */
+  .band-pick, .detail-open { display: none !important; }
+  .chart-box.apt-band-box { height: 150px !important; }
+}
+
 /* 기간이 12개월보다 길면 그 앞은 매매만 있다는 표시 — 조건 막대에서 눈에 띄게 */
 .warn-note { color: var(--danger, #bc3d3d); }
 

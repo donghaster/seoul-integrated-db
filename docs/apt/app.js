@@ -153,19 +153,49 @@
   buildAptIndex();
 
   /* 검색 — 이름에 들어가면 잡고, 앞에서 맞을수록 위로 */
+  /* 지도는 한 자리에 겹친 단지를 '우성 · 현대'로 묶어 보여 준다(mapTitle).
+     그 이름을 그대로 찾기 칸에 넣으시는 일이 잦은데, 그런 이름의 단지는 없다 —
+     노원구 하계동 우성과 현대가 그랬다. 가운뎃점으로 갈라 각각을 찾고,
+     '외 3곳' 같은 꼬리는 떼어 낸다. 묶인 단지가 둘 다 목록에 나온다. */
   function searchApt(q, limit) {
-    q = (q || "").replace(/\s+/g, "").toLowerCase();
-    if (q.length < 1) return [];
+    var raw = (q || "").replace(/\s+/g, "").toLowerCase();
+    if (!raw) return [];
+    var parts = raw.split(/[·ㆍ・]/)
+      .map(function (s) { return s.replace(/외\d+곳$/, ""); })
+      .filter(function (s) { return s.length; });
+    if (parts.length < 2) return scanApt(parts[0] || raw, limit);
+
+    var seen = {}, out = [];
+    parts.forEach(function (p) {
+      scanApt(p, limit).forEach(function (a) {
+        if (seen[a.key]) return;
+        seen[a.key] = 1;
+        out.push(a);
+      });
+    });
+    return out.slice(0, limit || 12);
+  }
+
+  function scanApt(q, limit) {
+    if (!q) return [];
     var hit = [];
     for (var i = 0; i < APT_KEYS.length; i++) {
       var a = BY_APT[APT_KEYS[i]];
       var nm = a.n.replace(/\s+/g, "").toLowerCase();
       var at = nm.indexOf(q);
       if (at === -1) continue;
-      hit.push({ a: a, at: at, cnt: a.deals.length });
+      /* 지금 보고 있는 지역을 앞에 세운다.
+
+         '우성'이나 '현대'는 서울에 수십 곳이다. 하계동 지도를 펼쳐 놓고
+         이름을 넣었는데 잠실 우성이 먼저 나오면, 손님 앞에서 엉뚱한 단지를
+         열게 된다. 같은 동 > 같은 구 > 나머지 순으로 둔다. */
+      var scope = (a.gu === state.gu ? 2 : 0) +
+                  (state.dong !== ALL && a.dg === state.dong ? 1 : 0);
+      hit.push({ a: a, at: at, cnt: a.deals.length, scope: scope });
       if (hit.length > 400) break;
     }
     hit.sort(function (x, y) {
+      if (x.scope !== y.scope) return y.scope - x.scope;   // 보고 있는 지역 먼저
       if (x.at !== y.at) return x.at - y.at;          // 앞에서 맞은 것 먼저
       return y.cnt - x.cnt;                            // 그다음 거래 많은 순
     });
@@ -2786,6 +2816,15 @@
 
     var multi = g.names.length > 1;
     var topHits = g.rows.filter(function (x) { return x.top != null; }).length;
+
+    // 이 자리에 있는 단지들 — 이름을 눌러 그 단지 카드로 바로 갈 수 있게 한다
+    var opens = [], seenApt = {};
+    g.rows.forEach(function (x) {
+      var k = x.row.gu + "|" + x.row.dg + "|" + x.row.n;
+      if (seenApt[k] || !BY_APT[k]) return;
+      seenApt[k] = 1;
+      opens.push({ k: k, n: x.row.n });
+    });
     var list = g.rows.map(function (x) {
       // 찾은 단지의 줄은 '이 단지 안 순서'이고, 표에서 누른 순위는 TOP10 순위다
       var on = focusRank != null && (g.mine ? x.top === focusRank : x.rank === focusRank);
@@ -2794,7 +2833,8 @@
           '">' + (x.rank + 1) + "</span>" +
           (x.top != null ? '<span class="top-hit">TOP10 ' + (x.top + 1) + "위</span>" : "") +
           "</td>" +
-        (multi ? '<td class="dl-name">' + esc(x.row.n) + "</td>" : "") +
+        (multi ? '<td class="dl-name apt-open" data-k="' +
+          esc(x.row.gu + "|" + x.row.dg + "|" + x.row.n) + '">' + esc(x.row.n) + "</td>" : "") +
         "<td>" + areaBoth(x.row.a, x.row) + "</td>" +
         "<td>" + (x.row.f ? x.row.f + "층" : "-") + "</td>" +
         '<td class="rt-price">' + priceText(x.row, t) + "</td>" +
@@ -2810,12 +2850,23 @@
       "<h3>" + esc(mapTitle(g)) + "</h3>" +
       '<p class="detail-where">' + esc(first.gu) + " " + esc(first.dg) +
         (first.y ? " · " + first.y + "년 준공" : "") + "</p>" +
+      /* 겹쳐 있는 단지는 이름이 '우성 · 현대'로 묶여 보인다. 그 이름으로는
+         찾기에서 못 찾으니, 여기서 각 단지 카드로 바로 들어가게 둔다. */
+      '<div class="detail-open">' + opens.map(function (o) {
+        return '<button type="button" class="mini-btn apt-open" data-k="' + esc(o.k) + '">' +
+          esc(o.n) + " 자세히 보기</button>";
+      }).join("") + "</div>" +
       '<div class="table-wrap"><table class="detail-deals"><thead><tr>' +
       "<th>순위</th>" + (multi ? "<th>단지</th>" : "") +
       '<th>분양면적<span class="th-sub">㎡ (평) · 아래 전용</span></th><th>층</th><th>' +
       (t === "wolse" ? "보증금/월세" : "거래금액") +
       '</th><th>평당가<span class="th-sub">공급 · 아래 전용</span></th><th>거래일</th>' +
       "</tr></thead><tbody>" + list + "</tbody></table></div>";
+
+    // 이름(단추·표의 단지 칸)을 누르면 그 단지 카드를 연다
+    document.querySelectorAll("#aptDetail .apt-open").forEach(function (el) {
+      el.addEventListener("click", function () { focusApt(el.dataset.k); });
+    });
   }
 
   /* 거래 하나를 가려내는 표. TOP10 목록과 단지 거래 목록이 같은 거래를
@@ -3636,6 +3687,144 @@
     if (c) drawNearby(a, c, nearbyOf(a, c));
   }
 
+  /* ── 평형 고르기 ──
+     상담에서 고객이 묻는 것은 늘 "내가 보는 평형"이다. 단지 전체 거래를
+     한 줄에 섞어 두면 34평을 보러 오신 분이 59평 거래를 같이 읽게 된다.
+     고른 평형만 남겨 실거래 목록과 그래프를 함께 좁힌다. */
+  var aptBand = null;          // null이면 전체 평형
+  var aptBandKey = "";         // 어느 단지의 선택인지(다른 단지를 열면 초기화)
+  var aptBandChart = null;
+
+  function bandPickHtml(sum) {
+    if (!sum.bands.length) return "";
+    var a = sum.apt;
+    return '<h4>평형별로 보기 <span class="dim-note">평형을 고르면 아래 실거래 목록과 그래프가 그 평형만 보여 줌</span></h4>' +
+      '<div class="band-pick" id="aptBandPick">' +
+        '<button type="button" class="band-chip' + (aptBand == null ? " is-on" : "") +
+          '" data-b="">전체<span class="band-n">' + sum.deals.length + "</span></button>" +
+        sum.bands.map(function (g) {
+          return '<button type="button" class="band-chip' + (aptBand === g.b ? " is-on" : "") +
+            '" data-b="' + g.b + '">' +
+            bandLabel(g.b, bandSupplyOf(g.b, a.gu, a.dg, a.n)) +
+            '<span class="band-n">' + g.n + "</span></button>";
+        }).join("") +
+      "</div>" +
+      '<div class="chart-box apt-band-box"><canvas id="aptBandChart"></canvas></div>' +
+      '<p class="dim-note" id="aptBandNote"></p>';
+  }
+
+  /* 고른 평형의 월별 중위 매매가와 거래 건수. 건수를 함께 세우는 까닭은,
+     한 달에 한 건뿐인 값을 시세 흐름으로 읽으면 안 되기 때문이다. */
+  function drawBandChart(sum, view) {
+    var cv = document.getElementById("aptBandChart");
+    var note = document.getElementById("aptBandNote");
+    if (!cv) return;
+    if (aptBandChart) { aptBandChart.destroy(); aptBandChart = null; }
+
+    var keys = monthKeysInWindow();
+    var bag = {};
+    view.forEach(function (x) {
+      if (x.t !== "sale") return;
+      (bag[x.d.slice(0, 7)] = bag[x.d.slice(0, 7)] || []).push(x);
+    });
+    /* 평형을 고르면 '얼마에 팔렸나'가 궁금하니 거래금액(억)을 그린다.
+       전체 평형이면 84㎡와 127㎡가 한 줄에 섞여 금액으로는 아무 말도 못 한다
+       — 그때는 면적을 지운 평당가(만원)로 그린다. */
+    var byPy = aptBand == null;
+    var cnt = keys.map(function (k) { return (bag[k] || []).length; });
+    var med = keys.map(function (k) {
+      var rows = bag[k] || [];
+      if (!rows.length) return null;
+      if (byPy) {
+        var py = median(rows.map(pyOf).filter(Boolean));
+        return py ? Math.round(py) : null;
+      }
+      return +(median(rows.map(function (r) { return r.v; })) / 10000).toFixed(2);
+    });
+    var months = cnt.filter(Boolean).length;
+    var box = cv.parentNode;
+
+    if (!months) {
+      box.style.display = "none";
+      if (note) {
+        note.innerHTML = "고르신 기간에 " +
+          (aptBand == null ? "이 단지" : "이 평형") + " <b>매매 신고가 없음</b>. " +
+          "위 평형별 시세표의 전세·월세나 아래 인근 유사 단지를 볼 것.";
+      }
+      return;
+    }
+    box.style.display = "";
+
+    var vals = med.filter(function (v) { return v != null; });
+    var first = vals[0], last = vals[vals.length - 1];
+    var thin = cnt.filter(function (n) { return n === 1; }).length;
+
+    aptBandChart = new Chart(cv, {
+      type: "bar",
+      data: {
+        labels: keys.map(function (k) { return k.slice(2).replace("-", "."); }),
+        datasets: [
+          { type: "line", label: byPy ? "중위 평당가(전용, 만원)" : "중위 매매가(억)",
+            data: med, yAxisID: "y1", order: 0,
+            borderColor: "#bc3d3d", backgroundColor: "#bc3d3d", borderWidth: 2.5,
+            pointRadius: cnt.map(function (n) { return n ? (n === 1 ? 5 : 3.5) : 0; }),
+            pointStyle: cnt.map(function (n) { return n === 1 ? "triangle" : "circle"; }),
+            spanGaps: true, tension: 0.25 },
+          { label: "거래 건수", data: cnt, yAxisID: "y", order: 1,
+            backgroundColor: "#4f7fe655", borderWidth: 0 },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        events: window.chartEvents ? window.chartEvents() : undefined,
+        animation: { duration: 400 },
+        plugins: {
+          legend: { labels: { boxWidth: 12, font: { size: 11 } } },
+          title: {
+            display: true,
+            text: sum.apt.n + " · " +
+              (aptBand == null ? "전체 평형" : bandLabel(aptBand, bandSupplyOf(aptBand, sum.apt.gu, sum.apt.dg, sum.apt.n))) +
+              " 월별 중위 " + (byPy ? "평당가(전용)" : "매매가"),
+            font: { size: 13, weight: "bold" },
+          },
+          tooltip: {
+            callbacks: {
+              afterBody: function (items) {
+                var i = items[0].dataIndex;
+                if (!cnt[i]) return "";
+                var rows = bag[keys[i]] || [];
+                var py = median(rows.map(pyOf).filter(Boolean));
+                return "거래 " + cnt[i] + "건" + (py ? " · 전용 평당 " + pyNum(py) + "만원" : "") +
+                  (cnt[i] === 1 ? "\n한 건뿐이라 시세로 읽으면 안 됨" : "");
+              },
+            },
+          },
+        },
+        scales: {
+          y: { beginAtZero: true, position: "left", title: { display: true, text: "건" },
+               grid: { display: false } },
+          y1: { position: "right", title: { display: true, text: byPy ? "만원" : "억원" },
+                grid: { color: "rgba(140,150,170,.15)" } },
+        },
+      },
+    });
+
+    if (note) {
+      var fromTo = byPy
+        ? pyNum(first) + "만원 → " + pyNum(last) + "만원"
+        : eokman(Math.round(first * 10000)) + " → " + eokman(Math.round(last * 10000));
+      note.innerHTML =
+        "신고가 있는 달 <b>" + months + "개월</b> · 중위 " + (byPy ? "평당가 " : "매매가 ") + fromTo +
+        (first ? " (<b>" + (last >= first ? "+" : "") +
+          Math.round((last - first) / first * 100) + "%</b>)" : "") +
+        (thin ? " · △ 표시는 그 달 거래가 <b>한 건뿐</b>이라 시세로 읽으면 안 되는 달(" + thin + "개월)" : "") +
+        (byPy
+          ? " · 전체 평형은 평형이 섞여 금액으로 견줄 수 없어 <b>전용 평당가</b>로 그림. " +
+            "평형을 고르면 실제 <b>거래금액</b>으로 바뀜."
+          : " · 값은 <b>중위 거래금액</b> — 같은 평형이라 그대로 견줄 수 있음.");
+    }
+  }
+
   function showApt(key) {
     var ua = BY_APT[key];
     if (ua && ua.upcoming && !ua.deals.length) { showUpcoming(key, ua); return; }
@@ -3671,6 +3860,18 @@
     var c = coordOf(a.gu, a.dg, a.n);
     var special = specialKind(sum);
 
+    // 다른 단지를 열면 평형 선택은 풀고, 그 단지에 없는 평형이면 전체로 되돌린다
+    if (aptBandKey !== key) { aptBandKey = key; aptBand = null; }
+    if (aptBand != null && !sum.bands.some(function (g) { return g.b === aptBand; })) aptBand = null;
+
+    var view = aptBand == null ? sum.deals : sum.deals.filter(function (x) {
+      return x.a && areaBand(x.a) === aptBand;
+    });
+    var vCnt = { sale: 0, jeonse: 0, wolse: 0 };
+    view.forEach(function (x) { vCnt[x.t]++; });
+    var bandTag = aptBand == null ? ""
+      : " · " + bandLabel(aptBand, bandSupplyOf(aptBand, a.gu, a.dg, a.n));
+
     host.innerHTML =
       '<div class="apt-card">' +
         '<div class="apt-head">' +
@@ -3694,11 +3895,14 @@
           '<th>전세</th><th>중위 보증금</th><th>전세가율</th><th>월세</th><th>보증금 / 월세</th>' +
         "</tr></thead><tbody>" + bandRowsHtml(sum) + "</tbody></table></div>" +
 
-        dealHead("매매 실거래", sum.deals, "sale") + dealListHtml(sum.deals, "sale") +
-        (sum.cnt.jeonse ? dealHead("전세 실거래", sum.deals, "jeonse") : "<h4>전세 실거래</h4>") +
-        (sum.cnt.jeonse ? dealListHtml(sum.deals, "jeonse") : jeonseGuessHtml(sum, mainBand)) +
-        (sum.cnt.wolse
-          ? dealHead("월세 실거래", sum.deals, "wolse") + dealListHtml(sum.deals, "wolse")
+        bandPickHtml(sum) +
+
+        dealHead("매매 실거래" + bandTag, view, "sale") + dealListHtml(view, "sale") +
+        (vCnt.jeonse ? dealHead("전세 실거래" + bandTag, view, "jeonse")
+                     : "<h4>전세 실거래" + bandTag + "</h4>") +
+        (vCnt.jeonse ? dealListHtml(view, "jeonse") : jeonseGuessHtml(sum, mainBand)) +
+        (vCnt.wolse
+          ? dealHead("월세 실거래" + bandTag, view, "wolse") + dealListHtml(view, "wolse")
           : "") +
 
         (special ? '<p class="thin-note"><span>' + special.why + "</span></p>" : "") +
@@ -3728,6 +3932,15 @@
         focusOnMap(a.gu, a.dg, a.n);
       });
     }
+
+    // 평형 단추 — 고르면 카드를 그 평형으로 다시 그린다(목록·그래프가 함께 따라온다)
+    document.querySelectorAll("#aptBandPick .band-chip").forEach(function (b) {
+      b.addEventListener("click", function () {
+        aptBand = b.dataset.b === "" ? null : +b.dataset.b;
+        showApt(key);
+      });
+    });
+    drawBandChart(sum, view);
     // 10줄만 보이게 접고 넘치면 펼치기 단추를 붙인다
     if (window.wireScrollBoxes) window.wireScrollBoxes();
   }
@@ -5755,6 +5968,8 @@
     renderDeal();
     renderPy();
     renderRise();
+    // 단지 카드(평형별 그래프 포함)도 줄어든 칸에 맞춰 다시 그린다
+    if (openAptKey && BY_APT[openAptKey]) showApt(openAptKey);
     buildRisePrintAll();
     moveCaveatsToBack();
     pairMaps();
@@ -5777,6 +5992,7 @@
     // 다시 숨긴 뒤 화면 쪽 크기로 한 번 더 그린다
     renderCompare();
     renderIndex();
+    if (openAptKey && BY_APT[openAptKey]) showApt(openAptKey);   // 단지 카드·평형 그래프
   });
 
   /* 주소에 조건이 담겨 있으면 그 화면으로 연다. 순서가 있다 —

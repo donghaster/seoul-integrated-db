@@ -15,7 +15,7 @@
   <meta name="apple-mobile-web-app-title" content="금집부쌤" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#1a1f2a" />
-  <link rel="stylesheet" href="../shared/app.css?v=1555e86d27" />
+  <link rel="stylesheet" href="../shared/app.css?v=acc244a202" />
   <!-- 색 테마를 첫 칠 전에 찍는다. brand.js는 본문 맨 아래라, 다크로 맞춰 둔
        폰에서 흰 화면이 한 번 번쩍인 뒤 어두워진다. -->
   <script>
@@ -558,27 +558,27 @@
 
 <script src="../vendor/leaflet/leaflet.js"></script>
 <script src="../vendor/chart.umd.min.js"></script>
-<script src="config.js?v=ddd47669b5"></script>
+<script src="config.js?v=4692216a7a"></script>
 <script>
   /* 자료는 고른 종류만 받는다. 둘 다 받으면 11.5MB이고 브리핑 중에는 둘 중
      하나만 본다. document.write를 쓰는 까닭은 app.js가 자료가 이미 있다고
      보고 바로 그리기 때문이다 — 순서를 지키려면 이 자리에서 끼워 넣어야 한다. */
   document.write('<scr' + 'ipt src="../data/' + window.DASH_KIND + '.js"></scr' + 'ipt>');
 </script>
-<script src="../data/geo.js?v=acf9d14759"></script>
+<script src="../data/geo.js?v=2a986db8b8"></script>
 <!-- 입지분석: 지하철·학교·공원·상권·인구(locinfo) + 개발 호재는 뉴타운 자료를 재사용 -->
 <script src="../data/schoolgeo.js?v=a12de2fdcc"></script>
 <!-- 주변 시설은 자치구별로 나뉘어 있고, 단지를 열 때 그 구의 파일만 받는다 -->
-<script src="../data/around/index.js?v=03c61f761d"></script>
+<script src="../data/around/index.js?v=3312a4def2"></script>
 <!-- 서울 시설 지도 — 아파트 단지 둘레에서 모은 것을 합친 것. 따로 받아 두지
      않은 건물(빌라)도 이 자료로 둘레를 잰다(tools/build_places.py) -->
 <script src="../data/places.js?v=af328cdc92"></script>
 <!-- 빌라 좌표는 자치구별로 나뉘어 있고, 그 구를 고를 때만 받는다 -->
 <script src="../data/rhgeo/index.js?v=d8f5f4f7b5"></script>
-<script src="../data/locinfo.js?v=17a8221995"></script>
+<script src="../data/locinfo.js?v=e97bc091b7"></script>
 <script src="../data/newtown.js?v=8ba14b3baf"></script>
 <script src="../shared/brand.js?v=9aee9856fc"></script>
-<script src="../apt/app.js?v=067f3dd7c4"></script>
+<script src="../apt/app.js?v=7cb85dd0ac"></script>
 <script src="app.js?v=caf8a064c6"></script>
 </body>
 </html>
