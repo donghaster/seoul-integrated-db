@@ -571,13 +571,37 @@
 
     /* 점수순으로 내려가며 담는다. 다 채우기 전에 걸러 낸 곳만 이름을 남긴다 —
        어차피 화면에 못 올라올 스무 곳까지 적으면 그게 더 시끄럽다. */
-    var n = want || 4, res = [], dropped = [];
-    for (var j = 0; j < out.length && res.length < n; j++) {
+    var n = want || 4, res = [], dropped = [], kept = [];
+    for (var j = 0; j < out.length; j++) {
       var c = out[j];
       var off = anchor && c.py && (c.py < anchor * 0.4 || c.py > anchor * 2.5);
       if (off) { dropped.push(c.apt.n); continue; }
-      res.push(c);
+      kept.push(c);
+      if (res.length < n) res.push(c);
     }
+
+    /* 이 평형의 '대장 단지'는 거리에 밀려도 반드시 보여 준다.
+
+       점수가 거리 위주라, 기간을 길게 잡아 후보가 늘면 값이 가장 높은 단지가
+       뒤로 밀린다. 반포 래미안 트리니원 84㎡를 36개월로 보면 556m의 원펜타스가
+       1.1km의 래미안원베일리를 밀어냈는데, 원베일리는 그 평형에서 값이 가장
+       높아 상담의 기준이 되는 단지다. 아래 TOP30에는 1위로 올라 있는데
+       비교표에만 없으면 "왜 빠졌지" 하게 된다. 가장 비싼 곳과 가장 싼 곳을
+       한 자리씩 남겨 붙인다 — 값의 위아래를 함께 봐야 지금 단지가 어디쯤인지
+       말할 수 있다. */
+    function pin(pick, flag) {
+      if (!pick || res.indexOf(pick) >= 0) return;
+      pick[flag] = true;
+      res.push(pick);
+    }
+    var priced = kept.filter(function (x) { return x.py; });
+    if (priced.length > 1) {
+      var hi = priced.reduce(function (a2, b2) { return b2.py > a2.py ? b2 : a2; });
+      var lo = priced.reduce(function (a2, b2) { return b2.py < a2.py ? b2 : a2; });
+      pin(hi, "topPy");
+      pin(lo, "lowPy");
+    }
+
     res.dropped = dropped;
     return res;
   }
@@ -3308,6 +3332,8 @@
         return '<tr' + (x.mine ? ' class="rank-mine"' : "") + ">" +
           '<td class="dl-name">' + esc(x.apt.n) +
             (x.mine ? ' <span class="mine-tag">이 단지</span>' : "") +
+            (x.topPy ? ' <span class="cmp-tag hi">이 평형 최고가</span>' : "") +
+            (x.lowPy ? ' <span class="cmp-tag lo">최저가</span>' : "") +
             (x.apt.dg !== me.dg ? ' <span class="dim-note">' + esc(x.apt.dg) + "</span>" : "") + "</td>" +
           "<td>" + (x.mine ? "-" : (x.dist == null ? "-" : (x.dist < 1000 ? x.dist + "m" : (x.dist / 1000).toFixed(1) + "km"))) + "</td>" +
           "<td>" + (x.apt.y ? x.apt.y + "년" : "-") + "</td>" +
@@ -3320,6 +3346,8 @@
           '<td class="rt-sub">' + lastCell(x) + "</td>" +
           "</tr>";
       }).join("") + "</tbody></table></div>" +
+      '<p class="dim-note" style="margin-top:6px">가까운 순으로 담되, 이 평형에서 <b>값이 가장 높은 곳과 낮은 곳</b>은 ' +
+        "거리에 밀려도 함께 세움 — 지금 단지가 그 사이 어디쯤인지 보이게 하려는 것.</p>" +
       // 뺐으면 뺐다고 적는다. 조용히 지우면 "왜 옆 단지가 안 나오지"가 된다
       (sim.dropped && sim.dropped.length
         ? '<p class="dim-note" style="margin-top:6px">같은 평형대지만 값이 크게 동떨어져 뺀 곳: ' +
