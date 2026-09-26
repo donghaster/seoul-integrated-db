@@ -148,6 +148,52 @@
       BY_APT[k] = { key: k, gu: u.gu, dg: u.dong, n: u.name, y: 0, deals: [], upcoming: u };
       APT_KEYS.push(k);
     });
+
+    /* 한 단지처럼 불리는 곳은 하나로 묶어 둔다(docs/data/alias.js).
+
+       하계동 현대·우성은 평형을 나눠 함께 지은 한 단지다. 따로 열면 34평은
+       현대에, 50평은 우성에 있어 손님께 한쪽만 보여 드리게 된다. 묶음 단지를
+       만들어 두면 평형별 분석도 인근 비교도 한자리에서 된다.
+
+       묶음은 '가짜 단지'다. 순위·지도·인근 비교 후보에 끼면 같은 거래를 두 번
+       세게 되므로, parts를 달아 두고 그런 자리에서는 건너뛴다. */
+    (window.APT_ALIAS || []).forEach(function (g) {
+      var parts = (g.keys || []).filter(function (p) { return BY_APT[p] && !BY_APT[p].parts; });
+      if (parts.length < 2) return;
+      var first = BY_APT[parts[0]];
+      var nm = g.name || parts.map(function (p) { return BY_APT[p].n; }).join("·");
+      var mk = first.gu + "|" + first.dg + "|" + nm;
+      if (BY_APT[mk] && !BY_APT[mk].parts) return;     // 같은 이름의 진짜 단지가 있으면 그대로 둔다
+
+      var deals = [], year = 0;
+      parts.forEach(function (p) {
+        deals = deals.concat(BY_APT[p].deals);
+        if (BY_APT[p].y > year) year = BY_APT[p].y;
+      });
+      deals.sort(function (x1, x2) { return x1.d < x2.d ? -1 : (x1.d > x2.d ? 1 : 0); });
+
+      if (!BY_APT[mk]) APT_KEYS.push(mk);
+      BY_APT[mk] = { key: mk, gu: first.gu, dg: first.dg, n: nm, y: year,
+                     deals: deals, parts: parts, alias: g };
+      g._merged = mk;
+
+      // 좌표·분양면적은 묶음 이름으로는 없다 — 속한 단지 것을 옮겨 놓는다
+      if (!GEO[mk]) {
+        for (var ci = 0; ci < parts.length && !GEO[mk]; ci++) {
+          if (GEO[parts[ci]]) GEO[mk] = GEO[parts[ci]];
+        }
+      }
+      var sup = window.APT_SUPPLY;
+      if (sup && !sup[mk]) {
+        var tbl = {};
+        parts.forEach(function (p) {
+          var t = sup[p];
+          if (t) for (var a2 in t) tbl[a2] = t[a2];
+        });
+        if (Object.keys(tbl).length) sup[mk] = tbl;
+      }
+    });
+
     APT_KEYS.sort();
   }
   buildAptIndex();
@@ -172,15 +218,31 @@
   /* 카드에 "이 단지는 옆 단지와 함께 이렇게 불린다"를 적고, 서로 오가게 둔다.
      손님은 '현우'로 알고 오시는데 화면에는 '우성'만 있으면 같은 곳인지 모른다. */
   function aliasLineHtml(key) {
-    var g = aliasOf(key);
+    var a = BY_APT[key];
+    if (!a) return "";
+    var g = a.parts ? a.alias : aliasOf(key);
     if (!g) return "";
-    var others = (g.keys || []).filter(function (k) { return k !== key && BY_APT[k]; });
-    if (!others.length) return "";
-    return '<p class="alias-note">' + esc(g.note || "") + " · 함께 보기: " +
-      others.map(function (k) {
-        return '<button type="button" class="mini-btn apt-open" data-k="' + esc(k) + '">' +
-          esc(BY_APT[k].n) + "</button>";
-      }).join(" ") + "</p>";
+    var btn = function (k, label) {
+      return '<button type="button" class="mini-btn apt-open" data-k="' + esc(k) + '">' +
+        esc(label) + "</button>";
+    };
+
+    // 묶음 단지를 보는 중이면 한쪽만 따로 보는 길을 열어 둔다
+    if (a.parts) {
+      return '<p class="alias-note"><b>묶어 본 단지</b> · ' + esc(g.note || "") +
+        " · 따로 보기: " +
+        a.parts.map(function (k) { return btn(k, BY_APT[k].n); }).join(" ") + "</p>";
+    }
+
+    var links = [];
+    if (g._merged && BY_APT[g._merged]) {
+      links.push(btn(g._merged, BY_APT[g._merged].n + " 묶어 보기"));
+    }
+    (g.keys || []).forEach(function (k) {
+      if (k !== key && BY_APT[k]) links.push(btn(k, BY_APT[k].n));
+    });
+    if (!links.length) return "";
+    return '<p class="alias-note">' + esc(g.note || "") + " · " + links.join(" ") + "</p>";
   }
 
   function aliasHits(raw) {
@@ -188,6 +250,8 @@
     (window.APT_ALIAS || []).forEach(function (g) {
       var hit = (g.q || []).some(function (s) { return aliasNorm(s).indexOf(raw) === 0; });
       if (!hit) return;
+      // 묶음 단지를 맨 앞에 — 손님이 '현우'라고 하시면 묶어 보는 쪽이 먼저다
+      if (g._merged && BY_APT[g._merged]) out.push(BY_APT[g._merged]);
       (g.keys || []).forEach(function (k) { if (BY_APT[k]) out.push(BY_APT[k]); });
     });
     return out;
@@ -450,6 +514,10 @@
       if (k === key) continue;
       var o = BY_APT[k];
       if (o.gu !== me.gu) continue;                    // 같은 자치구 안에서만
+      // 묶음 단지(가짜)와, 지금 열어 둔 묶음에 속한 단지는 후보에서 뺀다 —
+      // 같은 거래를 이웃으로 다시 보여 주는 셈이 된다
+      if (o.parts) continue;
+      if (me.parts && me.parts.indexOf(k) >= 0) continue;
 
       // 같은 평형대 거래가 있어야 비교가 된다 (±2㎡)
       var sameBand = o.deals.filter(function (x) {
@@ -2961,6 +3029,7 @@
       var k = APT_KEYS[i];
       if (k === key) continue;
       var o = BY_APT[k];
+      if (o.parts) continue;                           // 묶음 단지는 표기 분리가 아니다
       if (o.gu !== me.gu || o.dg !== me.dg) continue;
       var on = strip(o.n);
       if (on.indexOf(mine) !== 0 && mine.indexOf(on) !== 0) continue;
@@ -3005,8 +3074,10 @@
     var drop = document.getElementById("aptDrop");
     if (!input) return;
 
+    // 묶음 단지는 실제로 신고된 단지가 아니므로 개수에서 뺀다
+    var realCount = APT_KEYS.filter(function (k) { return !BY_APT[k].parts; }).length;
     document.getElementById("aptCountNote").textContent =
-      "서울 " + APT_KEYS.length.toLocaleString() + "개 단지 · 자료 " +
+      "서울 " + realCount.toLocaleString() + "개 단지 · 자료 " +
       DATA_START.replace(/-/g, ".") + " ~ " + DATA_END.replace(/-/g, ".");
 
     var hits = [], cursor = -1;
@@ -3457,9 +3528,22 @@
      서울 전역을 1km에서 1.6km로 옮겨 받는 중이라 단지마다 다를 수 있다.
      원만 넓히고 자료는 1km이면 1~1.6km 사이가 텅 비어 "그 사이엔 아무것도
      없다"로 읽힌다. 자료가 아직 안 왔으면 분양 예정 단지의 반경을 쓴다. */
+  /* 묶음 단지는 그 이름으로 받아 둔 시설이 없다 — 속한 단지 것을 쓴다.
+     같은 자리에 붙어 있어 둘레도 같다. */
+  function aroundOf(a) {
+    var all = window.AROUND || {};
+    var got = all[a.gu + "|" + a.dg + "|" + a.n];
+    if (got) return got;
+    var parts = a.parts || [];
+    for (var i = 0; i < parts.length; i++) {
+      if (all[parts[i]]) return all[parts[i]];
+    }
+    return null;
+  }
+
   function nearRadius(a) {
     if (!a) return 1000;
-    var got = (window.AROUND || {})[a.gu + "|" + a.dg + "|" + a.n];
+    var got = aroundOf(a);
     // 따로 받아 둔 게 없으면 서울 시설 지도(places)에서 잰다 — 그쪽은 1.6km로 본다
     var r = (got && got._r) || (a.upcoming && a.upcoming.radius) ||
             (!got && window.PLACES ? 1600 : 1000);
@@ -3481,7 +3565,7 @@
       });
     });
     // 나머지 — 받아 둔 것
-    var got = (window.AROUND || {})[a.gu + "|" + a.dg + "|" + a.n];
+    var got = aroundOf(a);
     var borrowed = false;
     if (got) {
       Object.keys(got).forEach(function (k) {
