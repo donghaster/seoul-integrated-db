@@ -157,15 +157,63 @@
      그 이름을 그대로 찾기 칸에 넣으시는 일이 잦은데, 그런 이름의 단지는 없다 —
      노원구 하계동 우성과 현대가 그랬다. 가운뎃점으로 갈라 각각을 찾고,
      '외 3곳' 같은 꼬리는 떼어 낸다. 묶인 단지가 둘 다 목록에 나온다. */
+  /* 한 단지처럼 불리는데 신고는 따로 오는 곳(하계동 현대·우성 = 현우).
+     별칭은 손으로 적어 둔다(docs/data/alias.js). */
+  function aliasNorm(s) { return String(s || "").replace(/[\s·ㆍ・,]/g, "").toLowerCase(); }
+
+  function aliasOf(key) {
+    var list = window.APT_ALIAS || [];
+    for (var i = 0; i < list.length; i++) {
+      if ((list[i].keys || []).indexOf(key) >= 0) return list[i];
+    }
+    return null;
+  }
+
+  /* 카드에 "이 단지는 옆 단지와 함께 이렇게 불린다"를 적고, 서로 오가게 둔다.
+     손님은 '현우'로 알고 오시는데 화면에는 '우성'만 있으면 같은 곳인지 모른다. */
+  function aliasLineHtml(key) {
+    var g = aliasOf(key);
+    if (!g) return "";
+    var others = (g.keys || []).filter(function (k) { return k !== key && BY_APT[k]; });
+    if (!others.length) return "";
+    return '<p class="alias-note">' + esc(g.note || "") + " · 함께 보기: " +
+      others.map(function (k) {
+        return '<button type="button" class="mini-btn apt-open" data-k="' + esc(k) + '">' +
+          esc(BY_APT[k].n) + "</button>";
+      }).join(" ") + "</p>";
+  }
+
+  function aliasHits(raw) {
+    var out = [];
+    (window.APT_ALIAS || []).forEach(function (g) {
+      var hit = (g.q || []).some(function (s) { return aliasNorm(s).indexOf(raw) === 0; });
+      if (!hit) return;
+      (g.keys || []).forEach(function (k) { if (BY_APT[k]) out.push(BY_APT[k]); });
+    });
+    return out;
+  }
+
   function searchApt(q, limit) {
     var raw = (q || "").replace(/\s+/g, "").toLowerCase();
     if (!raw) return [];
+
+    // 별칭으로 부르신 것이면 그 단지들을 맨 앞에 세운다
+    var seenAlias = {}, aliased = [];
+    aliasHits(aliasNorm(raw)).forEach(function (a) {
+      if (seenAlias[a.key]) return;
+      seenAlias[a.key] = 1;
+      aliased.push(a);
+    });
     var parts = raw.split(/[·ㆍ・]/)
       .map(function (s) { return s.replace(/외\d+곳$/, ""); })
       .filter(function (s) { return s.length; });
-    if (parts.length < 2) return scanApt(parts[0] || raw, limit);
+    if (parts.length < 2) {
+      return aliased.concat(scanApt(parts[0] || raw, limit).filter(function (a) {
+        return !seenAlias[a.key];
+      })).slice(0, limit || 12);
+    }
 
-    var seen = {}, out = [];
+    var seen = seenAlias, out = aliased.slice();
     parts.forEach(function (p) {
       scanApt(p, limit).forEach(function (a) {
         if (seen[a.key]) return;
@@ -3917,6 +3965,7 @@
             (a.y ? " · " + a.y + "년 준공" : "") +
             " · 신고 " + (sum.cnt.sale + sum.cnt.jeonse + sum.cnt.wolse).toLocaleString() + "건" +
             (sum.last ? " · 최근 " + dateText(sum.last) : "") + "</p>" +
+          aliasLineHtml(key) +
           (scopeMoved === a.gu
             ? '<p class="scope-moved">상단 고정 자치구를 <b>' + esc(a.gu) +
               "</b>로 맞췄음 — 아래 위치 지도·가격 지수·월별 브리핑·TOP30·입지분석도 모두 " +
@@ -3972,6 +4021,11 @@
         focusOnMap(a.gu, a.dg, a.n);
       });
     }
+
+    // 함께 불리는 단지 — 눌러서 그쪽 카드로 건너간다
+    document.querySelectorAll("#aptResult .apt-open").forEach(function (b) {
+      b.addEventListener("click", function () { focusApt(b.dataset.k); });
+    });
 
     // 평형 단추 — 고르면 카드를 그 평형으로 다시 그린다(목록·그래프가 함께 따라온다)
     document.querySelectorAll("#aptBandPick .band-chip").forEach(function (b) {

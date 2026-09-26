@@ -270,6 +270,12 @@ table.rank-table tr:hover td { background: var(--accent-pale); }
 .band-chip .band-n { font-size: 11px; font-weight: 800; opacity: .75; }
 .chart-box.apt-band-box { height: 260px; margin-bottom: 6px; }
 
+/* 한 단지처럼 불리는 이웃 단지 안내 — 카드 머리에 한 줄 */
+.alias-note {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  margin: 8px 0 0; font-size: 12px; color: var(--txt-mute);
+}
+
 /* 인근 유사 단지 — 이 단지보다 비싸면 붉게, 싸면 푸르게 */
 .cmp-diff.up { color: var(--up); }
 .cmp-diff.down { color: var(--down); }

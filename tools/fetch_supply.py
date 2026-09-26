@@ -78,6 +78,8 @@ SPREAD_MAX = 0.05            # 같은 전용면적인데 호별 공급면적이 
 # 15·16)는 차이가 이보다 훨씬 커서 가운데 80%로도 그대로 걸린다.
 AREA_TOL = 0.06              # 대시보드가 평형을 맞출 때 쓰는 폭과 같게 둔다
 RATIO_LO, RATIO_HI = 0.42, 0.86   # 이 범위를 벗어난 전용률은 대장 등재가 부실한 것
+# 큰 평형은 공용면적이 세대 크기만큼 커지지 않아 전용률이 더 높다(계단식 50평형 86~88%)
+BIG_DWELL, RATIO_HI_BIG = 110.0, 0.88
 # 아래쪽을 0.60에서 0.42로 내렸다. 서초이오빌 54%, 풍림아이원플러스 47%처럼
 # 도시형생활주택·오피스텔형으로 지어 실거래에는 아파트로 잡히는 단지가 있다.
 # 그쪽 전용률은 원래 그렇게 낮고, 대장 값이 실제 공급면적이 맞다. 이걸 버리면
@@ -454,10 +456,16 @@ def believable(ex, sup):
 
     작은 면적은 상가·창고 호실이다. 주용도로도 거르지만, 예전에 받아 둔
     자료에는 그 정보가 없으므로 면적으로 한 번 더 막는다.
+
+    윗한도는 평형에 따라 조금 늘린다. 계단·복도·승강기 면적은 세대가 크다고
+    비례해서 커지지 않아, 큰 평형일수록 전용률이 올라간다. 노원구 하계동
+    우성 50평형(전용 127.22 / 공급 146.81 = 86.7%)이 0.86에 걸려 빠졌는데,
+    네이버 부동산의 단지 면적표에도 146㎡로 올라 있는 실제 평형이다.
     """
     if ex < MIN_DWELL or sup <= 0:
         return False
-    return RATIO_LO <= ex / sup <= RATIO_HI
+    hi = RATIO_HI if ex < BIG_DWELL else RATIO_HI_BIG
+    return RATIO_LO <= ex / sup <= hi
 
 
 def tidy(area_lists):
@@ -687,6 +695,27 @@ HEADER = """// 단지별 전용면적 -> 공급(분양)면적. tools/fetch_suppl
 """
 
 
+def previous_table() -> dict:
+    """이미 구워 둔 supply.js를 읽는다 — 받아 둔 캐시가 비어도 지워지지 않게.
+
+    CI는 .cache를 액션 캐시에서 되살려 쓰는데, 그게 비워진 날에는 캐시에 있는
+    것만으로 파일을 새로 구워 통째로 줄어든다. 실제로 2026-09-26 자동 갱신이
+    3,785곳짜리 파일을 924곳(서초·강남)으로 덮었고, 나머지 구의 분양면적이
+    하루아침에 어림값(*)으로 돌아갔다. 옛 값을 바탕으로 깔면 그런 일이 없다.
+    캐시에 있는 단지는 아래에서 새 값으로 덮으므로 갱신도 그대로 된다.
+    """
+    if not os.path.exists(OUT):
+        return {}
+    rows = {}
+    text = open(OUT, encoding="utf-8").read()
+    for m in re.finditer(r'^\s*"([^"]+)":\s*(\{[^}]*\}),?\s*$', text, re.M):
+        try:
+            rows[m.group(1)] = json.loads(m.group(2))
+        except ValueError:
+            continue
+    return rows
+
+
 def write(store):
     """supply.js를 굽는다.
 
@@ -699,7 +728,7 @@ def write(store):
     때문이다. 하루 1만 번짜리 한도를 다시 쓸 일이 없다.
     """
     hand = json.load(open(HAND, encoding="utf-8")) if os.path.exists(HAND) else {}
-    out, notes = {}, {}
+    out, notes = previous_table(), {}          # 이미 구워 둔 값을 바탕으로 깐다
     cut = 0
     for k, v in store.items():
         if v.get("skip") or not v.get("area"):
@@ -708,6 +737,8 @@ def write(store):
         cut += len(v["area"]) - len(good)
         if good:
             out[k] = good
+        else:
+            out.pop(k, None)                   # 받아 둔 게 다 걸러졌으면 옛 값도 버린다
     for k, v in hand.items():                        # 손으로 확인한 값이 언제나 이긴다
         out[k] = dict(v.get("area") or v)
         if v.get("_note"):
