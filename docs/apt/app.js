@@ -3157,11 +3157,35 @@
       return '<p class="placeholder">같은 자치구 2km 안에 비교할 만한 단지를 찾지 못함.</p>';
     }
     var me = BY_APT[key];
-    return '<div class="table-wrap"><table class="detail-deals"><thead><tr>' +
+    var mineRow = meRow(key, band);
+    var myPy = mineRow.py || 0;
+
+    /* 상담에서 가장 자주 나오는 물음이 "여기가 옆 단지보다 싼가"다.
+       전용 평당가를 이 단지와 견준 퍼센트로 적어 둔다 — 같은 평형대라도
+       면적이 조금씩 달라, 금액만 나란히 두면 한눈에 안 들어온다. */
+    function diffCell(x) {
+      if (x.mine) return '<span class="dim-note">기준</span>';
+      if (!myPy || !x.py) return "-";
+      var p = Math.round((x.py - myPy) / myPy * 100);
+      if (!p) return "0%";
+      return '<b class="cmp-diff ' + (p > 0 ? "up" : "down") + '">' +
+        (p > 0 ? "+" : "") + p + "%</b>";
+    }
+
+    /* 마지막 거래가 언제였는지. 2년 전 거래로 "옆 단지는 얼마"라고 말하면
+       안 되므로, 견주기 전에 이 값을 먼저 보게 둔다. */
+    function lastCell(x) {
+      var d = x.rows.reduce(function (m, r) { return r.d > m ? r.d : m; }, "");
+      return d ? dateText(d) : "-";
+    }
+
+    return '<div class="table-wrap"><table class="detail-deals cmp-table"><thead><tr>' +
       "<th>단지</th><th>거리</th><th>준공</th><th>매매</th><th>중위 매매가</th>" +
       '<th>평당가<span class="th-sub">공급 · 아래 전용</span></th>' +
-      "<th>전세</th><th>중위 보증금</th></tr></thead><tbody>" +
-      [meRow(key, band)].concat(sim).map(function (x) {
+      '<th>차이<span class="th-sub">전용 평당가 · 이 단지 대비</span></th>' +
+      "<th>전세</th><th>중위 보증금</th>" +
+      '<th>최근 거래<span class="th-sub">이 평형</span></th></tr></thead><tbody>' +
+      [mineRow].concat(sim).map(function (x) {
         return '<tr' + (x.mine ? ' class="rank-mine"' : "") + ">" +
           '<td class="dl-name">' + esc(x.apt.n) +
             (x.mine ? ' <span class="mine-tag">이 단지</span>' : "") +
@@ -3171,8 +3195,10 @@
           "<td>" + (x.saleN || "-") + "</td>" +
           "<td>" + (x.medSale ? eokman(x.medSale) : "-") + "</td>" +
           "<td>" + pyBothBand(x.py, band, x.apt.gu, x.apt.dg, x.apt.n) + "</td>" +
+          "<td>" + diffCell(x) + "</td>" +
           "<td>" + x.rows.filter(function (r) { return r.t === "jeonse"; }).length + "</td>" +
           "<td>" + (x.medJeonse ? eokman(x.medJeonse) : "-") + "</td>" +
+          '<td class="rt-sub">' + lastCell(x) + "</td>" +
           "</tr>";
       }).join("") + "</tbody></table></div>" +
       // 뺐으면 뺐다고 적는다. 조용히 지우면 "왜 옆 단지가 안 나오지"가 된다
@@ -3183,7 +3209,9 @@
   }
 
   /* 금집부쌤이 고객께 바로 읽어 드릴 문장 */
-  function aptScript(sum, mainBand) {
+  /* picked — 위 '평형별로 보기'에서 손님이 고른 평형인가. 고른 평형이면
+     "가장 거래가 많은"이라고 말하면 안 된다(그 평형이 아닐 수 있다). */
+  function aptScript(sum, mainBand, picked) {
     var a = sum.apt, out = [];
     function bs(b) { return bandSupplyOf(b, a.gu, a.dg, a.n); }
     var total = sum.cnt.sale + sum.cnt.jeonse + sum.cnt.wolse;
@@ -3210,7 +3238,7 @@
 
     var g = mainBand;
     if (g.sale.length >= APT_MIN) {
-      out.push("가장 거래가 많은 <b>" + bandLabel(g.b, bs(g.b)) + "</b>" + josa(bandLabel(g.b, bs(g.b)), "은", "는") +
+      out.push((picked ? "고르신 <b>" : "가장 거래가 많은 <b>") + bandLabel(g.b, bs(g.b)) + "</b>" + josa(bandLabel(g.b, bs(g.b)), "은", "는") +
         " 매매 " + g.sale.length + "건, " +
         "<b>중위 " + eokman(g.medSale) + "</b>(평당 " +
         Math.round(g.py * (g.b / bs(g.b))).toLocaleString() +
@@ -3872,6 +3900,14 @@
     var bandTag = aptBand == null ? ""
       : " · " + bandLabel(aptBand, bandSupplyOf(aptBand, a.gu, a.dg, a.n));
 
+    /* 인근 비교도 고른 평형을 따라간다. 34평을 보러 오신 분에게 59평 기준
+       인근 시세를 보여 드리면 아무 쓸모가 없다. 고르지 않았으면 대표 평형. */
+    var cmpBand = aptBand != null ? aptBand : (refBand ? refBand.b : null);
+    // 브리핑 문장도 같은 평형으로 말해야 표와 어긋나지 않는다
+    var cmpGroup = aptBand != null
+      ? (sum.bands.filter(function (g) { return g.b === aptBand; })[0] || mainBand)
+      : mainBand;
+
     host.innerHTML =
       '<div class="apt-card">' +
         '<div class="apt-head">' +
@@ -3907,15 +3943,19 @@
 
         (special ? '<p class="thin-note"><span>' + special.why + "</span></p>" : "") +
 
-        (refBand ? "<h4>인근 유사 단지 <span class=\"dim-note\">" +
-          bandLabel(refBand.b, bandSupplyOf(refBand.b, a.gu, a.dg, a.n)) +
+        (cmpBand != null ? "<h4>인근 유사 단지 <span class=\"dim-note\">" +
+          bandLabel(cmpBand, bandSupplyOf(cmpBand, a.gu, a.dg, a.n)) +
           " 기준 · 같은 자치구 2km 이내" +
-          (refBand.fallback ? " · 고르신 기간에 이 단지 거래가 없어 가장 많이 거래된 평형으로 찾음" : "") +
-          "</span></h4>" + similarHtml(key, refBand.b) : "") +
+          (aptBand != null
+            ? " · <b>위에서 고르신 평형</b>으로 견줌"
+            : (refBand && refBand.fallback
+               ? " · 고르신 기간에 이 단지 거래가 없어 가장 많이 거래된 평형으로 찾음"
+               : " · 이 단지에서 가장 많이 거래된 평형. 위 <b>평형별로 보기</b>에서 평형을 고르면 그 평형으로 바뀜")) +
+          "</span></h4>" + similarHtml(key, cmpBand) : "") +
 
         '<div class="read-guide" style="margin-top:18px;">' +
           "<h4>금집부쌤이 보는 " + esc(a.n) + "</h4><ol>" +
-          aptScript(sum, mainBand).map(function (t) { return "<li>" + t + "</li>"; }).join("") +
+          aptScript(sum, cmpGroup, aptBand != null).map(function (t) { return "<li>" + t + "</li>"; }).join("") +
           "</ol></div>" +
 
         (c ? '<p class="dim-note">지도에서 보기: <button type="button" class="mini-btn" id="aptGoMap">' +

@@ -270,6 +270,10 @@ table.rank-table tr:hover td { background: var(--accent-pale); }
 .band-chip .band-n { font-size: 11px; font-weight: 800; opacity: .75; }
 .chart-box.apt-band-box { height: 260px; margin-bottom: 6px; }
 
+/* 인근 유사 단지 — 이 단지보다 비싸면 붉게, 싸면 푸르게 */
+.cmp-diff.up { color: var(--up); }
+.cmp-diff.down { color: var(--down); }
+
 /* 지도 상세칸 — 겹쳐 있는 단지를 눌러 그 단지 카드로 바로 간다 */
 .detail-open { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
 #aptDetail td.apt-open { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
@@ -279,6 +283,10 @@ table.rank-table tr:hover td { background: var(--accent-pale); }
   /* 종이에서는 누를 수 없다. 고른 평형은 제목에 이미 적혀 있다 */
   .band-pick, .detail-open { display: none !important; }
   .chart-box.apt-band-box { height: 150px !important; }
+  /* 인근 비교표는 열이 열 개라 A4 폭이 빠듯하다 — 이 표만 더 좁게 */
+  .cmp-table { font-size: 9.5px; }
+  .cmp-table th, .cmp-table td { padding: 3px 4px !important; }
+  .cmp-table .th-sub { display: none; }
 }
 
 /* 기간이 12개월보다 길면 그 앞은 매매만 있다는 표시 — 조건 막대에서 눈에 띄게 */
